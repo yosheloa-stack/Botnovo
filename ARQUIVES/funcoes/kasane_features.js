@@ -915,32 +915,30 @@ async function getIAHandler(text, sender, isOwner = false, isCreator = false, pu
     if (typeof responseBody === 'string' && /<!doctype|<html|just a moment|cloudflare|cf-challenge/i.test(responseBody)) {
       return { texto: '🃏 O caos me distraiu... tente de novo.', deveSerAudio: true };
     }
-    let fullResponse = '', thinkingFallback = '';
+    // Extrai SOMENTE a resposta final (flux-text-start + flux-text).
+    // Ignora raciocinio (flux-thinking*), pesquisa e sugestoes (flux-suggestions*) e qualquer outro tipo.
+    const extrairResposta = (str) => {
+      let out = '';
+      for (const line of String(str).split('\n').map(l => l.trim()).filter(l => l.startsWith('{'))) {
+        try {
+          const ev = JSON.parse(line);
+          if ((ev.type === 'flux-text' || ev.type === 'flux-text-start') && typeof ev.result === 'string') out += ev.result;
+        } catch (e) {}
+      }
+      return out;
+    };
     const responseStr = typeof responseBody === 'string' ? responseBody : JSON.stringify(responseBody);
-    const lines = responseStr.split('\n').map(l => l.trim()).filter(l => l.startsWith('{'));
-    for (const line of lines) {
-      try {
-        const ev = JSON.parse(line);
-        if (ev.type === 'flux-text' && ev.result) fullResponse += ev.result;
-        else if ((ev.type === 'flux-thinking' || ev.type === 'flux-thinking-start') && ev.result) thinkingFallback += ev.result;
-      } catch (e) {}
-    }
-    if (!fullResponse && typeof responseBody === 'object' && responseBody?.result) fullResponse = responseBody.result;
+    let fullResponse = extrairResposta(responseStr);
+    if (!fullResponse && typeof responseBody === 'object' && typeof responseBody?.result === 'string') fullResponse = responseBody.result;
     const textoReal = fullResponse.replace(/[\u{1F300}-\u{1FFFF}\u{2600}-\u{27BF}]/gu, '').trim();
     if (!fullResponse.trim() || textoReal.length < 5) {
       try {
         const retryUrl = `https://fluxdevservice.com/api/ia/flux-chat?key=${fluxKey}&prompt=${encodeURIComponent(promptFinal + contexto + '\n\nMensagem do usuario: ' + text)}&chat_id=${Math.random().toString(36).slice(2, 8)}&model=flux-thinking-search`;
         const retryRes = await axios.get(retryUrl, { headers, timeout: 90000, responseType: 'text', validateStatus: () => true });
-        const retryStr = typeof retryRes.data === 'string' ? retryRes.data : JSON.stringify(retryRes.data);
-        let retryFull = '', retryThink = '';
-        for (const line of retryStr.split('\n').map(l => l.trim()).filter(l => l.startsWith('{'))) {
-          try { const e = JSON.parse(line); if (e.type === 'flux-text' && e.result) retryFull += e.result; else if ((e.type === 'flux-thinking' || e.type === 'flux-thinking-start') && e.result) retryThink += e.result; } catch (_) {}
-        }
+        const retryFull = extrairResposta(typeof retryRes.data === 'string' ? retryRes.data : JSON.stringify(retryRes.data));
         if (retryFull.trim()) fullResponse = retryFull;
-        else if (retryThink.trim()) thinkingFallback = retryThink;
       } catch (_) {}
     }
-    if (!fullResponse.trim() && thinkingFallback.trim().length > 5) fullResponse = thinkingFallback.trim();
     const resposta = fullResponse.trim() || '🃏 O caos me distraiu... tente de novo.';
     return { texto: resposta, deveSerAudio: true };
   } catch (e) {
