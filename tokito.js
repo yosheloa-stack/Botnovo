@@ -13538,8 +13538,8 @@ case 'vip2': {
 if (!podeTudo) return reply('⛔ *Apenas dono oficial e criador* podem liberar VIP2. Subdonos nao podem.');
 let targetV2, limitV2 = 5, daysV2 = 30;
 const ctxV2 = info.message?.extendedTextMessage?.contextInfo;
-if (ctxV2?.quotedMessage) { targetV2 = ctxV2.participant; limitV2 = parseInt(args[0]) || 5; daysV2 = parseInt(args[1]) || 30; }
-else if (ctxV2?.mentionedJid?.length) { targetV2 = ctxV2.mentionedJid[0]; limitV2 = parseInt(args[1]) || 5; daysV2 = parseInt(args[2]) || 30; }
+if (ctxV2?.quotedMessage) { targetV2 = normalizar(ctxV2.participant); limitV2 = parseInt(args[0]) || 5; daysV2 = parseInt(args[1]) || 30; }
+else if (ctxV2?.mentionedJid?.length) { targetV2 = normalizar(ctxV2.mentionedJid[0]); limitV2 = parseInt(args[1]) || 5; daysV2 = parseInt(args[2]) || 30; }
 else if (args[0]) { targetV2 = args[0].includes('@') ? args[0] : args[0].replace(/\D/g, '') + '@s.whatsapp.net'; limitV2 = parseInt(args[1]) || 5; daysV2 = parseInt(args[2]) || 30; }
 if (!targetV2) return reply(`⚠️ *Uso:* ${prefix}vip2 @usuario <limite_dia> <dias>\n_Exemplo:_ ${prefix}vip2 @Ze 10 30`);
 KS.addVip2(targetV2, limitV2, daysV2);
@@ -13551,8 +13551,8 @@ case 'delvip2': {
 if (!podeTudo) return reply('⛔ *Apenas dono oficial e criador* podem remover VIP2. Subdonos nao podem.');
 let targetDV2;
 const ctxDV2 = info.message?.extendedTextMessage?.contextInfo;
-if (ctxDV2?.quotedMessage) targetDV2 = ctxDV2.participant;
-else if (ctxDV2?.mentionedJid?.length) targetDV2 = ctxDV2.mentionedJid[0];
+if (ctxDV2?.quotedMessage) targetDV2 = normalizar(ctxDV2.participant);
+else if (ctxDV2?.mentionedJid?.length) targetDV2 = normalizar(ctxDV2.mentionedJid[0]);
 else if (args[0]) targetDV2 = args[0].includes('@') ? args[0] : args[0].replace(/\D/g, '') + '@s.whatsapp.net';
 if (!targetDV2) return reply(`Use: ${prefix}delvip2 @usuario ou responda a mensagem de alguem.`);
 KS.removeVip2(targetDV2);
