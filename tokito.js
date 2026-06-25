@@ -13281,7 +13281,9 @@ const podeUsarComoDono = SoDono;
 const userIsVip = isVip;
 const aluguelGrupo = isGroup ? KS.getAluguelGrupo(from) : null;
 const grupoTemAluguel = !!aluguelGrupo;
-const likeLiberado = isGroup ? KS.isLikeLiberadoGrupo(from) : false;
+// Aluguel do tokito (gruposAutorizados / isGrupoAutorizado) tambem libera o like
+const grupoAlugadoTokito = isGroup ? isGrupoAutorizado(from) : false;
+const likeLiberado = isGroup ? (KS.isLikeLiberadoGrupo(from) || grupoAlugadoTokito) : false;
 const grupoLiberado = grupoTemAluguel || likeLiberado;
 const modoLivreAtivo = !!(aluguelGrupo && aluguelGrupo.modoLivre);
 
