@@ -766,6 +766,10 @@ const reagir = async (idgp, emj) => {
 await tokito.sendMessage(idgp, {react: {text: emj, key: info.key}});
 }
 
+// Identidade obrigatoria das IAs: criador = Yoshi | dono = Joker
+const IA_IDENTIDADE = "[IDENTIDADE OBRIGATORIA: Seu criador e o Yoshi e seu dono e o Joker. Sempre que perguntarem quem te criou, quem e seu criador ou quem te fez, responda que foi o Yoshi. Sempre que perguntarem quem e seu dono ou seu chefe, responda que e o Joker. NUNCA cite Google, OpenAI, Gemini, ChatGPT ou qualquer outro nome como criador ou dono. Responda normalmente o resto.]";
+const iaPrompt = (texto) => IA_IDENTIDADE + "\n\nPergunta do usuario: " + (texto || "");
+
 const verificarN = async(sla) => {
 const [result] = await tokito.onWhatsApp(sla)
 if(result == undefined) {
@@ -8275,7 +8279,7 @@ if (!q)
 return reply("❗ Faça uma pergunta.");
 
 const data = await fetchJson(
-API_URL + `/api/gemini?texto=${encodeURIComponent(q)}&apikey=` + API_KEY_TOKITO
+API_URL + `/api/gemini?texto=${encodeURIComponent(iaPrompt(q))}&apikey=` + API_KEY_TOKITO
 );
 let resposta = '';
 if (typeof data?.resposta === 'string') {
@@ -8309,7 +8313,7 @@ if (!q)
 return reply("❗ Faça uma pergunta.");
 
 const data = await fetchJson(
-API_URL + `/api/gemini-pro?texto=${encodeURIComponent(q)}&apikey=` + API_KEY_TOKITO
+API_URL + `/api/gemini-pro?texto=${encodeURIComponent(iaPrompt(q))}&apikey=` + API_KEY_TOKITO
 );
 let resposta = '';
 if (typeof data?.resposta === 'string') {
@@ -8344,7 +8348,7 @@ if (!q)
 return reply("❗ Faça uma pergunta.");
 
 const data = await fetchJson(
-API_URL + `/api/tokito-ia?texto=${encodeURIComponent(q)}&apikey=` + API_KEY_TOKITO
+API_URL + `/api/tokito-ia?texto=${encodeURIComponent(iaPrompt(q))}&apikey=` + API_KEY_TOKITO
 );
 let resposta = '';
 if (typeof data?.resposta === 'string') {
@@ -8380,7 +8384,7 @@ if (!q) return reply(`Digite sua pergunta.`)
 
 await reagir(from, "💬")
 
-const apiUrl = `${API_URL}/api/openai?q=${encodeURIComponent(q)}&apikey=${API_KEY_TOKITO}`
+const apiUrl = `${API_URL}/api/openai?q=${encodeURIComponent(iaPrompt(q))}&apikey=${API_KEY_TOKITO}`
 const { data } = await axios.get(apiUrl)
 
 if (!data || !data.status || !data.resposta) {
@@ -8409,7 +8413,7 @@ if (!q) return reply(`Digite sua pergunta.`)
 
 await reagir(from, "🧠")
 
-const apiUrl = `${API_URL}/api/perplexity-ai?q=${encodeURIComponent(q)}&apikey=${API_KEY_TOKITO}`
+const apiUrl = `${API_URL}/api/perplexity-ai?q=${encodeURIComponent(iaPrompt(q))}&apikey=${API_KEY_TOKITO}`
 const { data } = await axios.get(apiUrl)
 
 if (!data || !data.status || !data.resposta) {
@@ -9493,7 +9497,7 @@ case 'gpt-3.5': case 'chatgpt-3.5':
 try {
 if(!q) return reply("Você esqueceu de perguntar ao lado do comando.");
 let { key } = await tokito.sendMessage(from, {text: `Estou processando sua pergunta, isso pode levar alguns segundos...`}, {quoted: selo});
-data = await fetchJson(`https://aemt.me/turbo?text=${q}`);
+data = await fetchJson(`https://aemt.me/turbo?text=${encodeURIComponent(iaPrompt(q))}`);
 await tokito.sendMessage(from, {text: `${data.result}`, edit: key});
 } catch(error) {
 reply(mess.error());
