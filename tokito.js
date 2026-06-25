@@ -13708,19 +13708,23 @@ return;
 }
 
 const _globalKS = KS.readJson(KS.PATHS.settingsFile) || { ia_active: true };
-const _ctxKS = info.message?.extendedTextMessage?.contextInfo;
-const _mencaoBot = (_ctxKS?.mentionedJid || []).some(j => j === botNumber || j === botNumberLID) || _ctxKS?.participant === botNumber;
-const _isNamed = budy2.includes('aurora') || (NomeDoBot && budy2.includes(String(NomeDoBot).toLowerCase())) || budy2.includes('bot');
+const _iaLigada = _globalKS.ia_active !== false && (!isGroup || isTokitoIA); // em grupo respeita o toggle auroraia
+// Detecta mencao/citacao ao bot (marcou @bot ou respondeu uma msg do bot)
+const _ehMencaoBot = (ctx) => !!ctx && (((ctx.mentionedJid || []).some(j => j === botNumber || j === botNumberLID)) || ctx.participant === botNumber || ctx.participant === botNumberLID);
+const _ctxTxt = info.message?.extendedTextMessage?.contextInfo;
+// Citou o nome dela (aurora) ou o nome do bot
+const _citouNome = budy2.includes('aurora') || (NomeDoBot && budy2.includes(String(NomeDoBot).toLowerCase()));
+const _mencaoBot = _ehMencaoBot(_ctxTxt) || _citouNome;
 
-// 2) IA AURORA por AUDIO — transcreve e, se citar a Aurora, responde em voz
+// 2) IA AURORA por AUDIO — SO quando o audio for resposta/mencao ao bot (nao em todo audio)
 const _audioMsgKS = info.message?.audioMessage || info.message?.viewOnceMessageV2Extension?.message?.audioMessage;
-if (_globalKS.ia_active !== false && _audioMsgKS && !info.key.fromMe && isTokitoIA) {
+if (_iaLigada && _audioMsgKS && !info.key.fromMe && _ehMencaoBot(_audioMsgKS.contextInfo)) {
 await reagir(from, '👂');
 const stream = await downloadContentFromMessage(_audioMsgKS, 'audio');
 let buffer = Buffer.from([]);
 for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
 const textoAudio = await KS.transcreverAudio(buffer, upload);
-if (textoAudio && /aurora/i.test(textoAudio)) {
+if (textoAudio) {
 const iaResult = await KS.getIAHandler(textoAudio, sender, DonoOficial, isCriador, pushname);
 const audioBuffer = await KS.gerarVozAurora(iaResult.texto);
 if (audioBuffer) await tokito.sendMessage(from, { audio: audioBuffer, mimetype: 'audio/ogg; codecs=opus', ptt: true }, { quoted: info }).catch(() => tokito.sendMessage(from, { text: iaResult.texto }, { quoted: info }));
@@ -13729,15 +13733,13 @@ return;
 }
 }
 
-// 3) IA AURORA por TEXTO — responde em voz quando mencionada/chamada
-if (_globalKS.ia_active !== false && !isCmd && !info.key.fromMe && body && body.length > 2 && type !== 'audioMessage') {
-if (!isGroup || isTokitoIA || _isNamed || _mencaoBot) {
+// 3) IA AURORA por TEXTO — SO responde quando mencionarem a Aurora/o bot (ou @/responder o bot)
+if (_iaLigada && !isCmd && !info.key.fromMe && body && body.length > 2 && type !== 'audioMessage' && _mencaoBot) {
 const iaResult = await KS.getIAHandler(body, sender, DonoOficial, isCriador, pushname);
 const audioBuffer = await KS.gerarVozAurora(iaResult.texto);
 if (audioBuffer) await tokito.sendMessage(from, { audio: audioBuffer, mimetype: 'audio/ogg; codecs=opus', ptt: true }, { quoted: info }).catch(() => tokito.sendMessage(from, { text: iaResult.texto }, { quoted: info }));
 else await tokito.sendMessage(from, { text: iaResult.texto }, { quoted: info });
 return;
-}
 }
 
 } catch (eKS) { console.log('[KASANE IA] erro:', eKS.message); }
