@@ -391,6 +391,35 @@ const getAutoLikeV2ByUid = (uid) => {
   else { reg.diasRestantes = Math.ceil((reg.expiresAt - now) / 86400000); reg.ativo = true; }
   return reg;
 };
+const addAutoLikeV2 = (uid, nick, dias) => {
+  const data = readJson(PATHS.autoLikeV2File) || { registrations: [] };
+  const now = Date.now();
+  data.registrations = data.registrations.filter(r => r.uid !== uid);
+  data.registrations.push({ uid, nick: nick || 'Desconhecido', addedAt: now, expiresAt: now + (dias * 86400000), dias, diasUsados: 0, diasRestantes: dias, likesEntreguesTotal: 0, likesEnviadosHoje: 0, lastDelivery: 0, ativo: true });
+  saveJson(PATHS.autoLikeV2File, data);
+  return true;
+};
+const removeAutoLikeV2 = (uid) => {
+  const data = readJson(PATHS.autoLikeV2File) || { registrations: [] };
+  data.registrations = data.registrations.filter(r => r.uid !== uid);
+  saveJson(PATHS.autoLikeV2File, data);
+  return true;
+};
+const listAutoLikeV2 = () => (readJson(PATHS.autoLikeV2File) || { registrations: [] }).registrations;
+const updateAutoLikeV2Progress = (uid, likesSent) => {
+  const data = readJson(PATHS.autoLikeV2File) || { registrations: [] };
+  const reg = data.registrations.find(r => r.uid === uid);
+  if (reg) {
+    const nowBR = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const todayDate = nowBR.toLocaleDateString();
+    const lastDate = reg.lastDelivery ? new Date(new Date(reg.lastDelivery).toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' })).toLocaleDateString() : null;
+    if (lastDate !== todayDate) reg.likesEnviadosHoje = likesSent;
+    else reg.likesEnviadosHoje = (reg.likesEnviadosHoje || 0) + likesSent;
+    reg.lastDelivery = Date.now();
+    reg.likesEntreguesTotal = (reg.likesEntreguesTotal || 0) + likesSent;
+    saveJson(PATHS.autoLikeV2File, data);
+  }
+};
 
 // ============================================================
 // CHAVE HUBS DINAMICA + REQUESTS DE LIKE
@@ -444,6 +473,21 @@ const requestFrifas = async (endpoint, params = {}) => {
   } catch (e) {
     return { sucesso: false, statuscode: e.response?.status || 0, mensagem: e.message || 'Erro na requisicao da Hubs Dev.', enviadas: 0, isAlreadyLiked: false };
   }
+};
+
+const getNickFromPublicApi = async (uid) => {
+  try {
+    const profile = await axios.get(`https://freefireinfo-zy9l.onrender.com/api/v1/player-profile?uid=${uid}&server=BR`, { timeout: 10000 });
+    return profile.data?.basicInfo?.nickname || null;
+  } catch { return null; }
+};
+const getMitsuriInfo = async (uid) => {
+  try {
+    const res = await axios.get(S1_API.baseUrl, { params: { uid, phone: '5511999999999', system: S1_API.system }, headers: { 'x-user-uid': S1_API.key }, timeout: 15000 });
+    const d = res.data;
+    if (!d || d.error) return null;
+    return { basicinfo: { nickname: d.nickname || null, liked: d.likes_before !== undefined ? d.likes_before : (d.likes_after || null), accountid: d.accountid || uid, banner_url: d.banner_url || null }, _raw: d };
+  } catch { return null; }
 };
 
 const requestS1 = async (uid, phone) => {
@@ -561,6 +605,32 @@ const layoutLikeLimpo = (uid, finalNick, region, level, totalAdd, tempo, idsUsad
   msg += '- *⏱️ | TEMPO*: `' + tempo + 's`\n';
   msg += '- *👤 | SOLICITADO POR*: ' + menc + '\n';
   msg += '\n*📦 | CONTRATO*\n•  `🆔 | IDs USADOS → ' + contadorStr + '`\n•  `📊 | ' + barra + '`';
+  return msg;
+};
+const layoutInfoLimpo = (uid, nome, nivel, regiao, likes, bio, extra = {}, sender = null, pushname = null) => {
+  const senderNumber = sender ? sender.split('@')[0] : null;
+  const menc = pushname ? '@' + pushname : (senderNumber ? '@' + senderNumber : '');
+  let msg = '*🔍 | INFO PLAYER*\n\n';
+  msg += '- *🏷️ | NICK*: `' + nome + '`\n';
+  msg += '- *🆔 | UID*: `' + uid + '`\n';
+  msg += '- *⭐ | NIVEL*: `' + nivel + '`\n';
+  msg += '- *🌍 | REGIAO*: `' + regiao + '`\n';
+  msg += '- *👍 | LIKES*: `' + likes + '`\n';
+  if (extra.clanname) msg += '- *🛡️ | GUILDA*: `' + extra.clanname + '`\n';
+  if (extra.clanlevel) msg += '- *🏅 | NIVEL DA GUILDA*: `' + extra.clanlevel + '`\n';
+  if (extra.clanmembers) msg += '- *👥 | MEMBROS DA GUILDA*: `' + extra.clanmembers + '`\n';
+  if (extra.rank) msg += '- *🏆 | RANK BR*: `' + extra.rank + '`\n';
+  if (extra.rankpoints) msg += '- *🎯 | PONTOS BR*: `' + extra.rankpoints + '`\n';
+  if (extra.csrank) msg += '- *🏆 | RANK CS*: `' + extra.csrank + '`\n';
+  if (extra.csrankpoints) msg += '- *🎯 | PONTOS CS*: `' + extra.csrankpoints + '`\n';
+  if (extra.liked) msg += '- *❤️ | CURTIDAS*: `' + extra.liked + '`\n';
+  if (extra.badgecnt) msg += '- *🎖️ | EMBLEMAS*: `' + extra.badgecnt + '`\n';
+  if (extra.exp) msg += '- *✨ | EXP*: `' + extra.exp + '`\n';
+  if (extra.gender) msg += '- *👤 | GENERO*: `' + extra.gender + '`\n';
+  if (extra.lastlogin) msg += '- *🕐 | ULTIMO LOGIN*: `' + extra.lastlogin + '`\n';
+  if (extra.createat) msg += '- *📅 | CONTA CRIADA*: `' + extra.createat + '`\n';
+  msg += '- *📝 | BIO*: `' + bio + '`';
+  if (menc) msg += '\n- *👤 | SOLICITADO POR*: ' + menc;
   return msg;
 };
 const layoutErro429 = (mensagemOriginal) => {
@@ -871,6 +941,45 @@ const transcreverAudio = async (buffer, uploadFn) => {
   }
 };
 
+// ============================================================
+// SCHEDULER AUTO-LIKE V2 (320 likes/dia, 09:00 BRT)
+// ============================================================
+const processAutoLikeV2 = async () => {
+  const dataV2 = readJson(PATHS.autoLikeV2File) || { registrations: [] };
+  const now = Date.now();
+  // limpa expirados
+  const before = dataV2.registrations.length;
+  dataV2.registrations = dataV2.registrations.filter(reg => now <= reg.expiresAt);
+  if (dataV2.registrations.length !== before) saveJson(PATHS.autoLikeV2File, dataV2);
+  // so envia as 09:00 (horario de Brasilia)
+  const nowBR = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+  if (nowBR.getHours() !== 9) return;
+  const todayDate = nowBR.toLocaleDateString();
+  for (const reg of dataV2.registrations) {
+    const lastDate = reg.lastDelivery ? new Date(new Date(reg.lastDelivery).toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' })).toLocaleDateString() : null;
+    if (reg.ativo && lastDate !== todayDate) {
+      console.log('[AUTO-LIKE V2] Enviando 320 likes para: ' + reg.uid);
+      try {
+        let total = 0, jaRecebeu = false;
+        const r1 = await sendLikesDualApi(reg.uid, 'autolike_v2', 320, true);
+        total += r1.totalLikesSent || 0;
+        if (r1.api1.isAlreadyLiked || r1.api2.isAlreadyLiked || r1.api3.isAlreadyLiked) jaRecebeu = true;
+        if (total < 300 && !jaRecebeu) { await sleep(5000); const r2 = await sendLikesDualApi(reg.uid, 'autolike_v2', 320, true); total += r2.totalLikesSent || 0; }
+        if (total > 0) updateAutoLikeV2Progress(reg.uid, total);
+        else if (jaRecebeu) updateAutoLikeV2Progress(reg.uid, 0);
+      } catch (e) { console.log('[AUTO-LIKE V2] erro para ' + reg.uid + ': ' + e.message); }
+    }
+  }
+};
+let _autoLikeTimer = null;
+const startAutoLikeScheduler = () => {
+  if (_autoLikeTimer) return _autoLikeTimer;
+  processAutoLikeV2().catch(() => {});
+  _autoLikeTimer = setInterval(() => processAutoLikeV2().catch(() => {}), 5 * 60 * 1000);
+  console.log('[AUTO-LIKE V2] Scheduler iniciado (verifica a cada 5 min, envia as 09:00 BRT).');
+  return _autoLikeTimer;
+};
+
 module.exports = {
   // keys / apis
   API_KEY_BRONXYS, API_BASE, API_KEY_TOKITO, API_URL_TOKITO, FRIFAS_OPEN_ID,
@@ -885,11 +994,14 @@ module.exports = {
   // like limits
   checkLikeLimit, checkIdUsadoHoje, registerLikeUse,
   // autolike
-  addAutoLikeLocal, removeAutoLikeLocal, listAutoLikeLocal, getAutoLikeV2ByUid,
+  addAutoLikeLocal, removeAutoLikeLocal, listAutoLikeLocal,
+  getAutoLikeV2ByUid, addAutoLikeV2, removeAutoLikeV2, listAutoLikeV2, updateAutoLikeV2Progress,
+  processAutoLikeV2, startAutoLikeScheduler,
   // like apis
   requestFrifas, requestS1, sendLikesDualApi, sendLikesEmergency, fetchJsonBronxys,
+  getNickFromPublicApi, getMitsuriInfo,
   // layouts
-  layoutLikeOriginal, layoutLikeLimpo, layoutErro429,
+  layoutLikeOriginal, layoutLikeLimpo, layoutInfoLimpo, layoutErro429,
   // vip2
   getVip2, addVip2, removeVip2, listVip2, checkVip2Limit, consumeVip2, getVip2Usage,
   // consultas

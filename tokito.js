@@ -35,6 +35,7 @@ const { v4: uuidv4 } = require('uuid')
 // ====== Funcoes migradas do kasane (IA/Audio/Like/ElitePass/VIP2/Consultas) ======
 const KS = require('./ARQUIVES/funcoes/kasane_features.js');
 try { KS.initDatabase(); } catch (e) { console.log('[KASANE] initDatabase:', e.message); }
+try { KS.startAutoLikeScheduler(); } catch (e) { console.log('[KASANE] scheduler:', e.message); }
 
 const palavras = JSON.parse(fs.readFileSync('./DADOS_TOKITO/data/media/forca/palavras.json'));
 
@@ -13391,6 +13392,117 @@ const regs = KS.listAutoLikeLocal();
 if (regs.length === 0) return reply('📭 Nenhuma conta registrada localmente.');
 let msg = '📋 *LISTA AUTO-LIKE ORIGINAL*\n\n';
 regs.forEach((r, i) => msg += (i + 1) + '. 👤 *' + r.nick + '* (' + r.uid + ') - ' + r.diasRestantes + ' dias\n');
+reply(msg);
+}
+break;
+
+// ---- INFO / INFOPLAYER (dados da conta FF) ----
+case 'info':
+case 'infoplayer': {
+await reagir(from, '🔍');
+if (!args[0]) return reply('Exemplo: ' + prefix + command + ' 12345678');
+const uid = args[0];
+const aluguelGrupoI = isGroup ? KS.getAluguelGrupo(from) : null;
+const grupoLiberadoI = isGroup ? (!!aluguelGrupoI || KS.isLikeLiberadoGrupo(from) || isGrupoAutorizado(from)) : false;
+if (isGroup && !SoDono && !grupoLiberadoI) return reply('⛔ *ACESSO NEGADO*\n\nEste grupo nao possui plano ativo nem o like/info liberado.');
+reply('Aguarde, consultando informacoes...');
+try {
+const [infoData, skinData] = await Promise.all([
+KS.requestFrifas('info-player', { id: uid }),
+KS.requestFrifas('get-skin', { id: uid })
+]);
+const infoRawData = Array.isArray(infoData.data) ? infoData.data : (infoData.data ? [infoData.data] : []);
+const infoOk = infoData && infoData.sucesso && infoRawData.length > 0 && infoRawData[0];
+const skinOk = skinData && skinData.sucesso && skinData.data;
+if (infoOk || skinOk) {
+const conta = infoOk ? (infoRawData[0].conta || {}) : {};
+const skinConta = skinOk ? ((Array.isArray(skinData.data) ? skinData.data[0] : skinData.data)?.conta || {}) : {};
+const profileImage = skinConta.images?.download_get || null;
+const nome = conta.nome_conta || 'Desconhecido';
+const nivel = conta.level !== undefined ? conta.level : 'N/A';
+const regiao = conta.region || 'BR';
+const likes = conta.likes !== undefined ? conta.likes : '0';
+const social = conta.informacoes_sociais || {};
+const bio = social.assinatura || 'Sem bio';
+const generoRaw = social.genero || null;
+const generoFmt = generoRaw === 'Gender_MALE' ? 'Masculino' : generoRaw === 'Gender_FEMALE' ? 'Feminino' : generoRaw || null;
+const cla = conta.cla || {}, rankBR = conta.rank_br || {}, rankCS = conta.rank_cs || {};
+const extra = {
+clanname: cla.nome || null, clanlevel: cla.level || null,
+clanmembers: (cla.membros !== undefined && cla.capacidade !== undefined) ? (cla.membros + '/' + cla.capacidade) : null,
+rank: rankBR.rank !== undefined ? rankBR.rank : null, rankpoints: rankBR.pontos !== undefined ? rankBR.pontos : null,
+csrank: rankCS.rank !== undefined ? rankCS.rank : null, csrankpoints: rankCS.pontos !== undefined ? rankCS.pontos : null,
+liked: conta.likes !== undefined ? conta.likes : null, badgecnt: conta.badge?.quantidade || null,
+exp: conta.experiencia || null, gender: generoFmt, lastlogin: conta.ultimo_login || null, createat: conta.criado_em || null
+};
+const infoMsg = KS.layoutInfoLimpo(uid, nome, nivel, regiao, likes, bio, extra, sender, pushname);
+if (profileImage) {
+try { const buffer = await getBuffer(profileImage); await tokito.sendMessage(from, { image: buffer, caption: infoMsg, mentions: [sender] }, { quoted: info }); }
+catch (e) { await tokito.sendMessage(from, { image: { url: profileImage }, caption: infoMsg, mentions: [sender] }, { quoted: info }); }
+} else await tokito.sendMessage(from, { text: infoMsg, mentions: [sender] }, { quoted: info });
+} else reply('❌ Jogador nao encontrado ou erro na API: ' + (infoData?.mensagem || skinData?.mensagem || 'Erro desconhecido'));
+} catch (e) { console.log('[INFO] erro:', e.message); reply('❌ Erro ao consultar info.'); }
+}
+break;
+
+// ---- AUTO-LIKE 320 (V2) — envio automatico as 09:00 BRT ----
+case 'addauto': {
+if (!SoDono) return reply(mess.onlyOwner());
+if (!args[0] || !args[1]) return reply('Use: ' + prefix + 'addauto <uid> <dias>');
+const uid = args[0];
+const dias = parseInt(args[1]);
+reply('⏳ *CONSULTANDO:* Verificando ID ' + uid + '...');
+let nick = 'FF Player';
+try { const m = await KS.getMitsuriInfo(uid); if (m?.basicinfo?.nickname) nick = m.basicinfo.nickname; } catch (_) {}
+if (nick === 'FF Player') {
+const res = await KS.requestFrifas('info-player', { id: uid });
+const rconta = (Array.isArray(res.data) ? res.data[0] : res.data)?.conta || {};
+if (rconta.nome_conta) nick = rconta.nome_conta;
+else if (res?.nickname) nick = res.nickname;
+else { const pub = await KS.getNickFromPublicApi(uid); if (pub) nick = pub; }
+}
+KS.addAutoLikeV2(uid, nick, dias);
+reply('✅ *AUTO-LIKE 320 ADICIONADO*\n\n👤 *NICK:* ' + nick + '\n🆔 *UID:* ' + uid + '\n📅 *DIAS:* ' + dias + '\n👍 *LIKES/DIA:* 320\n\n> O sistema envia os likes automaticamente as 09:00 BRT.');
+}
+break;
+
+case 'infoauto': {
+if (!SoDono) return reply(mess.onlyOwner());
+if (!args[0]) return reply('Use: ' + prefix + 'infoauto <uid>');
+const reg = KS.getAutoLikeV2ByUid(args[0]);
+if (!reg) return reply('❌ Este ID nao possui um Auto-Like 320 ativo.');
+const expStr = new Date(reg.expiresAt).toLocaleDateString('pt-BR');
+const lastDeliveryStr = reg.lastDelivery ? new Date(reg.lastDelivery).toLocaleString('pt-BR') : 'Nunca';
+const enviadosHoje = reg.likesEnviadosHoje || 0;
+let msg = '🤖 *INFORMACOES AUTO-LIKE 320*\n\n';
+msg += '👤 *NICK:* ' + reg.nick + '\n🆔 *UID:* ' + reg.uid + '\n📅 *RESTANTE:* ' + reg.diasRestantes + ' dias\n⏰ *EXPIRA EM:* ' + expStr + '\n\n';
+msg += '📈 *PROGRESSO DIARIO (320 LIKES)*\n✅ *ENVIADOS HOJE:* ' + enviadosHoje + '\n⏳ *FALTANDO HOJE:* ' + Math.max(0, 320 - enviadosHoje) + '\n\n';
+msg += '📊 *TOTAL ENVIADO:* ' + (reg.likesEntreguesTotal || 0) + ' likes\n🕒 *ULTIMO ENVIO:* ' + lastDeliveryStr + '\n🟢 *STATUS:* ' + (reg.ativo ? 'Ativo' : 'Expirado');
+reply(msg);
+}
+break;
+
+case 'delauto': {
+if (!SoDono) return reply(mess.onlyOwner());
+if (!args[0]) return reply('Use: ' + prefix + 'delauto <uid>');
+KS.removeAutoLikeV2(args[0].replace(/[^0-9]/g, ''));
+reply('🗑️ *AUTO-LIKE 320 REMOVIDO*');
+}
+break;
+
+case 'listauto': {
+if (!SoDono) return reply(mess.onlyOwner());
+const regsV2 = KS.listAutoLikeV2();
+if (regsV2.length === 0) return reply('📭 Nenhuma conta registrada no Auto-Like 320.');
+const nowBR2 = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+const todayStr = nowBR2.toLocaleDateString('pt-BR');
+let msg = '📋 *LISTA AUTO-LIKE 320*\n\n';
+regsV2.forEach((r) => {
+const dataFormatada = new Date(r.addedAt).toLocaleDateString('pt-BR');
+let enviadoHoje = 0;
+if (r.lastDelivery) { const ld = new Date(new Date(r.lastDelivery).toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' })).toLocaleDateString('pt-BR'); if (ld === todayStr) enviadoHoje = r.likesEnviadosHoje || 0; }
+msg += 'ID: `' + r.uid + '` DATA: `' + dataFormatada + '` DIAS: `' + r.dias + '`\nHOJE: `' + enviadoHoje + '` | TOTAL: `' + (r.likesEntreguesTotal || 0) + '` enviados\n\n';
+});
 reply(msg);
 }
 break;
