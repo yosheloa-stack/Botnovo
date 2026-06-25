@@ -13116,8 +13116,8 @@ break
 // ---- CONSULTAS (CPF / CPFBASICO / NOME / MAE / PAI / EMAIL / PLACA) ----
 case 'cpf': {
 const _v2 = KS.getVip2(sender);
-if (!SoDono && !_v2) return reply('⛔ Comando exclusivo para *donos* e *VIP2*.');
-if (_v2 && !SoDono && !KS.checkVip2Limit(sender)) return reply(`❌ *Limite diario atingido!*\nVoce usou suas *${_v2.dailyLimit}* consultas de hoje.\n🕛 Renova a meia-noite.`);
+if (!DonoOficial && !_v2) return reply('⛔ Comando exclusivo para *donos oficiais* e *VIP2*.');
+if (_v2 && !DonoOficial && !KS.checkVip2Limit(sender)) return reply(`❌ *Limite diario atingido!*\nVoce usou suas *${_v2.dailyLimit}* consultas de hoje.\n🕛 Renova a meia-noite.`);
 if (!args[0]) return reply(`⚠️ *Uso:* ${prefix}cpf [CPF]\n_Exemplo:_ ${prefix}cpf 12345678901`);
 const cpfVal = args[0].replace(/\D/g, '');
 if (cpfVal.length !== 11) return reply('❌ CPF deve ter exatamente 11 digitos.');
@@ -13128,7 +13128,7 @@ const api = await KS._kasaneConsulta('cpf', cpfVal);
 const d = KS._extrairDados(api);
 if (!d) { await reagir(from, '❌'); return reply(`❌ *Nao encontrado*\n${api?.error || 'Nenhum dado retornado.'}`); }
 await reagir(from, '✅');
-if (_v2 && !SoDono) KS.consumeVip2(sender);
+if (_v2 && !DonoOficial) KS.consumeVip2(sender);
 reply(KS._msgCpf(d, cpfVal));
 } catch (e) { await reagir(from, '❌'); reply('❌ Erro ao consultar CPF. Tente novamente.'); }
 }
@@ -13137,8 +13137,8 @@ break;
 case 'cpfbasico':
 case 'cpfs': {
 const _v2 = KS.getVip2(sender);
-if (!SoDono && !_v2) return reply('⛔ Comando exclusivo para *donos* e *VIP2*.');
-if (_v2 && !SoDono && !KS.checkVip2Limit(sender)) return reply(`❌ *Limite diario atingido!*\nVoce usou suas *${_v2.dailyLimit}* consultas de hoje.\n🕛 Renova a meia-noite.`);
+if (!DonoOficial && !_v2) return reply('⛔ Comando exclusivo para *donos oficiais* e *VIP2*.');
+if (_v2 && !DonoOficial && !KS.checkVip2Limit(sender)) return reply(`❌ *Limite diario atingido!*\nVoce usou suas *${_v2.dailyLimit}* consultas de hoje.\n🕛 Renova a meia-noite.`);
 if (!args[0]) return reply(`⚠️ *Uso:* ${prefix}cpfs [CPF]\n_Exemplo:_ ${prefix}cpfs 12345678901`);
 const cpfVal2 = args[0].replace(/\D/g, '');
 if (cpfVal2.length !== 11) return reply('❌ CPF deve ter exatamente 11 digitos.');
@@ -13149,7 +13149,7 @@ const api = await KS._kasaneConsulta('cpfbasico', cpfVal2);
 const d = KS._extrairDados(api);
 if (!d) { await reagir(from, '❌'); return reply(`❌ *Nao encontrado*\n${api?.error || 'Nenhum dado retornado.'}`); }
 await reagir(from, '✅');
-if (_v2 && !SoDono) KS.consumeVip2(sender);
+if (_v2 && !DonoOficial) KS.consumeVip2(sender);
 const x2 = 'Nao encontrado';
 let msg2 = '╔══════════════════╗\n║  📋 CPF BASICO    ║\n╚══════════════════╝\n\n';
 msg2 += `🪪 *CPF:* ${KS._fmtCpf(cpfVal2)}\n`;
@@ -13165,8 +13165,8 @@ break;
 case 'nome':
 case 'buscanome': {
 const _v2 = KS.getVip2(sender);
-if (!SoDono && !_v2) return reply('⛔ Comando exclusivo para *donos* e *VIP2*.');
-if (_v2 && !SoDono && !KS.checkVip2Limit(sender)) return reply(`❌ *Limite diario atingido!*\nVoce usou suas *${_v2.dailyLimit}* consultas de hoje.\n🕛 Renova a meia-noite.`);
+if (!DonoOficial && !_v2) return reply('⛔ Comando exclusivo para *donos oficiais* e *VIP2*.');
+if (_v2 && !DonoOficial && !KS.checkVip2Limit(sender)) return reply(`❌ *Limite diario atingido!*\nVoce usou suas *${_v2.dailyLimit}* consultas de hoje.\n🕛 Renova a meia-noite.`);
 const nomeVal = q.trim();
 if (!nomeVal) return reply(`⚠️ *Uso:* ${prefix}nome [Nome completo]\n_Exemplo:_ ${prefix}nome Joao Silva`);
 await reagir(from, '🔍');
@@ -13177,7 +13177,7 @@ const d = KS._extrairDados(api);
 const lista = api?.lista || (Array.isArray(d) ? d : null) || (d ? [d] : null);
 if (!lista || lista.length === 0) { await reagir(from, '❌'); return reply(`❌ *Nao encontrado*\n${api?.error || 'Nenhum resultado.'}`); }
 await reagir(from, '✅');
-if (_v2 && !SoDono) KS.consumeVip2(sender);
+if (_v2 && !DonoOficial) KS.consumeVip2(sender);
 reply(KS._msgLista(lista, 'nome', nomeVal));
 } catch (e) { await reagir(from, '❌'); reply('❌ Erro ao buscar nome. Tente novamente.'); }
 }
@@ -13186,8 +13186,8 @@ break;
 case 'mae':
 case 'buscamae': {
 const _v2 = KS.getVip2(sender);
-if (!SoDono && !_v2) return reply('⛔ Comando exclusivo para *donos* e *VIP2*.');
-if (_v2 && !SoDono && !KS.checkVip2Limit(sender)) return reply(`❌ *Limite diario atingido!*\nVoce usou suas *${_v2.dailyLimit}* consultas de hoje.\n🕛 Renova a meia-noite.`);
+if (!DonoOficial && !_v2) return reply('⛔ Comando exclusivo para *donos oficiais* e *VIP2*.');
+if (_v2 && !DonoOficial && !KS.checkVip2Limit(sender)) return reply(`❌ *Limite diario atingido!*\nVoce usou suas *${_v2.dailyLimit}* consultas de hoje.\n🕛 Renova a meia-noite.`);
 const maeVal = q.trim();
 if (!maeVal) return reply(`⚠️ *Uso:* ${prefix}mae [Nome da mae]\n_Exemplo:_ ${prefix}mae Maria Silva`);
 await reagir(from, '🔍');
@@ -13198,7 +13198,7 @@ const d = KS._extrairDados(api);
 const lista = api?.lista || (Array.isArray(d) ? d : null) || (d ? [d] : null);
 if (!lista || lista.length === 0) { await reagir(from, '❌'); return reply(`❌ *Nao encontrado*\n${api?.error || 'Nenhum resultado.'}`); }
 await reagir(from, '✅');
-if (_v2 && !SoDono) KS.consumeVip2(sender);
+if (_v2 && !DonoOficial) KS.consumeVip2(sender);
 reply(KS._msgLista(lista, 'mae', maeVal));
 } catch (e) { await reagir(from, '❌'); reply('❌ Erro ao buscar. Tente novamente.'); }
 }
@@ -13207,8 +13207,8 @@ break;
 case 'pai':
 case 'buscapai': {
 const _v2 = KS.getVip2(sender);
-if (!SoDono && !_v2) return reply('⛔ Comando exclusivo para *donos* e *VIP2*.');
-if (_v2 && !SoDono && !KS.checkVip2Limit(sender)) return reply(`❌ *Limite diario atingido!*\nVoce usou suas *${_v2.dailyLimit}* consultas de hoje.\n🕛 Renova a meia-noite.`);
+if (!DonoOficial && !_v2) return reply('⛔ Comando exclusivo para *donos oficiais* e *VIP2*.');
+if (_v2 && !DonoOficial && !KS.checkVip2Limit(sender)) return reply(`❌ *Limite diario atingido!*\nVoce usou suas *${_v2.dailyLimit}* consultas de hoje.\n🕛 Renova a meia-noite.`);
 const paiVal = q.trim();
 if (!paiVal) return reply(`⚠️ *Uso:* ${prefix}pai [Nome do pai]\n_Exemplo:_ ${prefix}pai Jose Silva`);
 await reagir(from, '🔍');
@@ -13219,7 +13219,7 @@ const d = KS._extrairDados(api);
 const lista = api?.lista || (Array.isArray(d) ? d : null) || (d ? [d] : null);
 if (!lista || lista.length === 0) { await reagir(from, '❌'); return reply(`❌ *Nao encontrado*\n${api?.error || 'Nenhum resultado.'}`); }
 await reagir(from, '✅');
-if (_v2 && !SoDono) KS.consumeVip2(sender);
+if (_v2 && !DonoOficial) KS.consumeVip2(sender);
 reply(KS._msgLista(lista, 'pai', paiVal));
 } catch (e) { await reagir(from, '❌'); reply('❌ Erro ao buscar. Tente novamente.'); }
 }
@@ -13228,8 +13228,8 @@ break;
 case 'email':
 case 'buscaemail': {
 const _v2 = KS.getVip2(sender);
-if (!SoDono && !_v2) return reply('⛔ Comando exclusivo para *donos* e *VIP2*.');
-if (_v2 && !SoDono && !KS.checkVip2Limit(sender)) return reply(`❌ *Limite diario atingido!*\nVoce usou suas *${_v2.dailyLimit}* consultas de hoje.\n🕛 Renova a meia-noite.`);
+if (!DonoOficial && !_v2) return reply('⛔ Comando exclusivo para *donos oficiais* e *VIP2*.');
+if (_v2 && !DonoOficial && !KS.checkVip2Limit(sender)) return reply(`❌ *Limite diario atingido!*\nVoce usou suas *${_v2.dailyLimit}* consultas de hoje.\n🕛 Renova a meia-noite.`);
 const emailVal = args[0] || '';
 if (!emailVal) return reply(`⚠️ *Uso:* ${prefix}email [e-mail]\n_Exemplo:_ ${prefix}email exemplo@gmail.com`);
 await reagir(from, '🔍');
@@ -13240,7 +13240,7 @@ const d = KS._extrairDados(api);
 const lista = api?.lista || (Array.isArray(d) ? d : null) || (d ? [d] : null);
 if (!lista || lista.length === 0) { await reagir(from, '❌'); return reply(`❌ *Nao encontrado*\n${api?.error || 'Nenhum resultado.'}`); }
 await reagir(from, '✅');
-if (_v2 && !SoDono) KS.consumeVip2(sender);
+if (_v2 && !DonoOficial) KS.consumeVip2(sender);
 reply(KS._msgLista(lista, 'email', emailVal));
 } catch (e) { await reagir(from, '❌'); reply('❌ Erro ao buscar. Tente novamente.'); }
 }
@@ -13248,8 +13248,8 @@ break;
 
 case 'buscaplaca': {
 const _v2 = KS.getVip2(sender);
-if (!SoDono && !_v2) return reply('⛔ Comando exclusivo para *donos* e *VIP2*.');
-if (_v2 && !SoDono && !KS.checkVip2Limit(sender)) return reply(`❌ *Limite diario atingido!*\nVoce usou suas *${_v2.dailyLimit}* consultas de hoje.\n🕛 Renova a meia-noite.`);
+if (!DonoOficial && !_v2) return reply('⛔ Comando exclusivo para *donos oficiais* e *VIP2*.');
+if (_v2 && !DonoOficial && !KS.checkVip2Limit(sender)) return reply(`❌ *Limite diario atingido!*\nVoce usou suas *${_v2.dailyLimit}* consultas de hoje.\n🕛 Renova a meia-noite.`);
 const placaVal = (args[0] || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
 if (!placaVal) return reply(`⚠️ *Uso:* ${prefix}buscaplaca [PLACA]\n_Exemplo:_ ${prefix}buscaplaca ABC1234`);
 await reagir(from, '🔍');
@@ -13259,7 +13259,7 @@ const api = await KS._kasaneConsulta('placa', placaVal);
 const d = KS._extrairDados(api);
 if (!d) { await reagir(from, '❌'); return reply(`❌ *Nao encontrado*\n${api?.error || 'Nenhum dado retornado.'}`); }
 await reagir(from, '✅');
-if (_v2 && !SoDono) KS.consumeVip2(sender);
+if (_v2 && !DonoOficial) KS.consumeVip2(sender);
 reply(KS._msgPlaca(d, placaVal));
 } catch (e) { await reagir(from, '❌'); reply('❌ Erro ao buscar placa. Tente novamente.'); }
 }
@@ -13275,6 +13275,8 @@ const podeUsarComoDono = SoDono;
 const userIsVip = isVip;
 const aluguelGrupo = isGroup ? KS.getAluguelGrupo(from) : null;
 const grupoTemAluguel = !!aluguelGrupo;
+const likeLiberado = isGroup ? KS.isLikeLiberadoGrupo(from) : false;
+const grupoLiberado = grupoTemAluguel || likeLiberado;
 const modoLivreAtivo = !!(aluguelGrupo && aluguelGrupo.modoLivre);
 
 const checkAutoV2 = KS.getAutoLikeV2ByUid(uid);
@@ -13282,13 +13284,15 @@ if (checkAutoV2 && checkAutoV2.ativo) {
 return reply('⛔ *ACESSO NEGADO*\n\nEste ID ja esta registrado no *Auto-Like 320* e recebe likes automaticamente.');
 }
 if (isGroup && !podeUsarComoDono) {
-if (!grupoTemAluguel) return reply('⛔ *ACESSO NEGADO*\n\nEste grupo nao possui um plano ativo.');
+if (!grupoLiberado) return reply('⛔ *ACESSO NEGADO*\n\nEste grupo nao possui um plano ativo nem o like liberado.\nPeca a um dono para usar *' + prefix + 'liberarlike* ou contrate um plano de aluguel.');
+if (grupoTemAluguel) {
 const verificacao = KS.verificarIdDisponivel(from);
 if (!verificacao.permitido) return reply('*⛔ | LIMITE DO CONTRATO*\n\n- *📦 | PLANO → ' + aluguelGrupo.plano + '*\n- *🆔 | USADOS → ' + aluguelGrupo.idsUsados + '/' + aluguelGrupo.idsPermitidos + '*\n\n> ' + verificacao.motivo);
 }
+}
 const idCooldown = KS.checkIdUsadoHoje(sender, uid);
 if (idCooldown && idCooldown.blocked) return reply('*⏳ | ID EM COOLDOWN*\n\n- *🆔 | ID → ' + uid + '*\n- *⏰ | LIBERA EM → ' + (idCooldown.tempoRestante || '24h') + '*\n\n> Esse ID ja recebeu likes nas ultimas 24 horas.');
-if (!podeUsarComoDono && !userIsVip) {
+if (!podeUsarComoDono && !userIsVip && !grupoLiberado) {
 const limitCheck = KS.checkLikeLimit(sender, { isOwner: podeUsarComoDono, isVip: userIsVip });
 if (!limitCheck.allowed) return reply('⛔ *LIMITE GRATIS ATINGIDO*\n\n- *👤 | USUARIO → ' + (pushname || 'Membro') + '*\n- *📦 | LIMITE → 1 like a cada 24h*\n- *⏰ | LIBERA EM → ' + (limitCheck.tempoRestante || '24h') + '*\n\n> Para usar sem esperar, peca ativacao VIP.');
 }
@@ -13383,9 +13387,22 @@ reply(msg);
 }
 break;
 
+// ---- LIBERAR LIKE NO GRUPO (sistema de aluguel/liberacao) ----
+case 'liberarlike':
+case 'liberarlikes':
+case 'liblikes': {
+if (!SoDono) return reply(mess.onlyOwner());
+if (!isGroup) return reply('⛔ Use este comando dentro do grupo que deseja liberar.');
+const jaLiberado = KS.isLikeLiberadoGrupo(from);
+const novoEstado = KS.setLikeLiberadoGrupo(from, !jaLiberado);
+if (novoEstado) reply('✅ *LIKE LIBERADO NESTE GRUPO!*\n\nAgora todos os membros podem usar *' + prefix + 'like* aqui.\nUse *' + prefix + command + '* de novo para desativar.');
+else reply('🚫 *LIKE BLOQUEADO NESTE GRUPO!*\n\nAgora so donos, VIP ou grupos com aluguel ativo podem usar *' + prefix + 'like*.');
+}
+break;
+
 // ---- VIP2 (consultas com limite diario) ----
 case 'vip2': {
-if (!SoDono) return reply(mess.onlyOwner());
+if (!DonoOficial) return reply('⛔ *Apenas os donos oficiais* podem liberar VIP2.');
 let targetV2, limitV2 = 5, daysV2 = 30;
 const ctxV2 = info.message?.extendedTextMessage?.contextInfo;
 if (ctxV2?.quotedMessage) { targetV2 = ctxV2.participant; limitV2 = parseInt(args[0]) || 5; daysV2 = parseInt(args[1]) || 30; }
@@ -13398,7 +13415,7 @@ reply(`╔══════════════════╗\n║   💎 
 break;
 
 case 'delvip2': {
-if (!SoDono) return reply(mess.onlyOwner());
+if (!DonoOficial) return reply('⛔ *Apenas os donos oficiais* podem remover VIP2.');
 let targetDV2;
 const ctxDV2 = info.message?.extendedTextMessage?.contextInfo;
 if (ctxDV2?.quotedMessage) targetDV2 = ctxDV2.participant;
@@ -13411,7 +13428,7 @@ reply(`🗑️ *VIP2 REMOVIDO!*\n📱 Usuario: ${KS.onlyNumbers(targetDV2)}`);
 break;
 
 case 'listvip2': {
-if (!SoDono) return reply(mess.onlyOwner());
+if (!DonoOficial) return reply('⛔ *Apenas os donos oficiais* podem ver a lista VIP2.');
 const v2list = KS.listVip2();
 if (v2list.length === 0) return reply('Nenhum VIP2 registrado.');
 let msgV2 = '╔══════════════════╗\n║   💎 LISTA VIP2   ║\n╚══════════════════╝\n\n';

@@ -116,6 +116,7 @@ const PATHS = {
   autoLikeV2File: './database/autolike/autolikeV2.json',
   groupsDir: './database/groups',
   aluguelFile: './database/groups/aluguel.json',
+  likeLiberadoFile: './database/groups/likeliberado.json',
   settingsFile: './database/settings.json',
   balancesFile: './database/balances.json',
   pendingRequestsFile: './database/pending_requests.json',
@@ -148,6 +149,7 @@ const initDatabase = () => {
   ensureJsonFile(PATHS.autoLikeFile, { registrations: [] });
   ensureJsonFile(PATHS.autoLikeV2File, { registrations: [] });
   ensureJsonFile(PATHS.aluguelFile, { grupos: {} });
+  ensureJsonFile(PATHS.likeLiberadoFile, { grupos: [] });
   ensureJsonFile(PATHS.balancesFile, {});
   ensureJsonFile(PATHS.pendingRequestsFile, { requests: [] });
   ensureJsonFile(PATHS.settingsFile, { ia_active: true, autodown: true, auto_image: true });
@@ -258,6 +260,19 @@ const registrarUsoId = (groupId) => {
     data.grupos[groupId].idsUsados = (data.grupos[groupId].idsUsados || 0) + 1;
   }
   saveJson(PATHS.aluguelFile, data);
+};
+
+// Liberacao manual do comando like por grupo (independente do aluguel)
+const isLikeLiberadoGrupo = (groupId) => {
+  const data = readJson(PATHS.likeLiberadoFile) || { grupos: [] };
+  return data.grupos.includes(groupId);
+};
+const setLikeLiberadoGrupo = (groupId, ativar) => {
+  const data = readJson(PATHS.likeLiberadoFile) || { grupos: [] };
+  if (ativar) { if (!data.grupos.includes(groupId)) data.grupos.push(groupId); }
+  else { data.grupos = data.grupos.filter(g => g !== groupId); }
+  saveJson(PATHS.likeLiberadoFile, data);
+  return ativar;
 };
 
 // ============================================================
@@ -866,7 +881,7 @@ module.exports = {
   // saldo / elite
   getBalance, addBalance, removeBalance, isLiberated, liberarUsuario, removerLiberacao, canUsePS,
   // aluguel
-  getAluguelGrupo, verificarIdDisponivel, registrarUsoId,
+  getAluguelGrupo, verificarIdDisponivel, registrarUsoId, isLikeLiberadoGrupo, setLikeLiberadoGrupo,
   // like limits
   checkLikeLimit, checkIdUsadoHoje, registerLikeUse,
   // autolike
