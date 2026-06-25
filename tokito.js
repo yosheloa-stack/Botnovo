@@ -577,6 +577,22 @@ return num + '@s.whatsapp.net';
 return alvo;
 };
 
+// Resolve um LID para o numero real usando a MESMA logica do resolvedor do sender,
+// pra garantir que o id salvo (ex.: VIP2) bata com o sender do usuario.
+const resolverParaReal = (jid) => {
+if (!jid) return jid;
+if (String(jid).includes('@lid') && isGroup && groupMetadata?.participants) {
+const lidNum = String(jid).split('@')[0].split(':')[0];
+const membro = groupMetadata.participants.find(v => {
+const cands = [v.id, v.lid, v.jid].filter(Boolean);
+return cands.some(c => String(c).split('@')[0].split(':')[0] === lidNum);
+});
+const real = membro?.phoneNumber || membro?.jid || membro?.participantPn;
+if (real && !String(real).includes('@lid')) return real;
+}
+return jid;
+};
+
 var Res_SoGrupo = "*🧊 ᴇꜱᴛᴇ ᴄᴏᴍᴀɴᴅᴏ ꜱᴏ́ ᴅᴇᴠᴇ ꜱᴇʀ ᴜᴛɪʟɪᴢᴀᴅᴏ ᴇᴍ ɢʀᴜᴘᴏꜱ.*";
 
 var Res_SoDono = "*🧊 ᴇꜱꜱᴇ ᴄᴏᴍᴀɴᴅᴏ ᴇ́ ᴀᴘᴇɴᴀꜱ ᴘᴀʀᴀ ᴏ ᴍᴇᴜ ᴅᴏɴᴏ ᴜᴛɪʟɪᴢᴀʀ...*";
@@ -13122,7 +13138,7 @@ break
 
 // ---- CONSULTAS (CPF / CPFBASICO / NOME / MAE / PAI / EMAIL / PLACA) ----
 case 'cpf': {
-const _v2 = KS.getVip2(sender);
+const _v2 = KS.getVip2(sender) || KS.getVip2(senderBruto) || KS.getVip2(info?.key?.participant) || KS.getVip2(info?.key?.participantAlt) || KS.getVip2(info?.key?.senderPn);
 if (!podeTudo && !_v2) return reply('⛔ Comando exclusivo para *dono oficial / criador* e *VIP2*.');
 if (_v2 && !podeTudo && !KS.checkVip2Limit(sender)) return reply(`❌ *Limite diario atingido!*\nVoce usou suas *${_v2.dailyLimit}* consultas de hoje.\n🕛 Renova a meia-noite.`);
 if (!args[0]) return reply(`⚠️ *Uso:* ${prefix}cpf [CPF]\n_Exemplo:_ ${prefix}cpf 12345678901`);
@@ -13143,7 +13159,7 @@ break;
 
 case 'cpfbasico':
 case 'cpfs': {
-const _v2 = KS.getVip2(sender);
+const _v2 = KS.getVip2(sender) || KS.getVip2(senderBruto) || KS.getVip2(info?.key?.participant) || KS.getVip2(info?.key?.participantAlt) || KS.getVip2(info?.key?.senderPn);
 if (!podeTudo && !_v2) return reply('⛔ Comando exclusivo para *dono oficial / criador* e *VIP2*.');
 if (_v2 && !podeTudo && !KS.checkVip2Limit(sender)) return reply(`❌ *Limite diario atingido!*\nVoce usou suas *${_v2.dailyLimit}* consultas de hoje.\n🕛 Renova a meia-noite.`);
 if (!args[0]) return reply(`⚠️ *Uso:* ${prefix}cpfs [CPF]\n_Exemplo:_ ${prefix}cpfs 12345678901`);
@@ -13184,7 +13200,7 @@ break;
 
 case 'nome':
 case 'buscanome': {
-const _v2 = KS.getVip2(sender);
+const _v2 = KS.getVip2(sender) || KS.getVip2(senderBruto) || KS.getVip2(info?.key?.participant) || KS.getVip2(info?.key?.participantAlt) || KS.getVip2(info?.key?.senderPn);
 if (!podeTudo && !_v2) return reply('⛔ Comando exclusivo para *dono oficial / criador* e *VIP2*.');
 if (_v2 && !podeTudo && !KS.checkVip2Limit(sender)) return reply(`❌ *Limite diario atingido!*\nVoce usou suas *${_v2.dailyLimit}* consultas de hoje.\n🕛 Renova a meia-noite.`);
 const nomeVal = q.trim();
@@ -13205,7 +13221,7 @@ break;
 
 case 'mae':
 case 'buscamae': {
-const _v2 = KS.getVip2(sender);
+const _v2 = KS.getVip2(sender) || KS.getVip2(senderBruto) || KS.getVip2(info?.key?.participant) || KS.getVip2(info?.key?.participantAlt) || KS.getVip2(info?.key?.senderPn);
 if (!podeTudo && !_v2) return reply('⛔ Comando exclusivo para *dono oficial / criador* e *VIP2*.');
 if (_v2 && !podeTudo && !KS.checkVip2Limit(sender)) return reply(`❌ *Limite diario atingido!*\nVoce usou suas *${_v2.dailyLimit}* consultas de hoje.\n🕛 Renova a meia-noite.`);
 const maeVal = q.trim();
@@ -13226,7 +13242,7 @@ break;
 
 case 'pai':
 case 'buscapai': {
-const _v2 = KS.getVip2(sender);
+const _v2 = KS.getVip2(sender) || KS.getVip2(senderBruto) || KS.getVip2(info?.key?.participant) || KS.getVip2(info?.key?.participantAlt) || KS.getVip2(info?.key?.senderPn);
 if (!podeTudo && !_v2) return reply('⛔ Comando exclusivo para *dono oficial / criador* e *VIP2*.');
 if (_v2 && !podeTudo && !KS.checkVip2Limit(sender)) return reply(`❌ *Limite diario atingido!*\nVoce usou suas *${_v2.dailyLimit}* consultas de hoje.\n🕛 Renova a meia-noite.`);
 const paiVal = q.trim();
@@ -13247,7 +13263,7 @@ break;
 
 case 'email':
 case 'buscaemail': {
-const _v2 = KS.getVip2(sender);
+const _v2 = KS.getVip2(sender) || KS.getVip2(senderBruto) || KS.getVip2(info?.key?.participant) || KS.getVip2(info?.key?.participantAlt) || KS.getVip2(info?.key?.senderPn);
 if (!podeTudo && !_v2) return reply('⛔ Comando exclusivo para *dono oficial / criador* e *VIP2*.');
 if (_v2 && !podeTudo && !KS.checkVip2Limit(sender)) return reply(`❌ *Limite diario atingido!*\nVoce usou suas *${_v2.dailyLimit}* consultas de hoje.\n🕛 Renova a meia-noite.`);
 const emailVal = args[0] || '';
@@ -13267,7 +13283,7 @@ reply(KS._msgLista(lista, 'email', emailVal));
 break;
 
 case 'buscaplaca': {
-const _v2 = KS.getVip2(sender);
+const _v2 = KS.getVip2(sender) || KS.getVip2(senderBruto) || KS.getVip2(info?.key?.participant) || KS.getVip2(info?.key?.participantAlt) || KS.getVip2(info?.key?.senderPn);
 if (!podeTudo && !_v2) return reply('⛔ Comando exclusivo para *dono oficial / criador* e *VIP2*.');
 if (_v2 && !podeTudo && !KS.checkVip2Limit(sender)) return reply(`❌ *Limite diario atingido!*\nVoce usou suas *${_v2.dailyLimit}* consultas de hoje.\n🕛 Renova a meia-noite.`);
 const placaVal = (args[0] || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
@@ -13538,8 +13554,8 @@ case 'vip2': {
 if (!podeTudo) return reply('⛔ *Apenas dono oficial e criador* podem liberar VIP2. Subdonos nao podem.');
 let targetV2, limitV2 = 5, daysV2 = 30;
 const ctxV2 = info.message?.extendedTextMessage?.contextInfo;
-if (ctxV2?.quotedMessage) { targetV2 = normalizar(ctxV2.participant); limitV2 = parseInt(args[0]) || 5; daysV2 = parseInt(args[1]) || 30; }
-else if (ctxV2?.mentionedJid?.length) { targetV2 = normalizar(ctxV2.mentionedJid[0]); limitV2 = parseInt(args[1]) || 5; daysV2 = parseInt(args[2]) || 30; }
+if (ctxV2?.quotedMessage) { targetV2 = resolverParaReal(ctxV2.participant); limitV2 = parseInt(args[0]) || 5; daysV2 = parseInt(args[1]) || 30; }
+else if (ctxV2?.mentionedJid?.length) { targetV2 = resolverParaReal(ctxV2.mentionedJid[0]); limitV2 = parseInt(args[1]) || 5; daysV2 = parseInt(args[2]) || 30; }
 else if (args[0]) { targetV2 = args[0].includes('@') ? args[0] : args[0].replace(/\D/g, '') + '@s.whatsapp.net'; limitV2 = parseInt(args[1]) || 5; daysV2 = parseInt(args[2]) || 30; }
 if (!targetV2) return reply(`⚠️ *Uso:* ${prefix}vip2 @usuario <limite_dia> <dias>\n_Exemplo:_ ${prefix}vip2 @Ze 10 30`);
 KS.addVip2(targetV2, limitV2, daysV2);
@@ -13551,8 +13567,8 @@ case 'delvip2': {
 if (!podeTudo) return reply('⛔ *Apenas dono oficial e criador* podem remover VIP2. Subdonos nao podem.');
 let targetDV2;
 const ctxDV2 = info.message?.extendedTextMessage?.contextInfo;
-if (ctxDV2?.quotedMessage) targetDV2 = normalizar(ctxDV2.participant);
-else if (ctxDV2?.mentionedJid?.length) targetDV2 = normalizar(ctxDV2.mentionedJid[0]);
+if (ctxDV2?.quotedMessage) targetDV2 = resolverParaReal(ctxDV2.participant);
+else if (ctxDV2?.mentionedJid?.length) targetDV2 = resolverParaReal(ctxDV2.mentionedJid[0]);
 else if (args[0]) targetDV2 = args[0].includes('@') ? args[0] : args[0].replace(/\D/g, '') + '@s.whatsapp.net';
 if (!targetDV2) return reply(`Use: ${prefix}delvip2 @usuario ou responda a mensagem de alguem.`);
 KS.removeVip2(targetDV2);
