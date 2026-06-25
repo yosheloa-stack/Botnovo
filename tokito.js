@@ -13157,13 +13157,26 @@ const d = KS._extrairDados(api);
 if (!d) { await reagir(from, '❌'); return reply(`❌ *Nao encontrado*\n${api?.error || 'Nenhum dado retornado.'}`); }
 await reagir(from, '✅');
 if (_v2 && !podeTudo) KS.consumeVip2(sender);
-const x2 = 'Nao encontrado';
-let msg2 = '╔══════════════════╗\n║  📋 CPF BASICO    ║\n╚══════════════════╝\n\n';
+const db = {};
+if (d && typeof d === 'object') for (const [k, v] of Object.entries(d)) db[k.toLowerCase()] = v;
+const x2 = 'Não encontrado';
+const sexoB = (db.sexo || db.genero || '') === 'M' ? 'Masculino' : (db.sexo || db.genero || '') === 'F' ? 'Feminino' : (db.sexo || db.genero || '');
+let msg2 = '╔══════════════════╗\n║   📋 CPF BÁSICO   ║\n╚══════════════════╝\n\n';
 msg2 += `🪪 *CPF:* ${KS._fmtCpf(cpfVal2)}\n`;
-msg2 += `👤 *Nome:* ${d.nome || d.name || x2}\n`;
-msg2 += `📅 *Nascimento:* ${d.nascimento || d.data_nascimento || x2}\n`;
-msg2 += `📌 *Situacao:* ${d.situacao || d.status || x2}\n`;
-msg2 += '\n══════════════════\n✅ *Consulta concluida*';
+msg2 += `👤 *Nome:* ${db.nome || db.name || db.nome_completo || x2}\n`;
+if (sexoB) msg2 += `🧬 *Sexo:* ${sexoB}\n`;
+msg2 += `📅 *Nascimento:* ${db.nascimento || db.data_nascimento || db.dt_nascimento || x2}\n`;
+const cidB = db.cidade || db.municipio || '';
+const ufB = db.uf || db.estado || '';
+if (cidB || ufB) msg2 += `🏙 *Cidade/UF:* ${[cidB, ufB].filter(Boolean).join(' / ')}\n`;
+if (db.renda || db.renda_presumida) msg2 += `💰 *Renda:* R$ ${db.renda || db.renda_presumida}\n`;
+if (db.estado_civil || db.estadocivil) msg2 += `💍 *Estado Civil:* ${db.estado_civil || db.estadocivil}\n`;
+msg2 += `📌 *Situação:* ${db.situacao_cadastral || db.situacao || db.status || x2}\n`;
+if (db.atualizacao_rf || db.atualizacao) msg2 += `🔄 *Atualização RF:* ${db.atualizacao_rf || db.atualizacao}\n`;
+const maeB = db.mae || db.nome_mae || '';
+const paiB = db.pai || db.nome_pai || '';
+if (maeB || paiB) { msg2 += '\n👨‍👩‍👦 *Filiação*\n'; if (maeB) msg2 += `   👩 Mãe: ${maeB}\n`; if (paiB) msg2 += `   👨 Pai: ${paiB}\n`; }
+msg2 += '\n══════════════════\n✅ *Consulta concluída*';
 reply(msg2);
 } catch (e) { await reagir(from, '❌'); reply('❌ Erro ao consultar. Tente novamente.'); }
 }
@@ -13181,7 +13194,7 @@ reply('⚡ *Buscando por nome...*');
 try {
 const api = await KS._kasaneConsulta('nome', nomeVal);
 const d = KS._extrairDados(api);
-const lista = api?.lista || (Array.isArray(d) ? d : null) || (d ? [d] : null);
+const lista = api?.lista || (Array.isArray(d) ? d : null) || d?.lista || (d ? [d] : null);
 if (!lista || lista.length === 0) { await reagir(from, '❌'); return reply(`❌ *Nao encontrado*\n${api?.error || 'Nenhum resultado.'}`); }
 await reagir(from, '✅');
 if (_v2 && !podeTudo) KS.consumeVip2(sender);
@@ -13202,7 +13215,7 @@ reply('⚡ *Buscando por nome da mae...*');
 try {
 const api = await KS._kasaneConsulta('mae', maeVal);
 const d = KS._extrairDados(api);
-const lista = api?.lista || (Array.isArray(d) ? d : null) || (d ? [d] : null);
+const lista = api?.lista || (Array.isArray(d) ? d : null) || d?.lista || (d ? [d] : null);
 if (!lista || lista.length === 0) { await reagir(from, '❌'); return reply(`❌ *Nao encontrado*\n${api?.error || 'Nenhum resultado.'}`); }
 await reagir(from, '✅');
 if (_v2 && !podeTudo) KS.consumeVip2(sender);
@@ -13223,7 +13236,7 @@ reply('⚡ *Buscando por nome do pai...*');
 try {
 const api = await KS._kasaneConsulta('pai', paiVal);
 const d = KS._extrairDados(api);
-const lista = api?.lista || (Array.isArray(d) ? d : null) || (d ? [d] : null);
+const lista = api?.lista || (Array.isArray(d) ? d : null) || d?.lista || (d ? [d] : null);
 if (!lista || lista.length === 0) { await reagir(from, '❌'); return reply(`❌ *Nao encontrado*\n${api?.error || 'Nenhum resultado.'}`); }
 await reagir(from, '✅');
 if (_v2 && !podeTudo) KS.consumeVip2(sender);
@@ -13244,7 +13257,7 @@ reply('⚡ *Buscando por e-mail...*');
 try {
 const api = await KS._kasaneConsulta('email', emailVal);
 const d = KS._extrairDados(api);
-const lista = api?.lista || (Array.isArray(d) ? d : null) || (d ? [d] : null);
+const lista = api?.lista || (Array.isArray(d) ? d : null) || d?.lista || (d ? [d] : null);
 if (!lista || lista.length === 0) { await reagir(from, '❌'); return reply(`❌ *Nao encontrado*\n${api?.error || 'Nenhum resultado.'}`); }
 await reagir(from, '✅');
 if (_v2 && !podeTudo) KS.consumeVip2(sender);
