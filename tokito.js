@@ -13509,6 +13509,50 @@ catch (e) { await tokito.sendMessage(from, { image: { url: profileImage }, capti
 }
 break;
 
+// ---- LONG BIO FREE FIRE (bio ate 500 caracteres) ----
+case 'longbio':
+case 'biolong':
+case 'longbioff': {
+if (!SoDono && !isVip) return reply('⛔ Comando exclusivo para *donos* e *VIP*.');
+if (!q.includes('|')) return reply(`⚠️ *LONG BIO FREE FIRE* (ate 500 caracteres)\n\n*Escolha um modo:*\n\n🔹 *Por token (EAT):*\n${prefix}longbio token <eat_token> | <nova bio>\n\n🔹 *Por conta (UID + senha):*\n${prefix}longbio <uid> <senha> | <nova bio>\n_(regiao opcional no fim: ... | <bio> | br)_`);
+const partes = q.split('|').map(s => s.trim());
+const novabio = partes[1] || '';
+const regiao = (partes[2] || 'br').toLowerCase();
+if (!novabio) return reply('❌ Informe a nova bio depois do *|*.');
+if (novabio.length > 500) return reply(`❌ A bio tem ${novabio.length} caracteres. O limite e 500.`);
+const head = partes[0].split(/\s+/);
+await reagir(from, '⏳');
+let resp;
+if (head[0].toLowerCase() === 'token') {
+const eat = head.slice(1).join(' ').trim();
+if (!eat) { await reagir(from, '❌'); return reply('❌ Informe o eat_token. Ex: ' + prefix + 'longbio token SEU_TOKEN | nova bio'); }
+resp = await KS.longBioUpdate('token', { eat_token: eat, newbio: novabio });
+} else {
+const uid = head[0]; const senha = head[1];
+if (!uid || !senha) { await reagir(from, '❌'); return reply('❌ Informe UID e senha. Ex: ' + prefix + 'longbio 12345678 minhasenha | nova bio'); }
+resp = await KS.longBioUpdate('guest', { uid, password: senha, newbio: novabio, region: regiao });
+}
+const rawStr = JSON.stringify(resp || {});
+if (!resp || resp.erro || resp.error || /ERRO_|INVALID_KEY|offline|invalid/i.test(rawStr)) {
+await reagir(from, '❌');
+return reply('❌ *Falha ao atualizar a bio*\n' + (resp?.mensagem || resp?.error || resp?.message || resp?.codigo || rawStr.slice(0, 300)));
+}
+await reagir(from, '✅');
+const d = resp.data || resp.resultado || resp;
+const conta = (Array.isArray(d) ? d[0] : d)?.conta || (Array.isArray(d) ? d[0] : d) || {};
+let msg = '✅ *BIO ATUALIZADA (LONG BIO)*\n\n';
+if (conta.nome_conta || conta.nome || d.nickname) msg += '👤 *Conta:* ' + (conta.nome_conta || conta.nome || d.nickname) + '\n';
+if (conta.uid || d.uid || d.id) msg += '🆔 *UID:* ' + (conta.uid || d.uid || d.id) + '\n';
+if (conta.region || d.region || d.regiao) msg += '🌍 *Regiao:* ' + (conta.region || d.region || d.regiao) + '\n';
+const bioAntiga = d.bio_antiga || d.old_bio || d.bioAntiga || d.bio_old;
+if (bioAntiga) msg += '\n📝 *Bio antiga:*\n' + bioAntiga + '\n';
+msg += '\n✨ *Nova bio:*\n' + (d.bio_nova || d.new_bio || d.bioNova || d.bio || novabio) + '\n';
+const jwt = d.jwt || d.token_jwt || d.eat || d.eat_token;
+if (jwt) msg += '\n🔑 *Token (guarde p/ reuso):*\n' + jwt;
+reply(msg);
+}
+break;
+
 // ---- AUTO-LIKE 320 (V2) — envio automatico as 09:00 BRT ----
 case 'addauto': {
 if (!SoDono) return reply(mess.onlyOwner());

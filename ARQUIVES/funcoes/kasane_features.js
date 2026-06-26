@@ -567,6 +567,31 @@ const sendLikesDualApi = async (uid, phone, targetAmount = 220, isAutoV2 = false
   return results;
 };
 
+// ============================================================
+// LONG BIO FREE FIRE (até 500 caracteres) — github.com/HubsGGx/LongBio-FreeFire
+// modo 'token' -> /update-bio/account (eat_token)
+// modo 'guest' -> /update-bio/guest   (uid + password [+ region])
+// ============================================================
+const longBioUpdate = async (modo, params = {}) => {
+  const key = getHubsKey();
+  const endpoint = modo === 'token' ? 'update-bio/account' : 'update-bio/guest';
+  try {
+    const url = new URL('https://fluxdevservice.com/api/frifas/' + endpoint);
+    url.searchParams.append('key', key);
+    for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== null && v !== '') url.searchParams.append(k, v);
+    const headers = { 'accept': 'application/json, text/plain, */*', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36' };
+    const res = cfBypasser ? await cfBypasser.request({ url: url.toString(), headers }) : await axios.get(url.toString(), { headers, timeout: 30000, validateStatus: () => true });
+    const body = res.body ?? res.data ?? res;
+    if (typeof body === 'string' && /<!doctype|<html|just a moment|cloudflare/i.test(body)) return { erro: true, mensagem: 'Bloqueado pelo Cloudflare.' };
+    let parsed;
+    try { parsed = typeof body === 'string' ? JSON.parse(body) : body; }
+    catch { return { erro: true, mensagem: 'Resposta invalida da API.' }; }
+    return parsed;
+  } catch (e) {
+    return { erro: true, mensagem: e.message || 'Erro na requisicao.' };
+  }
+};
+
 async function fetchJsonBronxys(url) {
   try { const res = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 30000 }); return res.data; }
   catch { return null; }
@@ -1057,7 +1082,7 @@ module.exports = {
   processAutoLikeV2, startAutoLikeScheduler,
   // like apis
   requestFrifas, requestS1, sendLikesDualApi, sendLikesEmergency, fetchJsonBronxys,
-  getNickFromPublicApi, getMitsuriInfo,
+  getNickFromPublicApi, getMitsuriInfo, longBioUpdate,
   // layouts
   layoutLikeOriginal, layoutLikeLimpo, layoutInfoLimpo, layoutErro429,
   // vip2
