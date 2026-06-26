@@ -161,6 +161,41 @@ break;
 }
 }
 
+// ===== BOAS-VINDAS / DESPEDIDA (entrada e saida de membros) =====
+if (VRF_JSON_GRUPO && info.messageStubType && jsonGp[0]?.wellcome?.[0]?.bemvindo1) {
+try {
+const _stub = info.messageStubType;
+const _entrou = (_stub === 27 || _stub === 31); // add / invite por link
+const _saiu = (_stub === 28 || _stub === 32);   // removido / saiu
+if ((_entrou || _saiu) && info.messageStubParameters?.length) {
+const _w = jsonGp[0].wellcome[0];
+const _tpl = _entrou ? _w.legendabv : _w.legendasaiu;
+if (_tpl && _tpl !== 0 && _tpl !== '0') {
+let _meta = {}; try { _meta = await tokito.groupMetadata(from); } catch (e) {}
+const _nomeGp = _meta.subject || 'o grupo';
+const _qtd = _meta.participants ? _meta.participants.length : '';
+const _botNum = (tokito.user?.id || '').split(':')[0].split('@')[0];
+for (const _alvo of info.messageStubParameters) {
+const _num = String(_alvo).split('@')[0].split(':')[0];
+if (_num === _botNum) continue; // nao da boas-vindas pro proprio bot
+const _cap = String(_tpl)
+.replace(/#numerodele#/g, '@' + _num)
+.replace(/#nomedogp#/g, _nomeGp)
+.replace(/#membros#/g, _qtd)
+.replace(/#desc#/g, _meta.desc || '');
+const _fundo = _w.fundobv;
+try {
+if (_fundo) await tokito.sendMessage(from, { image: { url: _fundo }, caption: _cap, mentions: [_alvo] });
+else await tokito.sendMessage(from, { text: _cap, mentions: [_alvo] });
+} catch (e) {
+await tokito.sendMessage(from, { text: _cap, mentions: [_alvo] });
+}
+}
+}
+}
+} catch (e) { console.log('[BEMVINDO] erro:', e.message); }
+}
+
 if(!info.message) return;
 if(upsert.type == "append") return;
 const baileys = require('@whiskeysockets/baileys');
