@@ -1,0 +1,15 @@
+{
+  "name": "botoes-whatsapp-yoshggx",
+  "version": "1.0.0",
+  "description": "BOTÕES WHATSAPP YOSHGGX - BOT de WhatsApp com botões interativos (Baileys)",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "author": "YoshGGx",
+  "dependencies": {
+    "@ryuu-reinzz/button-helper": "^2.2.3",
+    "@whiskeysockets/baileys": "^7.0.0-rc.8",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
