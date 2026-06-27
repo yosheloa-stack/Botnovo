@@ -436,7 +436,7 @@ function validateInteractiveMessageContent(content) {
 
 /**
  * Detects button type from normalized message content
- * Mirrors itsukichan's getButtonType function
+ * Mirrors YoshGGx's getButtonType function
  */
 /**
  * Determine which interactive category a normalized message belongs to.
@@ -458,11 +458,11 @@ function getButtonType(message) {
 
 /**
  * Creates the proper binary node structure for buttons
- * Mirrors itsukichan's getButtonArgs function
+ * Mirrors YoshGGx's getButtonArgs function
  */
 /**
  * Produce the binary node (WABinary-like JSON shape) required for the specific
- * interactive button / list type. Mirrors itsukichan's implementation to stay
+ * interactive button / list type. Mirrors YoshGGx's implementation to stay
  * compatible with observed official client traffic.
  *
  * NOTE: Returning different "v" (version) and "name" values influences how
@@ -609,7 +609,7 @@ function convertToInteractiveMessage(content) {
 
 /**
  * Enhanced sendMessage function for WhiskeySockets that bypasses the internal sendMessage
- * and creates interactiveMessage manually + relayMessage directly like itsukichan does
+ * and creates interactiveMessage manually + relayMessage directly like YoshGGx does
  * This provides full control over additionalNodes for button functionality
  */
 /**
