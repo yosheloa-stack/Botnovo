@@ -1357,18 +1357,6 @@ const API_BASE = "https://api.bronxyshost.com.br/api-bronxys";
 const API_KEY_TOKITO = "Yosh7";
 const API_URL_TOKITO = "https://tokito-apis.site";
 
-const S1_API = {
-    baseUrl: "https://api.mitsuri.online/api/likes",
-    key: "yYHUxBO6IINsvjlNjcTGefwTgPu2",
-    system: "Yoshhub"
-};
-
-const MITSURI_INFO_API = {
-    url: "https://mitsuri.online/api/player/info",
-    key: "yYHUxBO6IINsvjlNjcTGefwTgPu2",
-    system: "MeuSistema"
-};
-
 const VIP_CONFIG = { likesPorDiaNaoVip: 1 };
 const PATHS = {
   vipDir: './database/vips',
@@ -2160,90 +2148,6 @@ const getNickFromPublicApi = async (uid) => {
     }
 };
 
-const getMitsuriInfo = async (uid) => {
-    // A API info (mitsuri.online/api/player/info) esta bloqueada externamente.
-    // Usamos a API de likes (api.mitsuri.online/api/likes) que retorna:
-    // { nickname, accountid, likes_before, likes_after, likes_gained, banner_url }
-    // Mapeamos para o formato { basicinfo: { nickname, liked, ... } } para manter compatibilidade.
-    try {
-        const res = await axios.get(S1_API.baseUrl, {
-            params: { uid, phone: '5511999999999', system: S1_API.system },
-            headers: { 'x-user-uid': S1_API.key },
-            timeout: 15000
-        });
-        const d = res.data;
-        if (!d || d.error) return null;
-        // Mapeia para o formato esperado pelo restante do codigo
-        return {
-            basicinfo: {
-                nickname: d.nickname || null,
-                liked: d.likes_before !== undefined ? d.likes_before : (d.likes_after || null),
-                accountid: d.accountid || uid,
-                banner_url: d.banner_url || null
-            },
-            // Campos extras nao disponiveis nesta API; deixa null para nao quebrar o layout
-            clanbasicinfo: {},
-            socialinfo: {},
-            _raw: d
-        };
-    } catch (e) {
-        return null;
-    }
-};
-
-const requestS1 = async (uid, phone) => {
-    try {
-        const res = await axios.get(S1_API.baseUrl, {
-            params: { uid, phone, system: S1_API.system },
-            headers: { 'x-user-uid': S1_API.key },
-            timeout: 30000
-        });
-        const data = res.data;
-        let likesSent = 0;
-        if (data.likes_gained) likesSent = Number(data.likes_gained);
-        else if (data.likes && data.likes.enviadas) likesSent = Number(data.likes.enviadas);
-        else if (data.enviados) likesSent = Number(data.enviados);
-        else if (data.amount) likesSent = Number(data.amount);
-
-        let success = (data.status === 'success' || data.success === true || data.statuscode === 200 || likesSent > 0);
-        let isAlreadyLiked = false;
-        
-        // Corrigido: So marcar como ja recebeu se explicitamente falhar e nao enviar nada
-        if (likesSent === 0 && !success) {
-            if (/24|limite|cooldown|aguarde|recebeu|already/i.test(data.message || data.error || data.mensagem || "")) {
-                isAlreadyLiked = true;
-            }
-        }
-        if (success && likesSent === 0) likesSent = 20;
-        return { 
-            success, 
-            likesSent: likesSent, 
-            data: data,
-            error: success ? null : (data.message || data.error || data.mensagem || (isAlreadyLiked ? "Cooldown ativo" : "Erro desconhecido")),
-            isAlreadyLiked: isAlreadyLiked
-        };
-    } catch (e) {
-        const errorData = e.response?.data || {};
-        const errorMessage = errorData.error || errorData.message || e.message;
-        let cooldownTime = null;
-        const isRateLimited = (e.response?.status === 429 || /rate-overlimit|too many requests/i.test(errorMessage));
-        if (isRateLimited && typeof errorMessage === 'string') {
-            const match = errorMessage.match(/(\d+\.?\d*)\s*horas/i);
-            if (match) cooldownTime = match[1] + "h";
-        }
-        return { 
-            success: false, 
-            likesSent: 0, 
-            error: isRateLimited ? "Limite de requisições atingido (Rate Limit). Tente novamente em breve." : errorMessage,
-            statuscode: e.response?.status,
-            cooldownTime: cooldownTime,
-            data: errorData,
-            isAlreadyLiked: !isRateLimited && /24|limite|cooldown/i.test(errorMessage),
-            isRateLimited: isRateLimited
-        };
-    }
-};
-
 const saveToHistory = (uid, nickname, api1, api2) => {
     const data = readJson(PATHS.likesHistoryFile) || { history: [] };
     data.history.push({
@@ -2358,20 +2262,7 @@ const sendLikesDualApi = async (uid, phone, targetAmount = 220, isAutoV2 = false
         likesAfter: null
     };
 
-    // 1. MITSURU (API de likes)
-    const resS1 = await requestS1(uid, phone);
-    results.api1.success = resS1.success;
-    results.api1.likesSent = resS1.likesSent || 0;
-    results.api1.error = resS1.error;
-    results.api1.data = resS1.data;
-    results.api1.statuscode = resS1.statuscode;
-    results.api1.isAlreadyLiked = resS1.isAlreadyLiked;
-    results.totalLikesSent += results.api1.likesSent;
-    logRetornoApiHospedagem('API 1 - MITSURU', results.api1);
-
-    if (isAutoV2) await sleep(2000); // 2s delay solicitado
-
-    // 2. HUBS
+    // 1. HUBS
     const resHubs = await requestFrifas("sendlikes", { id: uid });
     results.api2.success = resHubs.sucesso;
     results.api2.likesSent = Number(resHubs.enviadas || 0);
@@ -2404,25 +2295,21 @@ const sendLikesDualApi = async (uid, phone, targetAmount = 220, isAutoV2 = false
     const hubsConta = hubsData?.conta || {};
     const hubsLikes = hubsData?.likes || {};
 
-    // Nick: prioridade Hubs > Mitsuri API1 > fallback
+    // Nick: Hubs Dev > fallback
     if (!results.nickname) {
-        results.nickname = hubsConta.nome_conta || (results.api1.data && results.api1.data.nickname) || null;
+        results.nickname = hubsConta.nome_conta || null;
     }
 
     // likesBefore: campo likes.antes da Hubs Dev
     if (hubsLikes.antes !== undefined && hubsLikes.antes !== null) {
         results.likesBefore = Number(hubsLikes.antes);
         console.log(chalk.cyan('[HUBS LIKES] Antes: ' + results.likesBefore));
-    } else if (results.api1.data && results.api1.data.likes_before !== undefined) {
-        results.likesBefore = Number(results.api1.data.likes_before);
     }
 
     // likesAfter: campo likes.depois da Hubs Dev (mais confiavel)
     if (hubsLikes.depois !== undefined && hubsLikes.depois !== null && Number(hubsLikes.depois) > 0) {
         results.likesAfter = Number(hubsLikes.depois);
         console.log(chalk.cyan('[HUBS LIKES] Depois: ' + results.likesAfter));
-    } else if (results.api1.data && results.api1.data.likes_after !== undefined && Number(results.api1.data.likes_after) > 0) {
-        results.likesAfter = Number(results.api1.data.likes_after);
     } else {
         // Fallback: soma estimada
         results.likesAfter = (results.likesBefore || 0) + results.totalLikesSent;
@@ -2445,9 +2332,7 @@ const sendLikesDualApi = async (uid, phone, targetAmount = 220, isAutoV2 = false
     console.log(chalk.bold.magenta('\n╔══════════════════════════════════════════════╗'));
     console.log(chalk.bold.magenta('║ DEBUG LIKES: ' + uid.padEnd(31) + ' ║'));
     console.log(chalk.bold.magenta('╚══════════════════════════════════════════════╝'));
-    console.log(chalk.cyan('[API 1 - MITSURU]  Status: ' + (results.api1.success ? 'SUCESSO' : 'FALHA') + ' | HTTP: ' + (results.api1.statuscode || 'N/A') + ' | Enviados: ' + results.api1.likesSent));
-    if (!results.api1.success) console.log(chalk.red('      └─ Motivo: ' + results.api1.error));
-    console.log(chalk.cyan('[API 2 - HUBS]     Status: ' + (results.api2.success ? 'SUCESSO' : 'FALHA') + ' | HTTP: ' + (results.api2.statuscode || 'N/A') + ' | Enviados: ' + results.api2.likesSent));
+    console.log(chalk.cyan('[API HUBS]     Status: ' + (results.api2.success ? 'SUCESSO' : 'FALHA') + ' | HTTP: ' + (results.api2.statuscode || 'N/A') + ' | Enviados: ' + results.api2.likesSent));
     if (!results.api2.success) console.log(chalk.red('      └─ Motivo: ' + results.api2.error));
     if (results.api3.likesSent > 0 || results.api3.error) {
         console.log(chalk.yellow('[API 3 - RENDER]   Status: ' + (results.api3.success ? 'SUCESSO' : 'FALHA') + ' | Enviados: ' + results.api3.likesSent));
@@ -2470,22 +2355,41 @@ async function fetchJsonBronxys(url) {
 // LAYOUTS
 // ============================================================
 
-const layoutLikeOriginal = (uid, finalNick, region, level, totalAdd, tempo, jaRecebeu = false, likesBefore = null, likesAfter = null, sender = null, pushname = null) => {
-    const senderNumber = sender ? sender.split("@")[0] : null;
-    const mencionUsuario = pushname ? "@" + pushname : (senderNumber ? "@" + senderNumber : "");
+const layoutLikeBox = (uid, finalNick, region, totalAdd, jaRecebeu = false, likesBefore = null, likesAfter = null) => {
     if (jaRecebeu) {
-        return '❌ *UID ja recebeu likes hoje!* 🚫\n- *🏷️ | NICK*: `' + finalNick + '`\n- *🆔 | UID*: `' + uid + '`\n- *⏱️ | TEMPO*: `' + tempo + '`\n- *👤 | SOLICITADO POR*: ' + mencionUsuario + '\n\n*🔋 | KEY LIKES*\n•  `📦 | RESTANTE → ILIMITADA`\n•  `🔋 | → ██████████ 100%`';
+        let msg = '┏━━━━━━━━━━━━━━━━━━━━┓\n';
+        msg += '   *ID ja recebeu likes *\n';
+        msg += '┗━━━━━━━━━━━━━━━━━━━━┛\n';
+        msg += ' ❯ Jogador: ' + finalNick + '\n';
+        msg += ' ❯ ID: ' + uid + '\n';
+        msg += ' ❯ Região: ' + (region || 'BR') + '\n';
+        msg += ' ┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n';
+        msg += ' > ❯ Esse ID ja recebeu likes hoje.\n';
+        msg += '┏━━━━━━━━━━━━━━━━━━━━┓\n';
+        msg += ' Aurora system \n';
+        msg += '┗━━━━━━━━━━━━━━━━━━━━┛';
+        return msg;
     }
-    let msg = '✅ *LIKES ENVIADOS COM SUCESSO!* 🚀\n\n';
-    msg += '- *🏷️ | NICK*: `' + finalNick + '`\n';
-    msg += '- *🆔 | UID*: `' + uid + '`\n';
-    if (likesBefore !== null) msg += '- *👍 | LIKES ANTES*: `' + likesBefore + '`\n';
-    msg += '- *➕ | ADICIONADOS*: `' + totalAdd + '`\n';
-    if (likesAfter !== null) msg += '- *🏆 | LIKES DEPOIS*: `' + likesAfter + '`\n';
-    msg += '- *⏱️ | TEMPO*: `' + tempo + '`\n';
-    msg += '- *👤 | SOLICITADO POR*: ' + mencionUsuario + '\n\n';
-    msg += '*🔋 | KEY LIKES*\n•  `📦 | RESTANTE → ILIMITADA`\n•  `🔋 | → ██████████ 100%`';
+    const antes = likesBefore !== null ? likesBefore : '—';
+    const depois = likesAfter !== null ? likesAfter : '—';
+    let msg = '┏━━━━━━━━━━━━━━━━━━━━┓\n';
+    msg += '    *Likes Entregues *\n';
+    msg += '┗━━━━━━━━━━━━━━━━━━━━┛\n';
+    msg += ' ❯ Jogador: ' + finalNick + '\n';
+    msg += ' ❯ ID: ' + uid + '\n';
+    msg += ' ❯ Região: ' + (region || 'BR') + '\n';
+    msg += ' ┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n';
+    msg += ' > ❯ Antes: ' + antes + '\n';
+    msg += ' > ❯ Depois: ' + depois + '\n';
+    msg += ' > ❯ Total: +' + totalAdd + '\n';
+    msg += '┏━━━━━━━━━━━━━━━━━━━━┓\n';
+    msg += ' Aurora system \n';
+    msg += '┗━━━━━━━━━━━━━━━━━━━━┛';
     return msg;
+};
+
+const layoutLikeOriginal = (uid, finalNick, region, level, totalAdd, tempo, jaRecebeu = false, likesBefore = null, likesAfter = null, sender = null, pushname = null) => {
+    return layoutLikeBox(uid, finalNick, region, totalAdd, jaRecebeu, likesBefore, likesAfter);
 };
 
 const layoutErro429 = (mensagemOriginal) => {
@@ -2519,27 +2423,7 @@ const layoutErro429 = (mensagemOriginal) => {
 };
 
 const layoutLikeLimpo = (uid, finalNick, region, level, totalAdd, tempo, idsUsados, idsPermitidos, jaRecebeu = false, likesBefore = null, likesAfter = null, sender = null, pushname = null) => {
-    const senderNumber = sender ? sender.split("@")[0] : null;
-    const mencionUsuario = pushname ? "@" + pushname : (senderNumber ? "@" + senderNumber : "");
-    const contadorStr = idsPermitidos === "ilimitado" ? "∞" : idsUsados + '/' + idsPermitidos;
-    const barraProgresso = idsPermitidos === "ilimitado" ? "██████████ ∞" : (() => {
-        const pct = Math.min(100, Math.floor((idsUsados / idsPermitidos) * 100));
-        const blocos = Math.floor(pct / 10);
-        return '█'.repeat(blocos) + '░'.repeat(10 - blocos) + ' ' + pct + '%';
-    })();
-    if (jaRecebeu) {
-        return '❌ *ID ja recebeu like. Espere...* 🚫\n- *🏷️ | NICK*: `' + finalNick + '`\n- *🆔 | UID*: `' + uid + '`\n- *⏱️ | TEMPO*: `' + tempo + '`\n- *👤 | SOLICITADO POR*: ' + mencionUsuario + '\n\n*📦 | CONTRATO*\n•  `🆆 | odS sSQQTeS → ' + contadorStr + '`\n•  `📊 | ' + barraProgresso + '`';
-    }
-    let msg = '🎉 *LIKES ENVIADOS COM SUCESSO!*\n\n';
-    msg += '- *🏷️ | NICK*: `' + finalNick + '`\n';
-    msg += '- *🆔 | UID*: `' + uid + '`\n';
-    if (likesBefore !== null) msg += '- *👍 | LIKES ANTES*: `' + likesBefore + '`\n';
-    msg += '- *✅ | LIKES ADICIONADOS*: `' + totalAdd + '`\n';
-    if (likesAfter !== null) msg += '- *🏆 | LIKES DEPOIS*: `' + likesAfter + '`\n';
-    msg += '- *⏱️ | TEMPO*: `' + tempo + 's`\n';
-    msg += '- *👤 | SOLICITADO POR*: ' + mencionUsuario + '\n';
-    msg += '\n*📦 | CONTRATO*\n•  `🆆 | odS sSQQTeS → ' + contadorStr + '`\n•  `📊 | ' + barraProgresso + '`';
-    return msg;
+    return layoutLikeBox(uid, finalNick, region, totalAdd, jaRecebeu, likesBefore, likesAfter);
 };
 
 const layoutInfoLimpo = (uid, nome, nivel, regiao, likes, bio, extra = {}, sender = null, pushname = null) => {
@@ -3623,7 +3507,7 @@ const kasane_handler = async (upsert, kasane, qrcode) => {
                             let totalEnviadoHoje = 0;
                             let jaRecebeuFlag = false;
 
-                            // Tenta enviar usando as APIs programadas (MITSURU, HUBS, RENDER)
+                            // Tenta enviar usando as APIs programadas (HUBS, RENDER)
                             const result = await sendLikesDualApi(reg.uid, "autolike_v2", 320, true);
                             totalEnviadoHoje += result.totalLikesSent || 0;
                             if (result.api1.isAlreadyLiked || result.api2.isAlreadyLiked || result.api3.isAlreadyLiked) jaRecebeuFlag = true;
@@ -5014,11 +4898,9 @@ const kasane_handler = async (upsert, kasane, qrcode) => {
                     } else if (userIsOwner || userIsVip) {
                         dualApiResult = await sendLikesDualApi(uid, phone, 220, false);
                     } else {
-                        // Membro comum: API1 (Mitsuri likes) + API2 (Hubs) — sem API3
-                        // Faz busca pre-like via Mitsuri Info antes de enviar
-                        const api1Res = await requestS1(uid, phone);
+                        // Membro comum: apenas API Hubs (sem Mitsuri, sem API3)
                         const api2Res = await requestFrifas("sendlikes", { id: uid });
-                        const totalSent = (api1Res.likesSent || 0) + (Number(api2Res.enviadas) || 0);
+                        const totalSent = (Number(api2Res.enviadas) || 0);
 
                         // Extrai likesBefore e likesAfter dos campos da Hubs Dev
                         const hubsD = Array.isArray(api2Res.data) ? api2Res.data[0] : api2Res.data;
@@ -5026,11 +4908,11 @@ const kasane_handler = async (upsert, kasane, qrcode) => {
                         const hubsL = hubsD?.likes || {};
                         const likesBefore = (hubsL.antes !== undefined && hubsL.antes !== null)
                             ? Number(hubsL.antes)
-                            : (api1Res.data?.likes_before !== undefined ? Number(api1Res.data.likes_before) : null);
+                            : null;
                         let likesAfterComum = (hubsL.depois !== undefined && hubsL.depois !== null && Number(hubsL.depois) > 0)
                             ? Number(hubsL.depois)
-                            : (api1Res.data?.likes_after !== undefined && Number(api1Res.data.likes_after) > 0 ? Number(api1Res.data.likes_after) : (likesBefore !== null ? likesBefore + totalSent : null));
-                        
+                            : (likesBefore !== null ? likesBefore + totalSent : null);
+
                         // Se likesAfter for igual a likesBefore e totalSent > 0, forca a soma para a mensagem nao ficar confusa
                         if (likesAfterComum !== null && likesBefore !== null && likesAfterComum <= likesBefore && totalSent > 0) {
                             likesAfterComum = likesBefore + totalSent;
@@ -5044,10 +4926,10 @@ const kasane_handler = async (upsert, kasane, qrcode) => {
 
                         dualApiResult = {
                             totalLikesSent: finalTotalSent,
-                            api1: api1Res,
+                            api1: { likesSent: 0, success: false, error: null, data: null, isAlreadyLiked: false },
                             api2: api2Res,
                             api3: { likesSent: 0, success: false, error: "Acesso restrito" },
-                            nickname: hubsC.nome_conta || api1Res.data?.nickname || api2Res.data?.nickname || null,
+                            nickname: hubsC.nome_conta || api2Res.data?.nickname || null,
                             likesBefore: likesBefore,
                             likesAfter: likesAfterComum,
                             profileImage: null
@@ -5073,7 +4955,7 @@ const kasane_handler = async (upsert, kasane, qrcode) => {
                         const d = (Array.isArray(dualApiResult.api2.data) ? dualApiResult.api2.data[0] : dualApiResult.api2.data) || {};
                         const p = d.conta || {};
 
-                        // Nick: prioriza o que veio do dualApiResult (ja resolvido via Mitsuri Info)
+                        // Nick: prioriza o que veio do dualApiResult (resolvido via Hubs)
                         const finalNick = dualApiResult.nickname || p.nome_conta || p.nickname || d.nickname || "Desconhecido";
                         const region = p.regiao_conta || dualApiResult.api1.data?.region || "BR";
                         const level = p.nivel || dualApiResult.api1.data?.level || "N/A";
@@ -5112,7 +4994,7 @@ const kasane_handler = async (upsert, kasane, qrcode) => {
                             reply(layoutErro429(msgOriginal));
                         } else {
                             let erroMsg = '❌ *FALHA AO ENVIAR LIKES*\n\n';
-                            erroMsg += '*Servidor 1:* ' + (dualApiResult.api1.error || "Offline") + '\n*Servidor 2:* ' + (dualApiResult.api2.error || "Offline");
+                            erroMsg += '> ' + (dualApiResult.api2.error || "Servidor indisponivel no momento. Tente novamente mais tarde.");
                             reply(erroMsg);
                         }
                     }
@@ -5278,23 +5160,15 @@ const kasane_handler = async (upsert, kasane, qrcode) => {
                 reply('⏳ *CONSULTANDO:* Verificando ID ' + uid + '...');
                 let nick = 'FF Player';
 
-                // Tenta Mitsuri primeiro (fonte mais confiavel)
-                try {
-                    const mitsuriNick = await getMitsuriInfo(uid);
-                    if (mitsuriNick?.basicinfo?.nickname) {
-                        nick = mitsuriNick.basicinfo.nickname;
-                    }
-                } catch (_) {}
-
-                // Fallback: API Frifas
-                if (nick === 'FF Player') {
+                // Consulta nick via API Frifas
+                {
                     const res = await requestFrifas("info-player", { id: uid });
                     if (res && res.sucesso && res.nickname) {
                         nick = res.nickname;
                     } else if (res && res.data && res.data.nickname) {
                         nick = res.data.nickname;
                     } else {
-                        console.log(chalk.yellow(`[NICK PRINCIPAL] Mitsuri e Frifas falharam para ${uid}. Tentando API publica...`));
+                        console.log(chalk.yellow(`[NICK PRINCIPAL] Frifas falhou para ${uid}. Tentando API publica...`));
                         const publicNick = await getNickFromPublicApi(uid);
                         if (publicNick) {
                             nick = publicNick;
