@@ -21,10 +21,6 @@ node index.js
 4. Escaneie o QR Code que aparece no terminal com o WhatsApp.
 5. Envie `hello` no chat para receber os botões de teste.
 
-## Produto
-
-[Creatina Pote 150g — Max Titanium](https://www.maxtitanium.com.br/creatina-pote-150g/p?skuid=30)
-
 ---
 
 criador por YoshGGx
