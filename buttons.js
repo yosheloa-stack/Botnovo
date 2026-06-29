@@ -747,6 +747,66 @@ async function sendInteractiveMessage(sock, jid, content, options = {}) {
 }
 
 /**
+ * Delete (revoke "for everyone") a previously sent message — including the
+ * interactive / payment native flows (review_and_pay, payment_info,
+ * wa_payment_transaction_details) produced by sendInteractiveMessage.
+ *
+ * Rationale:
+ *  - Payment / order messages are sent through relayMessage in
+ *    sendInteractiveMessage, but the returned WAMessage still carries a normal
+ *    message key. WhatsApp revokes a message by emitting a protocolMessage of
+ *    type REVOKE that references that original key.
+ *  - Baileys exposes this via the high-level `sendMessage(jid, { delete: key })`
+ *    shape, so we can reuse the socket's own sendMessage here (no need to hand
+ *    build the protocol message) and keep behaviour identical to a manual
+ *    deletion from the official client.
+ *
+ * Accepts either the full WAMessage object returned by
+ * sendInteractiveMessage / sendButtons (we read its `.key`) or a raw key
+ * object ({ remoteJid, id, fromMe, participant? }). Only messages sent by the
+ * bot (fromMe === true) can be revoked for everyone; passing fromMe: false will
+ * be rejected by WhatsApp.
+ *
+ * @param {object} sock Active socket instance (from WhiskeySockets connect).
+ * @param {string} jid Chat JID the message was sent to.
+ * @param {object} target Full WAMessage (with `.key`) or a raw message key.
+ * @param {object} [options] Pass-through sendMessage / relay options.
+ * @returns {Promise<object>} The resulting revoke (protocol) WAMessage.
+ * @throws {InteractiveValidationError} If sock, jid or a usable key is missing.
+ */
+async function deleteMessage(sock, jid, target, options = {}) {
+  if (!sock) {
+    throw new InteractiveValidationError('Socket is required', { context: 'deleteMessage' });
+  }
+  if (!jid || typeof jid !== 'string') {
+    throw new InteractiveValidationError('jid is required and must be a string', {
+      context: 'deleteMessage',
+      errors: ['jid must be the chat JID the message was originally sent to']
+    });
+  }
+
+  // Accept either a full WAMessage (use its `.key`) or a raw key object.
+  const key = target && typeof target === 'object' && target.key && typeof target.key === 'object'
+    ? target.key
+    : target;
+
+  if (!key || typeof key !== 'object' || !key.id || !key.remoteJid) {
+    throw new InteractiveValidationError('A valid message key is required to delete', {
+      context: 'deleteMessage',
+      errors: ['target must be a WAMessage returned by sendInteractiveMessage/sendButtons, or a key { remoteJid, id, fromMe }'],
+      example: { remoteJid: jid, id: 'ABCD1234EF', fromMe: true }
+    });
+  }
+
+  if (key.fromMe === false) {
+    // WhatsApp only lets a sender revoke their own messages for everyone.
+    console.warn('deleteMessage: key.fromMe is false; WhatsApp may reject revoke-for-everyone for messages not sent by this account.');
+  }
+
+  return sock.sendMessage(jid, { delete: key }, options);
+}
+
+/**
  * Simplified button sending function (template functionality removed as requested)
  * Uses the enhanced sendInteractiveMessage function that bypasses WhiskeySockets' sendMessage
  */
@@ -807,9 +867,10 @@ async function sendInteractiveButtonsBasic(sock, jid, data = {}, options = {}) {
   return sendInteractiveMessage(sock, jid, payload, options);
 }
 
-module.exports = { 
+module.exports = {
   sendButtons: sendInteractiveButtonsBasic,
   sendInteractiveMessage,
+  deleteMessage,
   getButtonType,
   getButtonArgs,
   InteractiveValidationError,

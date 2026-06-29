@@ -8,7 +8,11 @@ const {
 } = require('@whiskeysockets/baileys');
 const qrcode = require('qrcode-terminal');
 
-const { sendButtons } = require('./buttons'); // helper from your repo
+const { sendButtons, sendInteractiveMessage, deleteMessage } = require('./buttons'); // helpers from your repo
+
+// Keeps track of the last interactive/payment message we sent per chat so it
+// can be revoked later (e.g. via the "apagar" command).
+const lastSentByJid = new Map();
 
 // -------------------- UTILITIES --------------------
 
@@ -118,7 +122,7 @@ async function handleTextCommand({ sock, jid, text }) {
     if (lower === 'hello') {
         console.log('Got "hello" from', jid, '-> sending buttons');
 
-        await sendButtons(sock, jid, {
+        const sent = await sendButtons(sock, jid, {
             title: 'Bem vindo ao BOT Teste 1',
             text: 'Escolha a operadora:',
             footer: 'Tudo é apenas um teste !',
@@ -130,7 +134,42 @@ async function handleTextCommand({ sock, jid, text }) {
             ],
         });
 
+        // Remember it so the user can revoke it later with "apagar".
+        if (sent?.key) lastSentByJid.set(jid, sent);
+
         // if you don’t want any further handlers, you can return here
+    }
+
+    // Send a payment / order native flow message.
+    if (lower === 'pagamento') {
+        console.log('Got "pagamento" from', jid, '-> sending payment flow');
+
+        const sent = await sendInteractiveMessage(sock, jid, {
+            title: 'CYBER CHAT & APIs',
+            text: 'Pedido a +55 38 99826-8586',
+            footer: 'R$ 0,00',
+            interactiveButtons: [
+                {
+                    name: 'payment_info',
+                    buttonParamsJson: JSON.stringify({ display_text: 'Pagar' }),
+                },
+            ],
+        });
+
+        // Remember the payment message so it can be deleted with "apagar".
+        if (sent?.key) lastSentByJid.set(jid, sent);
+    }
+
+    // Delete / revoke the last interactive (e.g. payment) message we sent here.
+    if (lower === 'apagar') {
+        const last = lastSentByJid.get(jid);
+        if (!last) {
+            await sock.sendMessage(jid, { text: 'Não há nenhuma mensagem recente para apagar.' });
+        } else {
+            await deleteMessage(sock, jid, last);
+            lastSentByJid.delete(jid);
+            console.log('Deleted last interactive message for', jid);
+        }
     }
 
     // add more commands here:
