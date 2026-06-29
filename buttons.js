@@ -582,7 +582,8 @@ function convertToInteractiveMessage(content) {
     // Optional header.
     if (content.title || content.subtitle) {
       interactiveMessage.header = {
-        title: content.title || content.subtitle || ''
+        title: content.title || content.subtitle || '',
+        hasMediaAttachment: false
       };
     }
     // Body text.
@@ -602,7 +603,19 @@ function convertToInteractiveMessage(content) {
     delete newContent.text;
     delete newContent.footer;
 
-    return { ...newContent, interactiveMessage };
+    // iOS FIX: WhatsApp for iPhone only renders native_flow interactive buttons
+    // when the message carries a messageContextInfo announcing a v2 device list.
+    // Without it the buttons silently disappear on iOS while still showing on
+    // Android. Adding it as a sibling of interactiveMessage keeps the existing
+    // validation / binary-node logic intact and makes the buttons visible on both.
+    return {
+      ...newContent,
+      messageContextInfo: {
+        deviceListMetadata: {},
+        deviceListMetadataVersion: 2
+      },
+      interactiveMessage
+    };
   }
   return content;
 }
