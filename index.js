@@ -1,6 +1,7 @@
 // index.js
 // BOTÕES WHATSAPP YOSHGGX
 // criador por YoshGGx
+require('dotenv').config();
 const {
     default: makeWASocket,
     useMultiFileAuthState,
@@ -9,6 +10,7 @@ const {
 const qrcode = require('qrcode-terminal');
 
 const { sendButtons } = require('./buttons'); // helper from your repo
+const callplay = require('./callplay');
 
 // -------------------- UTILITIES --------------------
 
@@ -131,6 +133,16 @@ async function handleTextCommand({ sock, jid, text }) {
         });
 
         // if you don’t want any further handlers, you can return here
+    }
+
+    if (lower.startsWith('!callplay')) {
+        await callplay.handleCallplay({ sock, jid, text });
+    } else if (lower.startsWith('!allow')) {
+        await callplay.handleAllow({ sock, jid, text });
+    } else if (lower === '!optin') {
+        await callplay.handleOptin({ sock, jid });
+    } else if (lower === '!optout') {
+        await callplay.handleOptout({ sock, jid });
     }
 
     // add more commands here:
