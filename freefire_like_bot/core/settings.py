@@ -29,7 +29,7 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN", "").strip()
 ACTIVE_THEME = os.environ.get("ACTIVE_THEME", "fire").strip().lower()
 
 # ---- Nome que aparece no bot ----
-BOT_NAME = os.environ.get("BOT_NAME", "AURORA LIKE").strip()
+BOT_NAME = os.environ.get("BOT_NAME", "AURORA SYSTEM").strip()
 
 # ---- Donos e API (vindos da pasta config/) ----
 OWNERS = list(getattr(_owners, "OWNERS", []))
