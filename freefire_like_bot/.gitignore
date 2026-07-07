@@ -1,0 +1,11 @@
+# Segredos — NUNCA subir pro GitHub
+.env
+
+# Dados gerados pelo bot
+data.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
