@@ -1,15 +1,16 @@
 # 📁 Pasta de configuração
 
-Você só precisa mexer em **2 arquivos** aqui dentro:
+Arquivos que você pode mexer aqui:
 
 | Arquivo | Pra quê serve |
 |---|---|
-| `owners.py` | Colocar o ID dos **2 donos** do bot |
-| `api_config.py` | Colocar os dados da **API de Like** (quando você me mandar) |
+| `owners.py` | ID dos **2 donos** do bot |
+| `vips.py` | IDs dos **VIPs fixos** (opcional; também dá por comando) |
+| `api_config.py` | Ajustes não-secretos (limite diário, dias do auto-like) |
 
-O **token do bot** NÃO fica aqui (por segurança). Ele fica no arquivo
-`.env` na pasta principal do bot. Veja o `README.md` de fora.
+Os **tokens secretos** (token do bot, `FRIFAS_KEY`, `FRIFAS_OPEN`,
+`FRIFAS_ACCESS_ID`) **NÃO** ficam aqui — ficam no arquivo `.env` na
+pasta principal, que não vai pro GitHub. Veja o `README.md` de fora.
 
-O **layout/tema** do bot é escolhido no `.env` também
-(`ACTIVE_THEME=fire`, por exemplo). Temas disponíveis:
-`fire`, `neon`, `clean`, `premium`.
+O **layout/tema** é escolhido no `.env` (`ACTIVE_THEME=fire`).
+Temas: `fire`, `neon`, `clean`, `premium`.

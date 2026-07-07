@@ -1,5 +1,5 @@
 """
-Fluxo principal do bot: /start, menus, envio de like e painel do dono.
+Fluxo principal do bot: /start, menus, envio de like (VIP x não-VIP) e painel do dono.
 """
 import logging
 
@@ -44,16 +44,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
     theme = T()
     text = theme["welcome"].format(bot_name=settings.BOT_NAME, user=_name(update))
-    is_owner = settings.is_owner(update.effective_user.id)
-    await _send(update, context, text, keyboards.main_menu(is_owner))
+    await _send(update, context, text,
+                keyboards.main_menu(settings.is_owner(update.effective_user.id)))
 
 
 async def home(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.pop("state", None)
-    theme = T()
-    text = theme["menu_title"]
-    is_owner = settings.is_owner(update.effective_user.id)
-    await _send(update, context, text, keyboards.main_menu(is_owner))
+    await _send(update, context, T()["menu_title"],
+                keyboards.main_menu(settings.is_owner(update.effective_user.id)))
 
 
 # --------------------------- Callbacks ---------------------------
@@ -66,10 +64,8 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await home(update, context)
 
     if data == "menu:like":
-        context.user_data["state"] = "choose_region"
-        return await _send(update, context,
-                           "🌎 <b>Escolha a região do jogador:</b>",
-                           keyboards.region_menu())
+        context.user_data["state"] = "awaiting_uid"
+        return await _send(update, context, T()["ask_uid"], keyboards.back_home())
 
     if data == "menu:profile":
         return await _profile(update, context)
@@ -83,12 +79,6 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await _send(update, context, T()["menu_title"] + "\n\n👑 <b>Painel do Dono</b>",
                            keyboards.admin_menu())
 
-    if data.startswith("region:"):
-        region = data.split(":", 1)[1]
-        context.user_data["region"] = region
-        context.user_data["state"] = "awaiting_uid"
-        return await _send(update, context, T()["ask_uid"], keyboards.back_home())
-
     if data.startswith("admin:"):
         return await _admin_callback(update, context, data.split(":", 1)[1])
 
@@ -100,13 +90,11 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if state == "awaiting_uid":
         return await _do_like(update, context, text)
-
     if state == "admin_add_auto":
         return await _admin_add_auto(update, context, text)
 
-    # Sem estado: se for só números, trata como UID direto (atalho).
+    # Atalho: se mandar só números, trata como UID.
     if text.isdigit() and 6 <= len(text) <= 12:
-        context.user_data["region"] = settings.REGIONS[0]
         return await _do_like(update, context, text)
 
 
@@ -119,24 +107,23 @@ async def _do_like(update, context, uid_text):
                            keyboards.back_home())
 
     user_id = update.effective_user.id
-    is_owner = settings.is_owner(user_id)
+    vip = settings.is_vip(user_id)
 
-    if not is_owner and not storage.can_use_today(user_id, settings.DAILY_LIMIT_PER_USER):
+    # Não-VIP tem limite diário (reseta 13:00 BRT). VIP é ilimitado.
+    if not vip and not storage.can_use_today(user_id, settings.NON_VIP_DAILY_LIMIT):
         return await _send(update, context, theme["limit_reached"], keyboards.back_home())
 
-    region = context.user_data.get("region", settings.REGIONS[0])
     context.user_data.pop("state", None)
-
     await context.bot.send_message(update.effective_chat.id, theme["processing"],
                                    parse_mode=ParseMode.HTML)
 
-    result = await api.send_like(uid, region)
+    result = await api.send_like(uid)
 
     if result.ok:
-        if not is_owner:
+        if not vip:
             storage.register_use(user_id)
         text = theme["success"].format(
-            nickname=result.nickname, uid=uid, region=region,
+            nickname=result.nickname, uid=uid, region=result.region or "—",
             likes_before=result.likes_before, likes_after=result.likes_after,
             likes_added=result.likes_added,
         )
@@ -152,8 +139,13 @@ async def _do_like(update, context, uid_text):
 async def _profile(update, context):
     u = update.effective_user
     is_owner = settings.is_owner(u.id)
-    role = "👑 Dono" if is_owner else "👤 Usuário"
-    limit = "Ilimitado" if is_owner else f"{settings.DAILY_LIMIT_PER_USER}/dia"
+    vip = settings.is_vip(u.id)
+    if is_owner:
+        role, limit = "👑 Dono", "Ilimitado"
+    elif vip:
+        role, limit = "💎 VIP", "Ilimitado"
+    else:
+        role, limit = "👤 Comum", f"{settings.NON_VIP_DAILY_LIMIT}/dia (reseta 13h)"
     text = (
         f"<b>👤 SEU PERFIL</b>\n\n"
         f"🏷️ <b>Nome:</b> {u.first_name}\n"
@@ -169,9 +161,10 @@ async def _help(update, context):
     text = (
         f"<b>ℹ️ COMO USAR</b>\n\n"
         f"1️⃣ Toque em <b>Enviar Like</b>\n"
-        f"2️⃣ Escolha a <b>região</b> do jogador\n"
-        f"3️⃣ Envie o <b>ID (UID)</b> dele\n"
-        f"4️⃣ Pronto! Os likes são enviados na hora ⚡\n\n"
+        f"2️⃣ Envie o <b>ID (UID)</b> do jogador\n"
+        f"3️⃣ Pronto! Os likes vão na hora ⚡\n\n"
+        f"💎 <b>VIP:</b> likes ilimitados\n"
+        f"👤 <b>Comum:</b> {settings.NON_VIP_DAILY_LIMIT} like por dia (reseta 13h de Brasília)\n\n"
         f"👑 <b>Donos:</b> {owners}\n"
         f"🤖 <b>Bot:</b> {settings.BOT_NAME}"
     )
@@ -187,21 +180,43 @@ async def _admin_callback(update, context, action):
         context.user_data["state"] = "admin_add_auto"
         return await _send(update, context,
                            "➕ <b>ADICIONAR AO AUTO LIKE</b>\n\n"
-                           "Envie no formato: <code>UID REGIAO</code>\n"
-                           "<i>Ex:</i> <code>123456789 BR</code>",
+                           "Envie: <code>UID DIAS</code>\n"
+                           f"<i>Ex:</i> <code>123456789 30</code>\n\n"
+                           f"<i>Se não mandar os dias, uso {settings.DEFAULT_AUTO_DAYS}.</i>\n"
+                           "A API manda like sozinha todo dia às 13:00 (Brasília).",
                            keyboards.back_home())
 
     if action == "list_auto":
-        items = storage.list_autolike()
-        if not items:
-            body = "Nenhum ID no Auto Like ainda."
+        contas = await api.list_open()
+        if not contas:
+            body = "Nenhuma conta no auto-like (ou credenciais não configuradas)."
         else:
-            body = "\n".join(
-                f"• <code>{i['uid']}</code> ({i['region']})" for i in items
-            )
+            linhas = []
+            for c in contas[:30]:
+                conta = c.get("conta", {})
+                prog = c.get("progresso", {})
+                linhas.append(
+                    f"• <code>{conta.get('uid','?')}</code> {conta.get('player','')} "
+                    f"({prog.get('dias_restantes','?')}d rest.)"
+                )
+            body = "\n".join(linhas)
         return await _send(update, context,
-                           f"📋 <b>AUTO LIKE ({len(items)})</b>\n\n{body}\n\n"
-                           f"<i>Para remover: /delauto UID</i>",
+                           f"📋 <b>CONTAS NO AUTO LIKE ({len(contas)})</b>\n\n{body}",
+                           keyboards.admin_menu())
+
+    if action == "info_open":
+        info = await api.info_open()
+        if "erro" in info:
+            body = f"⚠️ {info['erro']}"
+        else:
+            body = (
+                f"🆔 Access ID: <code>{info.get('access_id','?')}</code>\n"
+                f"📦 Vagas: <b>{info.get('contas_registradas','?')}/{info.get('max_contas','?')}</b>\n"
+                f"✅ Ativas: <b>{info.get('contas_ativas','?')}</b>\n"
+                f"🏁 Concluídas: <b>{info.get('contas_concluidas','?')}</b>\n"
+                f"🕐 Máx dias: <b>{info.get('max_dias','?')}</b>"
+            )
+        return await _send(update, context, f"📦 <b>INFO DO OPEN</b>\n\n{body}",
                            keyboards.admin_menu())
 
     if action == "stats":
@@ -210,7 +225,7 @@ async def _admin_callback(update, context, action):
                            f"📊 <b>ESTATÍSTICAS</b>\n\n"
                            f"❤️ Likes enviados: <b>{s['total_likes']}</b>\n"
                            f"👥 Usuários: <b>{s['total_users']}</b>\n"
-                           f"🔁 Auto Like: <b>{len(storage.list_autolike())}</b> IDs",
+                           f"💎 VIPs (comando): <b>{len(storage.list_vips())}</b>",
                            keyboards.admin_menu())
 
 
@@ -218,34 +233,53 @@ async def _admin_add_auto(update, context, text):
     context.user_data.pop("state", None)
     parts = text.split()
     uid = parts[0] if parts else ""
-    region = parts[1].upper() if len(parts) > 1 else settings.REGIONS[0]
     if not uid.isdigit():
         return await _send(update, context,
-                           "⚠️ Formato inválido. Use: <code>UID REGIAO</code>",
+                           "⚠️ Formato inválido. Use: <code>UID DIAS</code>",
                            keyboards.admin_menu())
-    ok = storage.add_autolike(uid, region, update.effective_user.id)
-    msg = ("✅ Adicionado ao Auto Like!" if ok
-           else "⚠️ Esse ID já estava no Auto Like.")
-    await _send(update, context,
-                f"{msg}\n\n<code>{uid}</code> ({region})",
-                keyboards.admin_menu())
+    try:
+        dias = int(parts[1]) if len(parts) > 1 else settings.DEFAULT_AUTO_DAYS
+    except ValueError:
+        dias = settings.DEFAULT_AUTO_DAYS
+
+    await context.bot.send_message(update.effective_chat.id, "⏳ Registrando no auto-like...")
+    result = await api.add_auto(uid, dias)
+    if result.ok:
+        msg = (f"✅ <b>Adicionado ao Auto Like!</b>\n\n"
+               f"👤 {result.nickname}\n🆔 <code>{uid}</code>\n📅 {dias} dias\n"
+               f"🕐 Likes automáticos todo dia às 13:00 (Brasília).")
+    else:
+        msg = f"❌ Não deu certo: {result.error}"
+    await _send(update, context, msg, keyboards.admin_menu())
 
 
 # --------------------------- Comandos de dono ---------------------------
-async def cmd_delauto(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def cmd_addvip(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not settings.is_owner(update.effective_user.id):
         return
-    if not context.args:
-        return await update.message.reply_text("Use: /delauto UID")
-    uid = context.args[0]
-    ok = storage.remove_autolike(uid)
+    if not context.args or not context.args[0].isdigit():
+        return await update.message.reply_text("Use: /addvip ID_DO_TELEGRAM")
+    uid = int(context.args[0])
+    ok = storage.add_vip(uid)
     await update.message.reply_text(
-        f"🗑️ Removido: {uid}" if ok else f"Não achei o UID {uid} no Auto Like.")
+        f"💎 VIP adicionado: {uid}" if ok else f"{uid} já era VIP.")
 
 
-async def cmd_autolist(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def cmd_delvip(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not settings.is_owner(update.effective_user.id):
         return
-    items = storage.list_autolike()
-    body = "\n".join(f"• {i['uid']} ({i['region']})" for i in items) or "vazio"
-    await update.message.reply_text(f"📋 Auto Like ({len(items)}):\n{body}")
+    if not context.args or not context.args[0].isdigit():
+        return await update.message.reply_text("Use: /delvip ID_DO_TELEGRAM")
+    uid = int(context.args[0])
+    ok = storage.remove_vip(uid)
+    await update.message.reply_text(
+        f"🗑️ VIP removido: {uid}" if ok else f"{uid} não estava na lista de VIP.")
+
+
+async def cmd_vips(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not settings.is_owner(update.effective_user.id):
+        return
+    vips = storage.list_vips()
+    body = "\n".join(f"• <code>{v}</code>" for v in vips) or "nenhum (por comando)"
+    await update.message.reply_text(
+        f"💎 <b>VIPs adicionados por comando:</b>\n{body}", parse_mode=ParseMode.HTML)

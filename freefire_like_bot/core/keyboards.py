@@ -1,8 +1,6 @@
 """Teclados (botões inline) do bot."""
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
-from core import settings
-
 
 def main_menu(is_owner: bool) -> InlineKeyboardMarkup:
     rows = [
@@ -17,20 +15,6 @@ def main_menu(is_owner: bool) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(rows)
 
 
-def region_menu() -> InlineKeyboardMarkup:
-    regions = settings.REGIONS
-    rows, row = [], []
-    for i, r in enumerate(regions, 1):
-        row.append(InlineKeyboardButton(f"🌎 {r}", callback_data=f"region:{r}"))
-        if i % 3 == 0:
-            rows.append(row)
-            row = []
-    if row:
-        rows.append(row)
-    rows.append([InlineKeyboardButton("⬅️ Voltar", callback_data="menu:home")])
-    return InlineKeyboardMarkup(rows)
-
-
 def back_home() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [[InlineKeyboardButton("⬅️ Menu", callback_data="menu:home")]]
@@ -40,7 +24,8 @@ def back_home() -> InlineKeyboardMarkup:
 def admin_menu() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("➕ Add Auto Like", callback_data="admin:add_auto")],
-        [InlineKeyboardButton("📋 Lista Auto Like", callback_data="admin:list_auto")],
+        [InlineKeyboardButton("📋 Contas no Auto Like", callback_data="admin:list_auto")],
+        [InlineKeyboardButton("📦 Info do Open (vagas)", callback_data="admin:info_open")],
         [InlineKeyboardButton("📊 Estatísticas", callback_data="admin:stats")],
         [InlineKeyboardButton("⬅️ Menu", callback_data="menu:home")],
     ])

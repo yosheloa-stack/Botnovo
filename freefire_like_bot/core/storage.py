@@ -2,22 +2,39 @@
 Armazenamento simples em JSON (sem banco de dados).
 
 Guarda:
-  - limite diário de likes por usuário
-  - lista de UIDs do Auto Like
+  - limite diário de likes por usuário (reseta às 13:00 horário de Brasília)
+  - lista de VIPs adicionados por comando
+  - estatísticas
 """
 import json
 import threading
-from datetime import date
+from datetime import datetime, timedelta, timezone
+
 from pathlib import Path
+
+from config import api_config as _api
 
 _DATA_FILE = Path(__file__).resolve().parent.parent / "data.json"
 _lock = threading.Lock()
 
+# Horário de Brasília (sem horário de verão): UTC-3.
+_BRT = timezone(timedelta(hours=-3))
+
 _DEFAULT = {
-    "daily": {},        # { "user_id": {"date": "2026-07-07", "count": 1} }
-    "autolike": [],     # [ {"uid": "123", "region": "BR", "added_by": 111} ]
+    "daily": {},        # { "user_id": {"day": "2026-07-07", "count": 1} }
+    "vips": [],         # [ user_id, ... ]
     "stats": {"total_likes": 0, "total_users": []},
 }
+
+
+def like_day() -> str:
+    """
+    Devolve o "dia de like" atual. O dia vira às RESET_HOUR_BRT (13:00 BRT):
+    antes das 13h ainda conta como o dia anterior. Assim o limite zera às 13h.
+    """
+    now = datetime.now(_BRT)
+    ref = now - timedelta(hours=_api.RESET_HOUR_BRT)
+    return ref.date().isoformat()
 
 
 def _load() -> dict:
@@ -25,7 +42,7 @@ def _load() -> dict:
         try:
             data = json.loads(_DATA_FILE.read_text(encoding="utf-8"))
             for k, v in _DEFAULT.items():
-                data.setdefault(k, v if not isinstance(v, (dict, list)) else type(v)())
+                data.setdefault(k, json.loads(json.dumps(v)))
             return data
         except Exception:
             pass
@@ -36,13 +53,12 @@ def _save(data: dict) -> None:
     _DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-# ----------------- Limite diário -----------------
+# ----------------- Limite diário (reseta 13:00 BRT) -----------------
 def can_use_today(user_id: int, limit: int) -> bool:
     with _lock:
         data = _load()
         rec = data["daily"].get(str(user_id))
-        today = date.today().isoformat()
-        if not rec or rec.get("date") != today:
+        if not rec or rec.get("day") != like_day():
             return True
         return rec.get("count", 0) < limit
 
@@ -50,10 +66,10 @@ def can_use_today(user_id: int, limit: int) -> bool:
 def register_use(user_id: int) -> None:
     with _lock:
         data = _load()
-        today = date.today().isoformat()
+        today = like_day()
         rec = data["daily"].get(str(user_id))
-        if not rec or rec.get("date") != today:
-            rec = {"date": today, "count": 0}
+        if not rec or rec.get("day") != today:
+            rec = {"day": today, "count": 0}
         rec["count"] += 1
         data["daily"][str(user_id)] = rec
         data["stats"]["total_likes"] = data["stats"].get("total_likes", 0) + 1
@@ -62,32 +78,30 @@ def register_use(user_id: int) -> None:
         _save(data)
 
 
-# ----------------- Auto Like -----------------
-def add_autolike(uid: str, region: str, added_by: int) -> bool:
+# ----------------- VIPs dinâmicos -----------------
+def list_vips() -> list:
+    with _lock:
+        return list(_load().get("vips", []))
+
+
+def add_vip(user_id: int) -> bool:
     with _lock:
         data = _load()
-        for item in data["autolike"]:
-            if item["uid"] == uid:
-                return False
-        data["autolike"].append({"uid": uid, "region": region, "added_by": added_by})
+        if user_id in data["vips"]:
+            return False
+        data["vips"].append(user_id)
         _save(data)
         return True
 
 
-def remove_autolike(uid: str) -> bool:
+def remove_vip(user_id: int) -> bool:
     with _lock:
         data = _load()
-        before = len(data["autolike"])
-        data["autolike"] = [i for i in data["autolike"] if i["uid"] != uid]
-        changed = len(data["autolike"]) != before
-        if changed:
-            _save(data)
-        return changed
-
-
-def list_autolike() -> list:
-    with _lock:
-        return _load()["autolike"]
+        if user_id not in data["vips"]:
+            return False
+        data["vips"].remove(user_id)
+        _save(data)
+        return True
 
 
 def get_stats() -> dict:
