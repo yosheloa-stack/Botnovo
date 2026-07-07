@@ -31,7 +31,7 @@ _load_env()
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "").strip()
 
 # ---- Tema/layout ativo (fire | neon | clean | premium) ----
-ACTIVE_THEME = os.environ.get("ACTIVE_THEME", "fire").strip().lower()
+ACTIVE_THEME = os.environ.get("ACTIVE_THEME", "clean").strip().lower()
 
 # ---- Nome que aparece no bot ----
 BOT_NAME = os.environ.get("BOT_NAME", "AURORA SYSTEM").strip()
