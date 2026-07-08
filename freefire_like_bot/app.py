@@ -77,6 +77,7 @@ def build_app():
     # Comandos de diversão
     app.add_handler(CommandHandler("wallpaper", fun.cmd_wallpaper))
     app.add_handler(CommandHandler("beijar", fun.cmd_beijar))
+    app.add_handler(CommandHandler("marcar", fun.cmd_marcar))
     app.add_handler(CommandHandler(["velha", "jogodavelha"], fun.cmd_velha))
 
     # Botões: jogo da velha primeiro (por padrão), depois o menu geral

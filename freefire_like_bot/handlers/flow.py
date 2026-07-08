@@ -80,6 +80,21 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["state"] = "awaiting_uid"
         return await _send(update, context, T()["ask_uid"], keyboards.back_home())
 
+    if data == "menu:fun":
+        return await _send(update, context,
+                           "🎮 <b>BRINCADEIRAS</b>\n\n"
+                           "⭕ <b>/velha</b> — jogo da velha (por botões)\n"
+                           "😘 <b>/beijar</b> — responda alguém pra beijar\n\n"
+                           "<i>Use os comandos no grupo.</i>",
+                           keyboards.back_home())
+
+    if data == "menu:tools":
+        return await _send(update, context,
+                           "🛠️ <b>FERRAMENTAS</b>\n\n"
+                           "🖼️ <b>/wallpaper</b> — papel de parede\n"
+                           "🏷️ <b>/marcar</b> — marque alguém (responda a pessoa)\n",
+                           keyboards.back_home())
+
     if data == "menu:profile":
         return await _profile(update, context)
 

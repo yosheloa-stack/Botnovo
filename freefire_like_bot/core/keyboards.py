@@ -6,7 +6,11 @@ def main_menu(is_owner: bool) -> InlineKeyboardMarkup:
     rows = [
         [InlineKeyboardButton("🎯 Enviar Like", callback_data="menu:like")],
         [
-            InlineKeyboardButton("👤 Meu Perfil", callback_data="menu:profile"),
+            InlineKeyboardButton("🎮 Brincadeiras", callback_data="menu:fun"),
+            InlineKeyboardButton("🛠️ Ferramentas", callback_data="menu:tools"),
+        ],
+        [
+            InlineKeyboardButton("👤 Perfil", callback_data="menu:profile"),
             InlineKeyboardButton("ℹ️ Ajuda", callback_data="menu:help"),
         ],
     ]

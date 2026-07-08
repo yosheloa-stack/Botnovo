@@ -17,10 +17,16 @@ from core import settings
 
 
 def mention(user) -> str:
-    """Marca o usuário: nome clicável que abre o perfil (funciona sem @)."""
+    """
+    Marca o usuário. Se tiver @username, mostra o @arroba (o Telegram já
+    deixa clicável). Se não tiver, usa o nome como link clicável que abre
+    o perfil e notifica a pessoa.
+    """
     if not user:
         return "alguém"
-    nome = html.escape(user.first_name or user.username or "usuário")
+    if getattr(user, "username", None):
+        return f"@{user.username}"
+    nome = html.escape(user.first_name or "usuário")
     return f'<a href="tg://user?id={user.id}">{nome}</a>'
 
 
@@ -94,6 +100,20 @@ async def cmd_beijar(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(legenda, parse_mode=ParseMode.HTML)
     except Exception:  # noqa: BLE001
         await update.message.reply_text(legenda, parse_mode=ParseMode.HTML)
+
+
+# --------------------------- /marcar ---------------------------
+async def cmd_marcar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Marca uma pessoa com o nome clicável (responda ou marque ela)."""
+    alvo = _alvo(update)
+    if not alvo:
+        return await update.message.reply_text(
+            "🏷️ Responda a mensagem da pessoa com /marcar (ou marque ela na mensagem).")
+    extra = " ".join(context.args).strip() if context.args else ""
+    texto = f"📣 {mention(alvo)}"
+    if extra:
+        texto += f"\n{html.escape(extra)}"
+    await update.message.reply_text(texto, parse_mode=ParseMode.HTML)
 
 
 # --------------------------- Jogo da Velha ---------------------------
