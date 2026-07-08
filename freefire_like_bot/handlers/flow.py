@@ -3,7 +3,7 @@ Fluxo principal do bot: /start, menus, envio de like (VIP x não-VIP) e painel d
 """
 import logging
 
-from telegram import Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
@@ -226,7 +226,8 @@ async def _admin_callback(update, context, action):
     if action == "info_open":
         info = await api.info_open()
         if "erro" in info:
-            body = f"⚠️ {info['erro']}"
+            body = (f"⚠️ {info['erro']}\n\n"
+                    "Mas dá pra ver tudo (contas, likes, dias) na página abaixo 👇")
         else:
             body = (
                 f"🆔 Access ID: <code>{info.get('access_id','?')}</code>\n"
@@ -235,8 +236,13 @@ async def _admin_callback(update, context, action):
                 f"🏁 Concluídas: <b>{info.get('contas_concluidas','?')}</b>\n"
                 f"🕐 Máx dias: <b>{info.get('max_dias','?')}</b>"
             )
+        rows = []
+        page = settings.checkpage_url()
+        if page:
+            rows.append([InlineKeyboardButton("🌐 Abrir página do auto-like", url=page)])
+        rows.append([InlineKeyboardButton("⬅️ Menu", callback_data="menu:home")])
         return await _send(update, context, f"📦 <b>INFO DO OPEN</b>\n\n{body}",
-                           keyboards.admin_menu())
+                           InlineKeyboardMarkup(rows))
 
     if action == "stats":
         s = storage.get_stats()

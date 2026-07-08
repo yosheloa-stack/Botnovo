@@ -61,6 +61,16 @@ NON_VIP_DAILY_LIMIT = _api.NON_VIP_DAILY_LIMIT
 RESET_HOUR_BRT = _api.RESET_HOUR_BRT
 DEFAULT_AUTO_DAYS = _api.DEFAULT_AUTO_DAYS
 
+# Página pública de status do auto-like (abre no navegador com o access_id)
+CHECKPAGE_BASE = os.environ.get(
+    "CHECKPAGE_BASE", "https://fluxservice.squareweb.app/checkpage").strip().rstrip("/")
+
+
+def checkpage_url() -> str:
+    if CHECKPAGE_BASE and FRIFAS_ACCESS_ID:
+        return f"{CHECKPAGE_BASE}?access_id={FRIFAS_ACCESS_ID}"
+    return ""
+
 
 def is_owner(user_id: int) -> bool:
     return user_id in OWNERS
