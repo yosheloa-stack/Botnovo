@@ -24,6 +24,7 @@ _DEFAULT = {
     "daily": {},        # { "user_id": {"day": "2026-07-07", "count": 1} }
     "vips": [],         # [ user_id, ... ]
     "stats": {"total_likes": 0, "total_users": []},
+    "chat_settings": {},  # { "chat_id": {"antilink": True, "antiflood": True} }
 }
 
 
@@ -102,6 +103,22 @@ def remove_vip(user_id: int) -> bool:
         data["vips"].remove(user_id)
         _save(data)
         return True
+
+
+# ----------------- Configurações por grupo -----------------
+def get_setting(chat_id, key, default=None):
+    with _lock:
+        cs = _load().get("chat_settings", {})
+        return cs.get(str(chat_id), {}).get(key, default)
+
+
+def set_setting(chat_id, key, value) -> None:
+    with _lock:
+        data = _load()
+        cs = data.setdefault("chat_settings", {})
+        chat = cs.setdefault(str(chat_id), {})
+        chat[key] = value
+        _save(data)
 
 
 def get_stats() -> dict:

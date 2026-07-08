@@ -74,6 +74,24 @@ Para o bot entrar em grupos, no @BotFather deixe **Allow Groups = ON**
 (`/setjoingroups`). Se quiser que ele leia texto solto (mandar só o número),
 use `/setprivacy → Disable` — mas com `/like` isso não é necessário.
 
+## 🛡️ Moderação de grupo
+
+O bot também modera o grupo. **Para funcionar, coloque o bot como ADMIN
+do grupo** (com permissão de apagar mensagens e banir).
+
+| Recurso | Como |
+|---|---|
+| 🚫 **Anti-link** | `/antilink on` — apaga mensagem de quem manda link |
+| 🚦 **Anti-flood** | `/antiflood on` — segura quem manda mensagem rápido demais |
+| 🔨 **Banir** | responda a mensagem da pessoa com `/ban` (ou `/ban ID`) |
+| ✅ **Desbanir** | `/unban ID` |
+
+Admins do grupo e donos do bot **não** são afetados pelo anti-link/anti-flood.
+Só admins (ou donos) podem usar `/ban`, `/antilink`, `/antiflood`.
+
+Ajustes do anti-flood ficam em `handlers/moderation.py`
+(`FLOOD_COUNT` e `FLOOD_WINDOW`).
+
 ## 🤖 Comandos
 
 | Comando | Quem | O que faz |
@@ -81,6 +99,10 @@ use `/setprivacy → Disable` — mas com `/like` isso não é necessário.
 | `/like ID` | todos | envia like (grupo e privado) |
 | `/start` | todos | abre o menu |
 | `/menu` | todos | volta ao menu |
+| `/ban` | admin | bane (responda a mensagem) |
+| `/unban ID` | admin | desbane |
+| `/antilink on\|off` | admin | liga/desliga anti-link |
+| `/antiflood on\|off` | admin | liga/desliga anti-flood |
 | `/addauto ID [DIAS]` | dono | põe um ID no Auto Like |
 | `/addvip ID` | dono | vira VIP |
 | `/delvip ID` | dono | tira o VIP |

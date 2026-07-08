@@ -18,7 +18,7 @@ from telegram.ext import (
 )
 
 from core import settings
-from handlers import flow
+from handlers import flow, moderation
 
 
 async def _post_init(app):
@@ -28,9 +28,14 @@ async def _post_init(app):
         BotCommand("menu", "Abrir o menu do bot"),
         BotCommand("start", "Iniciar o bot"),
     ])
-    # Em grupo, mostra só o /like (é o principal por lá).
+    # Em grupo: /like + comandos de moderação.
     await app.bot.set_my_commands(
-        [BotCommand("like", "Enviar like: /like SEU_ID")],
+        [
+            BotCommand("like", "Enviar like: /like SEU_ID"),
+            BotCommand("ban", "Banir alguém (responda a mensagem)"),
+            BotCommand("antilink", "Ligar/desligar anti-link"),
+            BotCommand("antiflood", "Ligar/desligar anti-flood"),
+        ],
         scope=BotCommandScopeAllGroupChats(),
     )
 
@@ -63,11 +68,23 @@ def build_app():
     app.add_handler(CommandHandler("delvip", flow.cmd_delvip))
     app.add_handler(CommandHandler("vips", flow.cmd_vips))
 
+    # Comandos de moderação (grupo)
+    app.add_handler(CommandHandler("ban", moderation.cmd_ban))
+    app.add_handler(CommandHandler("unban", moderation.cmd_unban))
+    app.add_handler(CommandHandler("antilink", moderation.cmd_antilink))
+    app.add_handler(CommandHandler("antiflood", moderation.cmd_antiflood))
+
     # Botões
     app.add_handler(CallbackQueryHandler(flow.on_callback))
 
     # Texto (UID e formulários)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, flow.on_text))
+
+    # Vigia de moderação: roda em TODA mensagem de grupo (grupo -1, antes do resto)
+    app.add_handler(
+        MessageHandler(filters.ChatType.GROUPS & ~filters.StatusUpdate.ALL, moderation.moderate),
+        group=-1,
+    )
 
     return app
 
