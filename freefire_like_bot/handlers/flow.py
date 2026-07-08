@@ -249,6 +249,11 @@ async def _admin_callback(update, context, action):
 
 
 async def _admin_add_auto(update, context, text):
+    # Trava de segurança: Auto Like é SÓ para os donos.
+    if not settings.is_owner(update.effective_user.id):
+        context.user_data.pop("state", None)
+        return await _send(update, context, "🚫 Só os donos podem usar o Auto Like.",
+                           keyboards.back_home())
     context.user_data.pop("state", None)
     parts = text.split()
     uid = parts[0] if parts else ""
