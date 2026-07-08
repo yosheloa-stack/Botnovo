@@ -185,6 +185,16 @@ async def _help(update, context):
 
 
 # --------------------------- Painel do Dono ---------------------------
+def _checkpage_kb() -> InlineKeyboardMarkup:
+    """Teclado com o botão que abre a página do auto-like (checkpage) + menu."""
+    rows = []
+    page = settings.checkpage_url()
+    if page:
+        rows.append([InlineKeyboardButton("🌐 Abrir página do auto-like", url=page)])
+    rows.append([InlineKeyboardButton("⬅️ Menu", callback_data="menu:home")])
+    return InlineKeyboardMarkup(rows)
+
+
 async def _admin_callback(update, context, action):
     if not settings.is_owner(update.effective_user.id):
         return await update.callback_query.answer("Só os donos 👑", show_alert=True)
@@ -208,7 +218,9 @@ async def _admin_callback(update, context, action):
     if action == "list_auto":
         contas = await api.list_open()
         if not contas:
-            body = "Nenhuma conta no auto-like (ou credenciais não configuradas)."
+            body = ("Não consegui puxar a lista pela API (sessão do auto-like).\n"
+                    "Veja as contas, likes e dias na página abaixo 👇")
+            titulo = "📋 <b>CONTAS NO AUTO LIKE</b>"
         else:
             linhas = []
             for c in contas[:30]:
@@ -219,9 +231,8 @@ async def _admin_callback(update, context, action):
                     f"({prog.get('dias_restantes','?')}d rest.)"
                 )
             body = "\n".join(linhas)
-        return await _send(update, context,
-                           f"📋 <b>CONTAS NO AUTO LIKE ({len(contas)})</b>\n\n{body}",
-                           keyboards.admin_menu())
+            titulo = f"📋 <b>CONTAS NO AUTO LIKE ({len(contas)})</b>"
+        return await _send(update, context, f"{titulo}\n\n{body}", _checkpage_kb())
 
     if action == "info_open":
         info = await api.info_open()
@@ -236,13 +247,8 @@ async def _admin_callback(update, context, action):
                 f"🏁 Concluídas: <b>{info.get('contas_concluidas','?')}</b>\n"
                 f"🕐 Máx dias: <b>{info.get('max_dias','?')}</b>"
             )
-        rows = []
-        page = settings.checkpage_url()
-        if page:
-            rows.append([InlineKeyboardButton("🌐 Abrir página do auto-like", url=page)])
-        rows.append([InlineKeyboardButton("⬅️ Menu", callback_data="menu:home")])
         return await _send(update, context, f"📦 <b>INFO DO OPEN</b>\n\n{body}",
-                           InlineKeyboardMarkup(rows))
+                           _checkpage_kb())
 
     if action == "stats":
         s = storage.get_stats()
