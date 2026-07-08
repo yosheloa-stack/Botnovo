@@ -60,18 +60,34 @@ No `.env`, mude `ACTIVE_THEME`. Opções: `fire` 🔥 | `neon` ⚡ | `clean` �
 
 ---
 
+## 👥 Uso em GRUPO
+
+O bot funciona dentro de grupos. Em grupo o jeito principal é o comando:
+```
+/like SEU_ID
+```
+> Em grupo, o Telegram normalmente não deixa o bot ler texto solto, por
+> isso o envio é por **comando**. Com o `/like` você **não precisa** desligar
+> o modo de privacidade — pode deixar como está.
+
+Para o bot entrar em grupos, no @BotFather deixe **Allow Groups = ON**
+(`/setjoingroups`). Se quiser que ele leia texto solto (mandar só o número),
+use `/setprivacy → Disable` — mas com `/like` isso não é necessário.
+
 ## 🤖 Comandos
 
 | Comando | Quem | O que faz |
 |---------|------|-----------|
+| `/like ID` | todos | envia like (grupo e privado) |
 | `/start` | todos | abre o menu |
 | `/menu` | todos | volta ao menu |
+| `/addauto ID [DIAS]` | dono | põe um ID no Auto Like |
 | `/addvip ID` | dono | vira VIP |
 | `/delvip ID` | dono | tira o VIP |
 | `/vips` | dono | lista os VIPs |
 
-No **Painel do Dono** (botão no menu): adicionar conta no Auto Like,
-listar contas cadastradas e ver as vagas do Open.
+No **Painel do Dono** (privado): adicionar conta no Auto Like, listar
+contas cadastradas e ver as vagas do Open.
 
 ---
 

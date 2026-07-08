@@ -8,6 +8,7 @@ por isso o bot não precisa de um agendador local.
 import logging
 import sys
 
+from telegram import BotCommand, BotCommandScopeAllGroupChats
 from telegram.ext import (
     ApplicationBuilder,
     CallbackQueryHandler,
@@ -18,6 +19,20 @@ from telegram.ext import (
 
 from core import settings
 from handlers import flow
+
+
+async def _post_init(app):
+    """Registra o menu de comandos que aparece no Telegram (privado e grupo)."""
+    await app.bot.set_my_commands([
+        BotCommand("like", "Enviar like para um ID"),
+        BotCommand("menu", "Abrir o menu do bot"),
+        BotCommand("start", "Iniciar o bot"),
+    ])
+    # Em grupo, mostra só o /like (é o principal por lá).
+    await app.bot.set_my_commands(
+        [BotCommand("like", "Enviar like: /like SEU_ID")],
+        scope=BotCommandScopeAllGroupChats(),
+    )
 
 logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
@@ -37,11 +52,13 @@ def build_app():
     if not settings.FRIFAS_KEY:
         log.warning("⚠️  FRIFAS_KEY não configurada — o envio de like não vai funcionar até preencher o .env")
 
-    app = ApplicationBuilder().token(settings.BOT_TOKEN).build()
+    app = ApplicationBuilder().token(settings.BOT_TOKEN).post_init(_post_init).build()
 
     # Comandos
     app.add_handler(CommandHandler("start", flow.start))
     app.add_handler(CommandHandler("menu", flow.home))
+    app.add_handler(CommandHandler("like", flow.cmd_like))
+    app.add_handler(CommandHandler("addauto", flow.cmd_addauto))
     app.add_handler(CommandHandler("addvip", flow.cmd_addvip))
     app.add_handler(CommandHandler("delvip", flow.cmd_delvip))
     app.add_handler(CommandHandler("vips", flow.cmd_vips))

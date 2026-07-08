@@ -22,6 +22,11 @@ def _name(update: Update) -> str:
     return u.first_name or u.username or "jogador"
 
 
+def _is_group(update: Update) -> bool:
+    chat = update.effective_chat
+    return bool(chat and chat.type in ("group", "supergroup"))
+
+
 async def _send(update, context, text, keyboard=None):
     """Envia ou edita a mensagem, funcionando tanto p/ comando quanto botão."""
     if update.callback_query:
@@ -64,6 +69,14 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await home(update, context)
 
     if data == "menu:like":
+        # Em grupo o bot não lê texto solto (modo privacidade), então
+        # orientamos a usar o comando /like.
+        if _is_group(update):
+            return await _send(update, context,
+                               "🎯 <b>Enviar Like no grupo</b>\n\n"
+                               "Use o comando:\n<code>/like SEU_ID</code>\n\n"
+                               "<i>Ex:</i> <code>/like 123456789</code>",
+                               keyboards.back_home())
         context.user_data["state"] = "awaiting_uid"
         return await _send(update, context, T()["ask_uid"], keyboards.back_home())
 
@@ -93,8 +106,8 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if state == "admin_add_auto":
         return await _admin_add_auto(update, context, text)
 
-    # Atalho: se mandar só números, trata como UID.
-    if text.isdigit() and 6 <= len(text) <= 12:
+    # Atalho (só no privado): se mandar só números, trata como UID.
+    if not _is_group(update) and text.isdigit() and 6 <= len(text) <= 12:
         return await _do_like(update, context, text)
 
 
@@ -160,9 +173,9 @@ async def _help(update, context):
     owners = ", ".join(settings.OWNER_USERNAMES) or "—"
     text = (
         f"<b>ℹ️ COMO USAR</b>\n\n"
-        f"1️⃣ Toque em <b>Enviar Like</b>\n"
-        f"2️⃣ Envie o <b>ID (UID)</b> do jogador\n"
-        f"3️⃣ Pronto! Os likes vão na hora ⚡\n\n"
+        f"📌 <b>No grupo:</b> mande <code>/like SEU_ID</code>\n"
+        f"<i>Ex:</i> <code>/like 123456789</code>\n\n"
+        f"📌 <b>No privado:</b> toque em <b>Enviar Like</b> e mande o ID.\n\n"
         f"💎 <b>VIP:</b> likes ilimitados\n"
         f"👤 <b>Comum:</b> {settings.NON_VIP_DAILY_LIMIT} like por dia (reseta 13h de Brasília)\n\n"
         f"👑 <b>Donos:</b> {owners}\n"
@@ -177,6 +190,12 @@ async def _admin_callback(update, context, action):
         return await update.callback_query.answer("Só os donos 👑", show_alert=True)
 
     if action == "add_auto":
+        if _is_group(update):
+            return await _send(update, context,
+                               "➕ <b>Adicionar no Auto Like (grupo)</b>\n\n"
+                               "Use o comando:\n<code>/addauto UID DIAS</code>\n"
+                               "<i>Ex:</i> <code>/addauto 123456789 30</code>",
+                               keyboards.admin_menu())
         context.user_data["state"] = "admin_add_auto"
         return await _send(update, context,
                            "➕ <b>ADICIONAR AO AUTO LIKE</b>\n\n"
@@ -253,7 +272,25 @@ async def _admin_add_auto(update, context, text):
     await _send(update, context, msg, keyboards.admin_menu())
 
 
+# --------------------------- Comando /like (grupo e privado) ---------------------------
+async def cmd_like(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/like UID — funciona em grupo e no privado."""
+    if not context.args:
+        return await update.message.reply_text(
+            "🎯 Use assim: /like SEU_ID\nEx: /like 123456789")
+    await _do_like(update, context, context.args[0])
+
+
 # --------------------------- Comandos de dono ---------------------------
+async def cmd_addauto(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/addauto UID [DIAS] — registra um ID no auto-like (só dono)."""
+    if not settings.is_owner(update.effective_user.id):
+        return
+    if not context.args or not context.args[0].isdigit():
+        return await update.message.reply_text("Use: /addauto UID [DIAS]\nEx: /addauto 123456789 30")
+    await _admin_add_auto(update, context, " ".join(context.args))
+
+
 async def cmd_addvip(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not settings.is_owner(update.effective_user.id):
         return
