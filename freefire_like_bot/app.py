@@ -18,7 +18,7 @@ from telegram.ext import (
 )
 
 from core import settings
-from handlers import flow, moderation
+from handlers import flow, fun, moderation
 
 
 async def _post_init(app):
@@ -74,7 +74,13 @@ def build_app():
     app.add_handler(CommandHandler("antilink", moderation.cmd_antilink))
     app.add_handler(CommandHandler("antiflood", moderation.cmd_antiflood))
 
-    # Botões
+    # Comandos de diversão
+    app.add_handler(CommandHandler("wallpaper", fun.cmd_wallpaper))
+    app.add_handler(CommandHandler("beijar", fun.cmd_beijar))
+    app.add_handler(CommandHandler(["velha", "jogodavelha"], fun.cmd_velha))
+
+    # Botões: jogo da velha primeiro (por padrão), depois o menu geral
+    app.add_handler(CallbackQueryHandler(fun.velha_callback, pattern="^velha:"))
     app.add_handler(CallbackQueryHandler(flow.on_callback))
 
     # Texto (UID e formulários)

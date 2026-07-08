@@ -47,6 +47,7 @@ ACTIVE_THEME = os.environ.get("ACTIVE_THEME", "clean").strip().lower()
 BOT_NAME = os.environ.get("BOT_NAME", "AURORA SYSTEM").strip()
 
 # ---- Tokens da API de Like (secretos, vêm do .env) ----
+TOKITO_API_KEY = os.environ.get("TOKITO_API_KEY", "Yosh7").strip()
 FRIFAS_KEY = os.environ.get("FRIFAS_KEY", "").strip()
 FRIFAS_OPEN = os.environ.get("FRIFAS_OPEN", "").strip()
 FRIFAS_ACCESS_ID = os.environ.get("FRIFAS_ACCESS_ID", "").strip()
