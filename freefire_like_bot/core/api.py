@@ -52,6 +52,20 @@ def _friendly(code, fallback=""):
     return ERROR_MESSAGES.get(code, fallback or "erro desconhecido")
 
 
+# A API às vezes usa nomes em PT (sucesso/status/mensagem) e às vezes em
+# EN (success/error/message). Estes helpers aceitam os dois.
+def _is_ok(data: dict) -> bool:
+    return bool(data.get("success", data.get("sucesso", False)))
+
+
+def _err_code(data: dict) -> str:
+    return str(data.get("error") or data.get("status") or "ERRO")
+
+
+def _err_msg(data: dict) -> str:
+    return data.get("message") or data.get("mensagem") or ""
+
+
 async def _request(path: str, params: dict) -> dict:
     """Faz o GET e devolve o JSON (mesmo em erro HTTP, pois a API manda JSON útil)."""
     url = f"{settings.API_BASE_URL}{path}"
@@ -60,13 +74,13 @@ async def _request(path: str, params: dict) -> dict:
     try:
         return resp.json()
     except Exception:
-        return {"sucesso": False, "status": f"HTTP_{resp.status_code}",
-                "mensagem": "A API não respondeu em JSON."}
+        return {"success": False, "error": f"HTTP_{resp.status_code}",
+                "message": "A API não respondeu em JSON."}
 
 
 def _err_result(data, uid="", region=""):
-    code = str(data.get("status", "")) or "ERRO"
-    msg = _friendly(code, data.get("mensagem", ""))
+    code = _err_code(data)
+    msg = _friendly(code, _err_msg(data))
     return LikeResult(ok=False, uid=uid, region=region, error=msg, code=code,
                       at_max=code in AT_MAX_CODES)
 
@@ -83,7 +97,7 @@ async def send_like(uid: str) -> LikeResult:
         return LikeResult(ok=False, uid=uid,
                           error=f"Não consegui conectar na API ({e.__class__.__name__}).")
 
-    if not data.get("sucesso"):
+    if not _is_ok(data):
         return _err_result(data, uid=uid)
 
     try:
@@ -118,7 +132,7 @@ async def add_auto(uid: str, dias: int) -> LikeResult:
         return LikeResult(ok=False, uid=uid,
                           error=f"Não consegui conectar na API ({e.__class__.__name__}).")
 
-    if not data.get("sucesso"):
+    if not _is_ok(data):
         return _err_result(data, uid=uid)
 
     conta = (data.get("data") or {}).get("conta", {})
@@ -136,8 +150,8 @@ async def info_open() -> dict:
             "key": settings.FRIFAS_KEY, "access_id": settings.FRIFAS_ACCESS_ID})
     except httpx.RequestError as e:
         return {"erro": f"Sem conexão ({e.__class__.__name__})"}
-    if not data.get("sucesso"):
-        return {"erro": _friendly(str(data.get("status")), data.get("mensagem", ""))}
+    if not _is_ok(data):
+        return {"erro": _friendly(_err_code(data), _err_msg(data))}
     return data.get("data", {})
 
 
@@ -150,6 +164,6 @@ async def list_open() -> list:
             "key": settings.FRIFAS_KEY, "access_id": settings.FRIFAS_ACCESS_ID})
     except httpx.RequestError:
         return []
-    if not data.get("sucesso"):
+    if not _is_ok(data):
         return []
     return data.get("data", []) or []
