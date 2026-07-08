@@ -223,12 +223,15 @@ async def _admin_callback(update, context, action):
             titulo = "📋 <b>CONTAS NO AUTO LIKE</b>"
         else:
             linhas = []
-            for c in contas[:30]:
+            for c in contas[:20]:
                 conta = c.get("conta", {})
+                likes = c.get("likes", {})
                 prog = c.get("progresso", {})
                 linhas.append(
-                    f"• <code>{conta.get('uid','?')}</code> {conta.get('player','')} "
-                    f"({prog.get('dias_restantes','?')}d rest.)"
+                    f"👤 <b>{conta.get('player','?')}</b> (<code>{conta.get('uid','?')}</code>)\n"
+                    f"   ❤️ {likes.get('atual','?')} (+{likes.get('enviados','?')}) · "
+                    f"📅 {prog.get('dias_usados','?')}/{prog.get('dias_total','?')}d "
+                    f"({prog.get('dias_restantes','?')} rest.)"
                 )
             body = "\n".join(linhas)
             titulo = f"📋 <b>CONTAS NO AUTO LIKE ({len(contas)})</b>"
