@@ -22,7 +22,17 @@ def _load_env():
             if not line or line.startswith("#") or "=" not in line:
                 continue
             key, _, value = line.partition("=")
-            os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+            value = value.strip()
+            # Remove comentário inline (ex: "TOKEN=abc   # nota") quando o
+            # valor não está entre aspas — evita que o comentário vire parte
+            # do valor. Corta no primeiro '#' precedido de espaço/tab.
+            if value and value[0] not in ("'", '"'):
+                for sep in (" #", "\t#"):
+                    idx = value.find(sep)
+                    if idx != -1:
+                        value = value[:idx].strip()
+            value = value.strip().strip('"').strip("'").strip()
+            os.environ.setdefault(key.strip(), value)
 
 
 _load_env()
