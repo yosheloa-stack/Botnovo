@@ -6,6 +6,7 @@ O auto-like é processado pela PRÓPRIA API (Frifas) todo dia às 13:00 BRT,
 por isso o bot não precisa de um agendador local.
 """
 import logging
+import os
 import sys
 
 from telegram import BotCommand, BotCommandScopeAllGroupChats
@@ -18,11 +19,11 @@ from telegram.ext import (
 )
 
 from core import settings
-from handlers import flow, moderation
+from handlers import flow, moderation, webhook
 
 
 async def _post_init(app):
-    """Registra o menu de comandos que aparece no Telegram (privado e grupo)."""
+    """Registra o menu de comandos e (se ligado) o servidor de webhook."""
     await app.bot.set_my_commands([
         BotCommand("like", "Enviar like para um ID"),
         BotCommand("menu", "Abrir o menu do bot"),
@@ -38,6 +39,13 @@ async def _post_init(app):
         ],
         scope=BotCommandScopeAllGroupChats(),
     )
+
+    # Servidor de webhook do auto-like (liga com WEBHOOK_ENABLED=true no .env)
+    if os.environ.get("WEBHOOK_ENABLED", "false").strip().lower() in ("1", "true", "on", "sim"):
+        try:
+            app.bot_data["webhook_runner"] = await webhook.start_webhook_server(app)
+        except Exception as e:  # noqa: BLE001
+            log.warning("Não consegui iniciar o webhook: %s", e)
 
 logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
