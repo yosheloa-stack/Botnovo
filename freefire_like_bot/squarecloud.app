@@ -1,4 +1,4 @@
-MAIN=bot.py
+MAIN=app.py
 MEMORY=512
 VERSION=recommended
 DISPLAY_NAME=AURORA SYSTEM

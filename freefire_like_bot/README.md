@@ -38,7 +38,7 @@ Abra `config/vips.py` e adicione os IDs. Também dá pra fazer pelo Telegram:
 
 ### 5. Rodar
 ```bash
-python bot.py
+python app.py
 ```
 
 ---

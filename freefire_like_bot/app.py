@@ -1,6 +1,6 @@
 """
 🔥 BOT DE LIKE FREE FIRE 🔥
-Ponto de entrada. Rode com:  python bot.py
+Ponto de entrada. Rode com:  python app.py
 
 O auto-like é processado pela PRÓPRIA API (Frifas) todo dia às 13:00 BRT,
 por isso o bot não precisa de um agendador local.
