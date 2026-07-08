@@ -43,9 +43,30 @@ async def _post_init(app):
     # Servidor de webhook do auto-like (liga com WEBHOOK_ENABLED=true no .env)
     if os.environ.get("WEBHOOK_ENABLED", "false").strip().lower() in ("1", "true", "on", "sim"):
         try:
+            port = webhook.resolve_port()
             app.bot_data["webhook_runner"] = await webhook.start_webhook_server(app)
+
+            # Túnel HTTPS (ngrok) pra API conseguir alcançar de fora
+            import asyncio
+
+            from handlers import tunnel
+            public_url = await asyncio.get_event_loop().run_in_executor(
+                None, tunnel.start_ngrok, port)
+            if public_url:
+                path = os.environ.get("WEBHOOK_PATH", "/webhook") or "/webhook"
+                wh_url = public_url.rstrip("/") + (path if path.startswith("/") else "/" + path)
+                log.info("🔗 Cole esta URL no painel da API: %s", wh_url)
+                for oid in settings.OWNERS:
+                    try:
+                        await app.bot.send_message(
+                            oid,
+                            "🌍 <b>URL do webhook</b>\n\nCole isto no painel da API "
+                            f"(campo URL de destino) e clique em Salvar:\n<code>{wh_url}</code>",
+                            parse_mode="HTML")
+                    except Exception:  # noqa: BLE001
+                        pass
         except Exception as e:  # noqa: BLE001
-            log.warning("Não consegui iniciar o webhook: %s", e)
+            log.warning("Não consegui iniciar o webhook/túnel: %s", e)
 
 logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
