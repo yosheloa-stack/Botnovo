@@ -27,6 +27,7 @@ ERROR_MESSAGES = {
     "REQUEST_BLOCKED": "Esse ID já recebeu likes nas últimas 24h.",
     "DAILY_LIMIT_EXCEEDED": "O limite diário da API foi atingido, tenta mais tarde.",
     "SERVICE_UNAVAILABLE": "O serviço de likes está fora do ar, tenta mais tarde.",
+    "SERVICE_ERROR": "Sessão do auto-like expirada. Gere um ACCESS ID/OPEN novo no painel da API.",
     "TIMEOUT": "A API demorou demais pra responder.",
 }
 # Erros que significam "esse UID já está no limite" (usam a tela fail_max).
