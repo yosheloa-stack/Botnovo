@@ -48,8 +48,16 @@ SESSION_STRING = os.environ.get("SESSION_STRING", "").strip()
 TOKITO_API_KEY = os.environ.get("TOKITO_API_KEY", "Yosh7").strip()
 TOKITO_AUDIO = "https://tokito-apis.site/api/youtube-audio"
 
-app = Client("aurora_music", api_id=API_ID, api_hash=API_HASH,
-             session_string=SESSION_STRING)
+_WORKDIR = str(Path(__file__).resolve().parent)
+if SESSION_STRING:
+    # login por session string (se você tiver gerado uma)
+    app = Client("aurora_music", api_id=API_ID, api_hash=API_HASH,
+                 session_string=SESSION_STRING)
+else:
+    # login pelo console (pede telefone + código na 1ª vez e salva num
+    # arquivo .session; nas próximas vezes já entra sozinho)
+    app = Client("aurora_music", api_id=API_ID, api_hash=API_HASH,
+                 workdir=_WORKDIR)
 calls = PyTgCalls(app)
 
 # fila por grupo: chat_id -> lista de dicts {"title":..., "url":...}
@@ -152,10 +160,11 @@ async def on_stream_end(_, update):
 
 
 async def main():
-    if not (API_ID and API_HASH and SESSION_STRING):
-        print("\n❌ Faltam API_ID, API_HASH ou SESSION_STRING no .env")
-        print("   Rode:  python gen_session.py   pra gerar a SESSION_STRING.\n")
+    if not (API_ID and API_HASH):
+        print("\n❌ Faltam API_ID e/ou API_HASH no .env\n")
         return
+    # Na 1ª vez sem sessão salva, o Pyrogram vai pedir telefone e código
+    # AQUI no console. Digite e pronto — nas próximas já entra sozinho.
     await app.start()
     await calls.start()
     print("🎵 AURORA MUSIC online! Toque com /play no grupo (com a ligação aberta).")
