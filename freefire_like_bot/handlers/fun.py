@@ -7,6 +7,7 @@ Funções extras/brincadeiras do AURORA:
 """
 import html
 import io
+import random
 
 import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -75,6 +76,19 @@ async def cmd_wallpaper(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # --------------------------- /beijar ---------------------------
+def _gifs_beijar():
+    """
+    Procura gifs de beijo na RAIZ do bot. Você põe os arquivos lá com nome
+    começando por 'beijar' (ex: beijar.gif, beijar2.gif, beijar3.mp4).
+    Sorteia entre eles.
+    """
+    base = settings.BASE_DIR
+    arquivos = []
+    for padrao in ("beijar*.gif", "beijar*.mp4", "beijar*.GIF", "beijar*.MP4"):
+        arquivos += list(base.glob(padrao))
+    return sorted(set(arquivos))
+
+
 async def cmd_beijar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     alvo = _alvo(update)
     autor = update.effective_user
@@ -84,18 +98,33 @@ async def cmd_beijar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if alvo.id == autor.id:
         return await update.message.reply_text("😅 Você não pode se beijar!")
 
+    legenda = f"😘 {mention(autor)} beijou {mention(alvo)}!"
+    chat = update.effective_chat.id
+
+    # 1) tenta um gif LOCAL (os que você colocou na raiz)
+    locais = _gifs_beijar()
+    if locais:
+        escolhido = random.choice(locais)
+        try:
+            with open(escolhido, "rb") as f:
+                await context.bot.send_animation(chat, animation=f, caption=legenda,
+                                                 parse_mode=ParseMode.HTML)
+            return
+        except Exception:  # noqa: BLE001
+            pass
+
+    # 2) reserva: gif online
+    gif = None
     try:
         async with httpx.AsyncClient(timeout=20) as c:
             r = await c.get("https://api.waifu.pics/sfw/kiss")
         gif = r.json().get("url")
     except Exception:  # noqa: BLE001
         gif = None
-
-    legenda = f"😘 {mention(autor)} beijou {mention(alvo)}!"
     try:
         if gif:
-            await context.bot.send_animation(update.effective_chat.id, gif,
-                                              caption=legenda, parse_mode=ParseMode.HTML)
+            await context.bot.send_animation(chat, gif, caption=legenda,
+                                             parse_mode=ParseMode.HTML)
         else:
             await update.message.reply_text(legenda, parse_mode=ParseMode.HTML)
     except Exception:  # noqa: BLE001
