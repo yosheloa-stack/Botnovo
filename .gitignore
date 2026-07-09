@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Segredos e sessão (nunca subir)
+**/.env
+*.session
+*.session-journal
+
+# Dados gerados
+**/data.json
