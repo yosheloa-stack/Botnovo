@@ -43,35 +43,76 @@ def _alvo(update: Update):
 
 
 # --------------------------- /wallpaper ---------------------------
+def _acha_url_img(obj):
+    """Procura recursivamente uma URL de imagem dentro de um JSON."""
+    if isinstance(obj, str):
+        s = obj.strip()
+        if s.startswith("http"):
+            return s
+        return None
+    if isinstance(obj, dict):
+        # campos mais prováveis primeiro
+        for k in ("url", "image", "imagem", "wallpaper", "result", "link", "img", "data"):
+            if k in obj:
+                found = _acha_url_img(obj[k])
+                if found:
+                    return found
+        for v in obj.values():
+            found = _acha_url_img(v)
+            if found:
+                return found
+    if isinstance(obj, list):
+        for v in obj:
+            found = _acha_url_img(v)
+            if found:
+                return found
+    return None
+
+
+def _parece_imagem(b: bytes) -> bool:
+    return (b[:3] == b"\xff\xd8\xff"                      # JPEG
+            or b[:8] == b"\x89PNG\r\n\x1a\n"               # PNG
+            or b[:6] in (b"GIF87a", b"GIF89a")             # GIF
+            or (b[:4] == b"RIFF" and b[8:12] == b"WEBP"))  # WEBP
+
+
 async def cmd_wallpaper(update: Update, context: ContextTypes.DEFAULT_TYPE):
     api = f"https://tokito-apis.com.br/api/wallpaper?apikey={settings.TOKITO_API_KEY}"
+    chat = update.effective_chat.id
     aviso = await update.message.reply_text("🖼️ Buscando um wallpaper...")
+
+    # 1) jeito mais garantido: manda a URL direto (o Telegram baixa a imagem)
+    try:
+        await context.bot.send_photo(chat, photo=api, caption="🖼️ Seu wallpaper!")
+        return await aviso.delete()
+    except Exception:  # noqa: BLE001
+        pass
+
+    # 2) baixa e tenta descobrir a imagem (por bytes ou por JSON)
     try:
         async with httpx.AsyncClient(timeout=30, follow_redirects=True) as c:
             r = await c.get(api)
         ct = r.headers.get("content-type", "")
-        if "image" in ct:
-            await context.bot.send_photo(update.effective_chat.id,
-                                         photo=io.BytesIO(r.content),
+        if "image" in ct or _parece_imagem(r.content[:16]):
+            await context.bot.send_photo(chat, photo=io.BytesIO(r.content),
                                          caption="🖼️ Seu wallpaper!")
-        else:
-            img = None
-            try:
-                data = r.json()
-                for k in ("url", "image", "wallpaper", "result", "link"):
-                    if isinstance(data, dict) and data.get(k):
-                        img = data[k]
-                        break
-            except Exception:  # noqa: BLE001
-                img = r.text.strip() if r.text.strip().startswith("http") else None
-            if img:
-                await context.bot.send_photo(update.effective_chat.id, img,
-                                             caption="🖼️ Seu wallpaper!")
-            else:
-                await update.message.reply_text("❌ A API não retornou uma imagem.")
-        await aviso.delete()
+            return await aviso.delete()
+        img = None
+        try:
+            img = _acha_url_img(r.json())
+        except Exception:  # noqa: BLE001
+            txt = r.text.strip()
+            img = txt if txt.startswith("http") else None
+        if img:
+            await context.bot.send_photo(chat, photo=img, caption="🖼️ Seu wallpaper!")
+            return await aviso.delete()
+        # mostra um pedacinho da resposta pra debug
+        amostra = html.escape((r.text or "")[:200]) or f"(content-type: {ct})"
+        await aviso.edit_text(
+            "❌ A API não retornou imagem. Resposta:\n"
+            f"<code>{amostra}</code>", parse_mode=ParseMode.HTML)
     except Exception as e:  # noqa: BLE001
-        await aviso.edit_text(f"❌ Não consegui buscar o wallpaper.\n<code>{e}</code>",
+        await aviso.edit_text(f"❌ Erro no wallpaper: <code>{html.escape(str(e))}</code>",
                               parse_mode=ParseMode.HTML)
 
 
