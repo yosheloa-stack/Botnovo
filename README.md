@@ -1,26 +1,13 @@
-# BOTÕES WHATSAPP YOSHGGX
+# Aurora System
 
-BOT de WhatsApp com botões interativos (native flow / Baileys).
+Bot de WhatsApp do Aurora System. O aluguel de grupos pode ser ativado automaticamente pela Kasane após a confirmação do pagamento.
 
-## Instalação
+## Variáveis de ambiente
 
-```bash
-npm i
-```
+- `AURORA_OWNER_NUMBER` — número do dono, somente dígitos.
+- `AURORA_CONNECTION_NUMBER` — número do WhatsApp que será conectado ao bot.
+- `AUTOSYSTEM_URL` — URL da Kasane.
+- `AUTOSYSTEM_TOKEN` — key usada pelos comandos de Free Fire.
+- `AURORA_RENTAL_TOKEN` — segredo compartilhado apenas entre Kasane e Aurora para os aluguéis automáticos.
 
-## Como usar
-
-1. Edite o `index.js` com a sua lógica.
-2. **Não toque no `buttons.js`** (ele contém os helpers que fazem os botões funcionarem).
-3. Rode o bot:
-
-```bash
-node index.js
-```
-
-4. Escaneie o QR Code que aparece no terminal com o WhatsApp.
-5. Envie `hello` no chat para receber os botões de teste.
-
----
-
-criador por YoshGGx
+O bot consulta a Kasane periodicamente. Quando encontra um pedido pago, valida o link de convite, entra no grupo, registra a validade e responde o resultado ao site. Ao vencer, sai do grupo automaticamente.

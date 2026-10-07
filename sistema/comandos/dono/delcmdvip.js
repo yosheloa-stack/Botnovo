@@ -1,0 +1,2 @@
+import { delVipCmd } from '../../funcoes/banco.js'
+export default {name:'delcmdvip',aliases:[],category:'dono',description:'Remove comando da lista VIP',ownerOnly:true,async run(system){const c=String(system.args[0]||'').replace(/^[!./#]+/,'').toLowerCase();if(!c)return system.reply(`• Exemplo: *${system.prefix}delcmdvip play*`);delVipCmd(c);return system.reply(`• ✅ *${system.prefix}${c}* deixou de ser exclusivo VIP.`)}}

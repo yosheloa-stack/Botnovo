@@ -1,0 +1,2 @@
+import { addVipCmd } from '../../funcoes/banco.js'
+export default {name:'addcmdvip',aliases:[],category:'dono',description:'Transforma comando em VIP',ownerOnly:true,async run(system){const c=String(system.args[0]||'').replace(/^[!./#]+/,'').toLowerCase();if(!c)return system.reply(`• Exemplo: *${system.prefix}addcmdvip play*`);addVipCmd(c);return system.reply(`• 💎 *${system.prefix}${c}* agora é comando VIP.`)}}

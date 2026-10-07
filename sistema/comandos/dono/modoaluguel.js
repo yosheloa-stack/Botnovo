@@ -1,0 +1,2 @@
+import { aluguelOn } from '../../funcoes/banco.js'
+export default {name:'modoaluguel',aliases:[],category:'dono',description:'Liga/desliga aluguel',ownerOnly:true,async run(system){const v=String(system.args[0]||'');if(!['1','0'].includes(v))return system.reply(`• Use *${system.prefix}modoaluguel 1* ou *0*.`);const on=aluguelOn(v==='1');return system.reply(`• 🏠 Modo aluguel ${on?'✅ ativado':'❌ desativado'}.`)}}

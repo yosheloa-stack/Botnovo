@@ -1,0 +1,2 @@
+import { delGcmd } from '../../funcoes/banco.js'
+export default {name:'unblockcmdg',aliases:[],category:'dono',description:'Libera comando global',ownerOnly:true,async run(system){const c=String(system.args[0]||'').replace(/^[!./#]+/,'').toLowerCase();if(!c)return system.reply(`• Exemplo: *${system.prefix}unblockcmdg play*`);delGcmd(c);return system.reply(`• ✅ Comando *${system.prefix}${c}* liberado globalmente.`)}}

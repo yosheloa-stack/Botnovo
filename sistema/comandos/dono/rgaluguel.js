@@ -1,0 +1,2 @@
+import { setAluguel } from '../../funcoes/banco.js'
+export default {name:'rgaluguel',aliases:[],category:'dono',description:'Registra aluguel do grupo',ownerOnly:true,groupOnly:true,async run(system){const dias=Number(system.args[0]);if(!Number.isFinite(dias)||dias<1)return system.reply(`• Exemplo: *${system.prefix}rgaluguel 30*`);const ate=setAluguel(system.from,dias);return system.reply(`• 🏠 Aluguel registrado por *${Math.floor(dias)} dia(s)*.\n• Até: ${new Date(ate).toLocaleString('pt-BR')}`)}}

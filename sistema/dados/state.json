@@ -1,0 +1,16 @@
+{
+  "blocked": [],
+  "vip": [],
+  "muted": {},
+  "settings": {
+    "antiPv": 0
+  },
+  "games": {
+    "tictactoe": {}
+  },
+  "relationships": {
+    "couples": [],
+    "pending": []
+  },
+  "profiles": {}
+}

@@ -1,0 +1,26 @@
+{
+  "prefix": "#",
+  "owner": {
+    "name": "YoshiGGX",
+    "number": "NUMERO-DONO"
+  },
+  "connection": {
+    "number": "NUMERO-BOT"
+  },
+  "autoSystem": {
+    "url": "https://autolikesystem.com.br",
+    "token": "COLOQUE_SEU_TOKEN_AQUI",
+    "rentalToken": "COLOQUE_SEU_TOKEN_DE_ALUGUEL_AQUI"
+  },
+  "tokitoApi": {
+    "url": "https://tokito-apis.com.br",
+    "token": "token"
+  },
+  "akameApi": {
+    "url": "https://akame-apis.shop",
+    "token": "token"
+  },
+  "timezone": "America/Sao_Paulo",
+  "channel": "120363421690941003@newsletter",
+  "channelLink": "https://whatsapp.com/channel/0029VbCAgovIyPtbjBhrIi3u"
+}

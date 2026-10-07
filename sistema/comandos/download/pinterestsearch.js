@@ -1,0 +1,3 @@
+import { apiUrl } from '../../funcoes/api.js'
+import { downloadFile, cleanup } from '../../funcoes/midia.js'
+export default {name:'pinterestsearch',aliases:['pinsearch'],category:'download',description:'Pesquisa imagem no Pinterest',async run(system){if(!system.q)return system.reply(`• Exemplo: *${system.prefix}pinsearch tokito*`);let f;try{f=await downloadFile(apiUrl(system.config,'/api/pin-image',{titulo:system.q}),system.config,'jpg');return system.send({type:'image',media:f.path,mimetype:f.mimetype.startsWith('image/')?f.mimetype:'image/jpeg',caption:`• 🔎 Pinterest: *${system.q}*`})}finally{await cleanup(f)}}}

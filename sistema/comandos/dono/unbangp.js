@@ -1,0 +1,2 @@
+import { unbanGp } from '../../funcoes/banco.js'
+export default {name:'unbangp',aliases:[],category:'dono',description:'Desbloqueia um grupo',ownerOnly:true,async run(system){const gp=system.isGroup?system.from:String(system.args[0]||'').trim();if(!gp)return system.reply(`• Use no grupo ou: *${system.prefix}unbangp ID_DO_GRUPO*`);unbanGp(gp);return system.reply('• ✅ Grupo liberado para usar o Aurora.')}}

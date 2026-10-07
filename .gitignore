@@ -1,0 +1,7 @@
+node_modules/
+sistema/dados/sessao/*
+!sistema/dados/sessao/.gitkeep
+*.log
+.env
+.env.*
+!/.env.example

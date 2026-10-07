@@ -1,0 +1,3 @@
+import { apiUrl } from '../../funcoes/api.js'
+import { downloadFile, cleanup } from '../../funcoes/midia.js'
+export default {name:'pinterest',aliases:['pin'],category:'download',description:'Baixa vídeo por link do Pinterest',async run(system){const link=system.args[0];if(!link)return system.reply(`• Exemplo: *${system.prefix}pinterest link*`);let f;try{f=await downloadFile(apiUrl(system.config,'/api/pin-video',{url:link}),system.config,'mp4');if(f.mimetype.startsWith('image/'))return system.send({type:'image',media:f.path,mimetype:f.mimetype,caption:'• 📌 Pinterest • Aurora System'});return system.send({type:'video',media:f.path,mimetype:'video/mp4',caption:'• 📌 Pinterest • Aurora System'})}finally{await cleanup(f)}}}

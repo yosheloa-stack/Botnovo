@@ -1,0 +1,2 @@
+import { listAluguel, aluguelOn } from '../../funcoes/banco.js'
+export default {name:'listaaluguel',aliases:['listaluguel'],category:'dono',description:'Lista aluguéis',ownerOnly:true,async run(system){const a=listAluguel();const head=`• Modo aluguel: ${aluguelOn()?'✅ ON':'❌ OFF'}`;return system.reply(a.length?`${head}\n\n${a.map((x,i)=>`${i+1}. ${x.gp}\n   Até: ${new Date(Number(x.ate)).toLocaleString('pt-BR')}`).join('\n\n')}`:`${head}\n• Nenhum grupo registrado.`)}}
