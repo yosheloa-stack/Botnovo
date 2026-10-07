@@ -13,7 +13,9 @@ function base(config) {
   return clean(config?.autoSystem?.url).replace(/\/$/, '')
 }
 function token(config) {
-  return clean(config?.autoSystem?.rentalToken || process.env.AURORA_RENTAL_TOKEN)
+  const value = clean(process.env.AURORA_RENTAL_TOKEN || config?.autoSystem?.rentalToken || '')
+  if (!value || /^COLOQUE_/i.test(value)) return ''
+  return value
 }
 
 async function api(config, pathname, options = {}) {
