@@ -24,7 +24,7 @@ jobs:
         run: |
           set -euo pipefail
           [ -f .bundle/ready ] || exit 0
-          cat .bundle/part.* | base64 -d > /tmp/aurora.tar.gz
+          cat .bundle/final.* | base64 -d > /tmp/aurora.tar.gz
           find . -mindepth 1 -maxdepth 1 ! -name .git ! -name .github ! -name .bundle -exec rm -rf {} +
           tar -xzf /tmp/aurora.tar.gz -C .
           rm -rf .bundle
