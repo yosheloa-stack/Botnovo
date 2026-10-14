@@ -1,4 +1,4 @@
-import { aluguelOn, delAluguel, listAluguel, setAluguelPedido, ultimoPedidoAluguel } from './banco.js'
+import { aluguelOn, delAluguel, listAluguel, setAluguelPedido, ultimoPedidoAluguel, setDonoAluguel, tokenAluguelSalvo } from './banco.js'
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const clean = (value = '') => String(value ?? '').trim()
@@ -13,7 +13,7 @@ function base(config) {
   return clean(config?.autoSystem?.url).replace(/\/$/, '')
 }
 function token(config) {
-  const value = clean(process.env.AURORA_RENTAL_TOKEN || config?.autoSystem?.rentalToken || '')
+  const value = clean(process.env.AURORA_RENTAL_TOKEN || tokenAluguelSalvo() || config?.autoSystem?.rentalToken || '')
   if (!value || /^COLOQUE_/i.test(value)) return ''
   return value
 }
@@ -67,6 +67,7 @@ async function ativarUm(client, config, item) {
 
     aluguelOn(true)
     const registro = setAluguelPedido(jid, dias, pedido)
+    const dono = setDonoAluguel(jid, item?.dono_numero)
     await resultado(config, {
       pedido_id: pedido,
       status: 'ativo',
@@ -74,6 +75,16 @@ async function ativarUm(client, config, item) {
       grupo_nome: clean(meta?.subject || preview?.subject || 'Grupo'),
       expira: new Date(Number(registro.ate)).toISOString()
     })
+    if (!registro.repetido) {
+      const validade = new Date(Number(registro.ate)).toLocaleString('pt-BR', { timeZone: config?.timezone || 'America/Sao_Paulo' })
+      const linhaDono = dono ? `\n• 👑 Dono do bot aqui: @${dono}` : ''
+      try {
+        await client.message.send(jid, {
+          type: 'text',
+          text: `• ✅ *Aurora ativado neste grupo!*${linhaDono}\n• 📅 Válido até: *${validade}*\n• Use *${config?.prefix || '#'}menu* para ver os comandos.`
+        }, dono ? { mentions: [`${dono}@s.whatsapp.net`], contextInfo: { mentionedJid: [`${dono}@s.whatsapp.net`] } } : {})
+      } catch {}
+    }
     console.log(`[ AURORA ALUGUEL ] ${registro.repetido ? 'Confirmado' : 'Ativado'}: ${jid} até ${new Date(Number(registro.ate)).toLocaleString('pt-BR')}`)
   } catch (err) {
     const msg = clean(err?.message || err || 'não foi possível entrar no grupo').slice(0, 220)
