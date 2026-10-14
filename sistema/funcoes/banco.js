@@ -357,6 +357,12 @@ export function getAluguel(gp) { return sql.prepare('SELECT gp,ate FROM aluguel 
 export function listAluguel() { return sql.prepare('SELECT gp,ate FROM aluguel ORDER BY ate').all() }
 // Não apagamos o vencido aqui. O worker automático precisa enxergá-lo para
 // sair do grupo e só então remover o registro local.
+// DONO DO ALUGUEL: o número que o cliente informou no site. Ele manda no bot
+// como ADM/VIP só no grupo que alugou; em outros grupos é membro comum.
+export function setDonoAluguel(gp, numero) { const n=String(numero||'').replace(/\D/g,''); if(txt(gp) && n.length>=10) setKv('aluguel_dono:'+txt(gp), n); return n }
+export function getDonoAluguel(gp) { return String(getKv('aluguel_dono:'+txt(gp), '') || '') }
+// Token do aluguel salvo pelo #tokenaluguel. Fica no banco, fora do Git.
+export function tokenAluguelSalvo(valor) { if(valor !== undefined) setCfg('aluguel_token', String(valor||'').trim()); return String(getCfg('aluguel_token', '') || '') }
 export function aluguelOk(gp) { const r=getAluguel(gp); return Boolean(r && Number(r.ate)>Date.now()) }
 
 export function clearCache() {

@@ -1,4 +1,4 @@
-import { db, ensureGroupState, groupState, saveGroupState, saveState, userProfile } from '../funcoes/banco.js'
+import { db, ensureGroupState, groupState, saveGroupState, saveState, userProfile, getDonoAluguel, aluguelOk } from '../funcoes/banco.js'
 import {
 digits,
 findParticipant,
@@ -141,6 +141,10 @@ isBotAdmin = isAdminParticipant(botP)
 
 if (isGroup) await ensureGroupState(from, { nome: metadata?.subject || 'Grupo' })
 
+// Quem alugou pelo site manda como ADM e VIP, mas só no grupo alugado.
+const isDonoAluguel = Boolean(isGroup && senderNumber && getDonoAluguel(from) === senderNumber && aluguelOk(from))
+if (isDonoAluguel) isAdmin = true
+
 const state = db()
 const currentProfile = userProfile(senderKey, {
 name: event?.pushName ?? event?.notifyName ?? 'Usuário',
@@ -176,8 +180,9 @@ isGroup,
 isOwner: Boolean(senderNumber && ownerNumbers.includes(senderNumber)),
 isAdmin,
 isBotAdmin,
-isVip: Boolean(senderNumber && state.vip.includes(senderNumber)),
-isPremium: Boolean(senderNumber && state.vip.includes(senderNumber)), // alias legado
+isDonoAluguel,
+isVip: Boolean(isDonoAluguel || (senderNumber && state.vip.includes(senderNumber))),
+isPremium: Boolean(isDonoAluguel || (senderNumber && state.vip.includes(senderNumber))), // alias legado
 metadata,
 db: state,
 profile: currentProfile,
