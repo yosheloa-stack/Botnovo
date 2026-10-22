@@ -1,4 +1,4 @@
-import { db, ensureGroupState, groupState, saveGroupState, saveState, userProfile, getDonoAluguel, aluguelOk } from '../funcoes/banco.js'
+import { db, ensureGroupState, groupState, saveGroupState, saveState, userProfile, getDonoAluguel, aluguelOk, getPersonalizacaoAluguel } from '../funcoes/banco.js'
 import {
 digits,
 findParticipant,
@@ -255,8 +255,28 @@ delete out.quote
 return out
 }
 
+// Marca exclusivamente mensagens enviadas no grupo alugado. Nunca altera dados globais.
+const branding = () => {
+if (!system.isGroup || !aluguelOk(from)) return ''
+return String(getPersonalizacaoAluguel(from)?.nome || '').trim().slice(0, 48)
+}
+const substituirMarca = (value, nome, depth = 0) => {
+if (!nome || depth > 12) return value
+if (typeof value === 'string') return value.replace(/aurora(?:[\\s\\u00a0]+system)?/gi, nome)
+if (Array.isArray(value)) return value.map(item => substituirMarca(item, nome, depth + 1))
+if (!value || typeof value !== 'object' || Buffer.isBuffer(value) || value instanceof Uint8Array) return value
+const result = { ...value }
+for (const key of ['text','caption','footer','title','description','contentText','footerText','selectedDisplayText','messageParamsJson']) {
+if (typeof result[key] === 'string' && key !== 'messageParamsJson') result[key] = substituirMarca(result[key], nome, depth + 1)
+}
+for (const key of ['interactiveMessage','body','header','nativeFlowMessage','buttons','sections','rows','templateMessage','hydratedTemplate','extendedTextMessage','conversation','imageMessage','videoMessage']) {
+if (result[key] && typeof result[key] === 'object') result[key] = substituirMarca(result[key], nome, depth + 1)
+}
+return result
+}
+
 const sendVisible = async (content, jid = from, options = {}) => {
-let payload = typedContent(content)
+let payload = typedContent(substituirMarca(content, jid === from ? branding() : ''))
 const finalOptions = sendOptions(jid, options)
 
 // No Termux, o pipeline de mídia do Zapo pode tentar reabrir/stagear um caminho
