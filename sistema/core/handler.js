@@ -215,7 +215,7 @@ return
 if (system.command === 'configurarff' || system.command === 'configff') {
   if (!system.isGroup) return system.reply('⚠️ Use este comando dentro do grupo.')
   if (!system.isOwner && !system.isAdmin) return system.reply('🔒 Somente o dono ou administrador deste grupo pode configurar o Free Fire.')
-  const argumento = String(text).trim().split(/\\s+/).slice(1)[0]
+  const argumento = String(text).trim().split(/\s+/).slice(1)[0]
   if (!argumento) return system.reply('🎮 *Configurações Free Fire*\\n\\nLimite atual: *' + getLimiteFF(system.from) + ' IDs por usuário/dia*\\n\\nPara alterar: *' + system.prefix + 'configurarff 3*\\n\\nA configuração vale somente para este grupo.')
   const n = Number(argumento)
   if (!Number.isInteger(n) || n < 1 || n > 100) return system.reply('Informe um limite entre 1 e 100 IDs por dia.')
