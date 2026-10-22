@@ -63,10 +63,11 @@ async function ativarUm(client, config, item) {
 
     const atuais = await client.group.queryAllGroups()
     let meta = atuais.find((g) => g?.jid === jid) || null
-    if (!meta) meta = await client.group.joinGroupViaInvite(code)
+    if (!meta && !item?.somente_personalizacao) meta = await client.group.joinGroupViaInvite(code)
+    if (!meta && item?.somente_personalizacao) throw new Error('bot não está mais no grupo configurado')
 
     aluguelOn(true)
-    const registro = setAluguelPedido(jid, dias, pedido)
+    const registro = item?.somente_personalizacao ? { ate: Date.now(), repetido: true } : setAluguelPedido(jid, dias, pedido)
     const dono = setDonoAluguel(jid, item?.dono_numero)
     const personalizacao = setPersonalizacaoAluguel(jid, { nome: item?.nome_bot, foto: item?.foto_menu })
     await resultado(config, {
@@ -74,7 +75,7 @@ async function ativarUm(client, config, item) {
       status: 'ativo',
       grupo_jid: jid,
       grupo_nome: clean(meta?.subject || preview?.subject || 'Grupo'),
-      expira: new Date(Number(registro.ate)).toISOString()
+      ...(item?.somente_personalizacao ? {} : { expira: new Date(Number(registro.ate)).toISOString() })
     })
     if (!registro.repetido) {
       const validade = new Date(Number(registro.ate)).toLocaleString('pt-BR', { timeZone: config?.timezone || 'America/Sao_Paulo' })
