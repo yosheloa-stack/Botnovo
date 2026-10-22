@@ -262,7 +262,7 @@ return String(getPersonalizacaoAluguel(from)?.nome || '').trim().slice(0, 48)
 }
 const substituirMarca = (value, nome, depth = 0) => {
 if (!nome || depth > 12) return value
-if (typeof value === 'string') return value.replace(/aurora(?:[\\s\\u00a0]+system)?/gi, nome)
+if (typeof value === 'string') return value.replace(/aurora(?:[\\s\\u00a0]+system)?/gi, nome).replace(/𝐀𝐔𝐑𝐎𝐑𝐀(?:\\s+𝐒𝐘𝐒𝐓𝐄𝐌)?/g, nome).replace(/𝑨𝑼𝑹𝑶𝑹𝑨/g, nome).replace(/ᴀᴜʀᴏʀᴀ(?:\\s+sʏsᴛᴇᴍ)?/gi, nome).replace(/ᴬᵁᴿᴼᴿᴬ/g, nome)
 if (Array.isArray(value)) return value.map(item => substituirMarca(item, nome, depth + 1))
 if (!value || typeof value !== 'object' || Buffer.isBuffer(value) || value instanceof Uint8Array) return value
 const result = { ...value }
