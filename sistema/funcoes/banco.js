@@ -373,3 +373,17 @@ export function clearCache() {
 
 export const groupStorage = Object.freeze({ dir: groupDir, defaultWelcomeIn, defaultWelcomeOut, db:file })
 export { sql }
+
+// Personalização por grupo: nunca altera a identidade global do WhatsApp.
+export function setPersonalizacaoAluguel(gp, dados = {}) {
+  const jid = txt(gp)
+  if (!jid) return { nome: '', foto: '' }
+  const nome = String(dados.nome || '').trim().slice(0, 48)
+  const foto = String(dados.foto || '').trim().slice(0, 1000)
+  const valor = { nome, foto: /^https:\/\//i.test(foto) ? foto : '' }
+  setKv('aluguel_personalizacao:' + jid, valor)
+  return valor
+}
+export function getPersonalizacaoAluguel(gp) {
+  return getKv('aluguel_personalizacao:' + txt(gp), { nome: '', foto: '' })
+}
