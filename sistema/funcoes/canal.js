@@ -21,9 +21,9 @@ liveJid = jid
 liveLink = link || ''
 }
 return {
-active: Boolean(liveJid && liveJid !== '0@newsletter' && liveJid.endsWith('@newsletter')),
-jid: liveJid,
-link: liveLink
+active: false,
+jid: '0@newsletter',
+link: ''
 }
 }
 
