@@ -1,4 +1,4 @@
-import { aluguelOn, delAluguel, listAluguel, setAluguelPedido, ultimoPedidoAluguel, setDonoAluguel, tokenAluguelSalvo } from './banco.js'
+import { aluguelOn, delAluguel, listAluguel, setAluguelPedido, ultimoPedidoAluguel, setDonoAluguel, setPersonalizacaoAluguel, tokenAluguelSalvo } from './banco.js'
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const clean = (value = '') => String(value ?? '').trim()
@@ -68,6 +68,7 @@ async function ativarUm(client, config, item) {
     aluguelOn(true)
     const registro = setAluguelPedido(jid, dias, pedido)
     const dono = setDonoAluguel(jid, item?.dono_numero)
+    const personalizacao = setPersonalizacaoAluguel(jid, { nome: item?.nome_bot, foto: item?.foto_menu })
     await resultado(config, {
       pedido_id: pedido,
       status: 'ativo',
@@ -81,7 +82,7 @@ async function ativarUm(client, config, item) {
       try {
         await client.message.send(jid, {
           type: 'text',
-          text: `• ✅ *Aurora ativado neste grupo!*${linhaDono}\n• 📅 Válido até: *${validade}*\n• Use *${config?.prefix || '#'}menu* para ver os comandos.`
+          text: `• ✅ *${personalizacao.nome || 'Aurora'} ativado neste grupo!*${linhaDono}\n• 📅 Válido até: *${validade}*\n• Use *${config?.prefix || '#'}menu* para ver os comandos.`
         }, dono ? { mentions: [`${dono}@s.whatsapp.net`], contextInfo: { mentionedJid: [`${dono}@s.whatsapp.net`] } } : {})
       } catch {}
     }
