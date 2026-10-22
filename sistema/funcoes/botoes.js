@@ -179,6 +179,7 @@ const sections = [
 title: '『 🛡️ 𝐏𝐑𝐎𝐓𝐄𝐂̧𝐎̃𝐄𝐒 』',
 highlight_label: '🛡️',
 rows: [
+{ header: '🎮 FREE FIRE', title: 'Configurar FF', description: 'Definir IDs por usuário/dia neste grupo', id: `${p}configurarff`, disabled: false },
 { header: '🛡️ PROTEÇÃO', title: 'AntiFake', description: 'Bloqueia números fora do padrão permitido', id: `${p}antifake`, disabled: false },
 { header: '🔗 PROTEÇÃO', title: 'AntiLink', description: 'Proteção contra links no grupo', id: `${p}antilink`, disabled: false },
 { header: '🎧 MÍDIA', title: 'AntiÁudio', description: 'Controla o envio de áudios', id: `${p}antiaudio`, disabled: false },
