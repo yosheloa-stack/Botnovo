@@ -52,8 +52,23 @@ async function baixarCapa(url) {
   }
   const ext = mime === 'image/png' ? '.png' : mime === 'image/webp' ? '.webp' : '.jpg'
   const file = path.join(os.tmpdir(), 'aurora-menu-' + randomUUID() + ext)
-  await fs.writeFile(file, Buffer.concat(chunks))
-  return { type: 'image', file, mimetype: mime, temporary: true }
+  let bytes = Buffer.concat(chunks)
+  let outputMime = mime
+  let outputExt = ext
+  try {
+    const { default: sharp } = await import('sharp')
+    // Insere margens quando necessário, sem cortar a foto original.
+    bytes = await sharp(bytes, { limitInputPixels: 25_000_000 }).rotate()
+      .resize(1080, 1080, { fit: 'contain', background: { r: 15, g: 20, b: 19, alpha: 1 }, withoutEnlargement: true })
+      .jpeg({ quality: 88, mozjpeg: true }).toBuffer()
+    outputMime = 'image/jpeg'
+    outputExt = '.jpg'
+  } catch (err) {
+    console.warn('[ AURORA ] Normalização da capa indisponível, usando imagem original:', err?.message || err)
+  }
+  const finalFile = outputExt === ext ? file : file.slice(0, -ext.length) + outputExt
+  await fs.writeFile(finalFile, bytes)
+  return { type: 'image', file: finalFile, mimetype: outputMime, temporary: true }
 }
 async function resolverCapa(media) {
   if (!media || !/^https:\/\//i.test(media.file)) return media
