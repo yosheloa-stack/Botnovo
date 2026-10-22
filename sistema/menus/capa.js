@@ -6,7 +6,6 @@ import { randomUUID } from 'node:crypto'
 import { lookup } from 'node:dns/promises'
 import { isIP } from 'node:net'
 import { getPersonalizacaoAluguel, aluguelOk } from '../funcoes/banco.js'
-import { canalAtual } from '../funcoes/canal.js'
 
 const dir = path.resolve('sistema/menus')
 const pkg = JSON.parse(fsSync.readFileSync(new URL('../../package.json', import.meta.url), 'utf8'))
@@ -112,26 +111,6 @@ const media = await getMenuMedia(system)
 const mentionJid = system.senderInfo?.pnJid || system.senderInfo?.jid || system.sender
 const options = mentionJid ? { mentions: [mentionJid] } : {}
 
-// Com RGChannel ativo + link público, o menu vira Interactive Native Flow.
-// Assim a capa continua aparecendo e o núcleo consegue anexar o CTA real
-// "Ver canal" no MESMO card, em vez de depender do preview automático do link.
-const canal = canalAtual()
-if (canal.active && canal.link) {
-const header = media ? await prepareMenuHeader(system) : null
-return system.send({
-interactiveMessage: {
-...(header ? { header } : {}),
-body: { text: String(texto || '') },
-footer: { text: menuData(system)[0] },
-nativeFlowMessage: {
-buttons: [],
-messageVersion: 1,
-messageParamsJson: ''
-}
-}
-}, system.from, options)
-}
-
 let resolved = media
 try {
 resolved = await resolverCapa(media)
@@ -147,8 +126,8 @@ caption: texto
 if (resolved?.type === 'image') {
 return await system.send({
 type: 'image',
-media: media.file,
-mimetype: media.mimetype,
+media: resolved.file,
+mimetype: resolved.mimetype,
 caption: texto
 }, system.from, options)
 }
