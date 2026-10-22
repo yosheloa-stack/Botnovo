@@ -387,3 +387,25 @@ export function setPersonalizacaoAluguel(gp, dados = {}) {
 export function getPersonalizacaoAluguel(gp) {
   return getKv('aluguel_personalizacao:' + txt(gp), { nome: '', foto: '' })
 }
+
+
+// Limites de Free Fire isolados por grupo alugado e usuário.
+export function getLimiteFF(gp) {
+  const n = Number(getKv('ff:limite:' + txt(gp), 3))
+  return Number.isInteger(n) && n >= 1 && n <= 100 ? n : 3
+}
+export function setLimiteFF(gp, limite) {
+  const n = Number(limite)
+  if (!txt(gp) || !Number.isInteger(n) || n < 1 || n > 100) throw new Error('Limite deve ser de 1 a 100 IDs')
+  setKv('ff:limite:' + txt(gp), n)
+  return n
+}
+export function consumirCotaFF(gp, usuario) {
+  const limite = getLimiteFF(gp)
+  const dia = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
+  const chave = 'ff:uso:' + txt(gp) + ':' + txt(usuario) + ':' + dia
+  const usado = Number(getKv(chave, 0)) || 0
+  if (usado >= limite) return { ok: false, usado, limite, restante: 0 }
+  setKv(chave, usado + 1)
+  return { ok: true, usado: usado + 1, limite, restante: limite - usado - 1 }
+}
