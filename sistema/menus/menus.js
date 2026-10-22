@@ -85,7 +85,7 @@ return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 ┣━〔 • 𝑷𝑹𝑶𝑻𝑬𝑪̧𝑶̃𝑬𝑺 • 🛡️ 〕
 ┃
 ┃╭╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╮
-┃╎୨୧ ⚙️ ${prefix}ativacoes
+┃╎୨୧ 🎮 ${prefix}configurarff 3\n┃╎୨୧ ⚙️ ${prefix}ativacoes
 ┃╎୨୧ ⚠️ ${prefix}adv @usuario motivo
 ┃╎୨୧ ♻️ ${prefix}deladv @usuario
 ┃╎୨୧ 📋 ${prefix}advlist
