@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises'
 import fsSync from 'node:fs'
 import path from 'node:path'
+import { getPersonalizacaoAluguel, aluguelOk } from '../funcoes/banco.js'
 import { canalAtual } from '../funcoes/canal.js'
 
 const dir = path.resolve('sistema/menus')
@@ -23,7 +24,9 @@ return false
 }
 }
 
-export async function getMenuMedia() {
+export async function getMenuMedia(system = null) {
+const personal = system?.isGroup && aluguelOk(system.from) ? getPersonalizacaoAluguel(system.from) : null
+if (personal?.foto) return { type: 'image', file: personal.foto, mimetype: 'image/jpeg' }
 if (await exists(video)) return { type: 'video', file: video, mimetype: 'video/mp4' }
 for (const [name, mimetype] of images) {
 const file = path.join(dir, name)
@@ -33,7 +36,7 @@ return null
 }
 
 export async function prepareMenuHeader(system) {
-const media = await getMenuMedia()
+const media = await getMenuMedia(system)
 if (!media) return null
 try {
 const uploaded = await system.client.message.upload(media.file, {
@@ -65,7 +68,7 @@ return null
 }
 
 export async function sendMenu(system, texto) {
-const media = await getMenuMedia()
+const media = await getMenuMedia(system)
 const mentionJid = system.senderInfo?.pnJid || system.senderInfo?.jid || system.sender
 const options = mentionJid ? { mentions: [mentionJid] } : {}
 
@@ -79,7 +82,7 @@ return system.send({
 interactiveMessage: {
 ...(header ? { header } : {}),
 body: { text: String(texto || '') },
-footer: { text: '𓂃 ࣪˖ ִֶָ𐀔 AURORA SYSTEM 𐀔 ִֶָ˖ ࣪𓂃' },
+footer: { text: menuData(system)[0] },
 nativeFlowMessage: {
 buttons: [],
 messageVersion: 1,
@@ -115,5 +118,6 @@ const vip = Boolean(system.isVip || system.isOwner)
 const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Fortaleza' })
 const usuario = system.senderNumber ? `@${system.senderNumber}` : `@${system.pushName || 'usuario'}`
 const grupo = system.isGroup ? (system.metadata?.subject || 'Grupo') : 'Privado'
-return ['Aurora System', usuario, cargo, vip, hora, system.prefix, grupo, zapoVersion]
+const personal = system.isGroup && aluguelOk(system.from) ? getPersonalizacaoAluguel(system.from) : null
+return [personal?.nome || 'Aurora System', usuario, cargo, vip, hora, system.prefix, grupo, zapoVersion]
 }
