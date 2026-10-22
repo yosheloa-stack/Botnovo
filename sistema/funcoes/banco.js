@@ -409,3 +409,10 @@ export function consumirCotaFF(gp, usuario) {
   setKv(chave, usado + 1)
   return { ok: true, usado: usado + 1, limite, restante: limite - usado - 1 }
 }
+
+export function consultarCotaFF(gp, usuario) {
+  const limite = getLimiteFF(gp)
+  const dia = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
+  const usado = Number(getKv('ff:uso:' + txt(gp) + ':' + txt(usuario) + ':' + dia, 0)) || 0
+  return { ok: usado < limite, usado, limite, restante: Math.max(0, limite - usado) }
+}
