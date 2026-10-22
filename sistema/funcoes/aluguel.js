@@ -113,21 +113,31 @@ async function sairVencidos(client, config) {
 
 export function createAluguelWorker({ client, config }) {
   let stopped = false, running = false, timer = null
+  let authFailureLogged = false, retryAfter = 0
 
   const sync = async () => {
-    if (stopped || running) return
+    if (stopped || running || Date.now() < retryAfter) return
     running = true
     try {
       await sairVencidos(client, config)
       const data = await api(config, '/api/bot/alugueis/pendentes')
+      authFailureLogged = false
+      retryAfter = 0
       for (const item of (Array.isArray(data?.alugueis) ? data.alugueis : [])) {
         await ativarUm(client, config, item)
         await sleep(400)
       }
     } catch (err) {
       // Configuração ausente não derruba o bot; os outros comandos continuam.
-      if (!/não configurada/i.test(String(err?.message || ''))) {
-        console.error('[ AURORA ALUGUEL ] Sincronização:', err?.message || err)
+      const message = String(err?.message || err)
+      if (/token do Aurora inválido|HTTP 401/i.test(message)) {
+        retryAfter = Date.now() + 5 * 60_000
+        if (!authFailureLogged) {
+          console.error('[ AURORA ALUGUEL ] Autenticação recusada pelo site. Confira se AURORA_RENTAL_TOKEN na Square Cloud do bot é idêntico ao AURORA_RENTAL_TOKEN no site Kasane. Próxima tentativa em 5 minutos.')
+          authFailureLogged = true
+        }
+      } else if (!/não configurada/i.test(message)) {
+        console.error('[ AURORA ALUGUEL ] Sincronização:', message)
       }
     } finally { running = false }
   }
