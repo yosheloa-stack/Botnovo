@@ -79,7 +79,7 @@ if (process.env.AURORA_CONNECTION_NUMBER) config.connection.number = clean(proce
 if (process.env.AUTOSYSTEM_URL || process.env.KASANE_URL) {
 config.autoSystem.url = clean(process.env.AUTOSYSTEM_URL || process.env.KASANE_URL)
 }
-if (process.env.AUTOSYSTEM_TOKEN) config.autoSystem.token = clean(process.env.AUTOSYSTEM_TOKEN)
+if (process.env.AUTO_SYSTEM_TOKEN || process.env.AUTOSYSTEM_TOKEN) config.autoSystem.token = clean(process.env.AUTO_SYSTEM_TOKEN || process.env.AUTOSYSTEM_TOKEN)
 config.autoSystem.rentalToken = clean(process.env.AURORA_RENTAL_TOKEN || config.autoSystem.rentalToken || '')
 
 applyChannel(config, normalizeChannel(config))
@@ -87,6 +87,27 @@ return config
 }
 
 export async function saveConfig(config) {
-if (config && typeof config === 'object') applyChannel(config, normalizeChannel(config))
-await fs.writeFile(file, `${JSON.stringify(config, null, 2)}\n`, 'utf8')
+  if (!config || typeof config !== 'object') throw new TypeError('Configuração inválida')
+  const previous = JSON.parse(await fs.readFile(file, 'utf8'))
+  const next = { ...previous, ...config }
+  for (const section of ['owner', 'connection', 'autoSystem', 'tokitoApi', 'akameApi']) {
+    next[section] = { ...(previous[section] || {}), ...(config[section] || {}) }
+  }
+  // Segredos de ambiente nunca devem ser gravados por cima dos valores do arquivo.
+  const overrides = [
+    ['AURORA_OWNER_NUMBER', 'owner', 'number'],
+    ['AURORA_CONNECTION_NUMBER', 'connection', 'number'],
+    ['AUTO_SYSTEM_TOKEN', 'autoSystem', 'token'],
+    ['AUTOSYSTEM_TOKEN', 'autoSystem', 'token'],
+    ['AURORA_RENTAL_TOKEN', 'autoSystem', 'rentalToken']
+  ]
+  for (const [env, section, key] of overrides) {
+    if (process.env[env]) next[section][key] = previous[section]?.[key] || ''
+  }
+  if (process.env.AUTOSYSTEM_URL || process.env.KASANE_URL) {
+    next.autoSystem.url = previous.autoSystem?.url || ''
+  }
+  const temp = file + '.tmp'
+  await fs.writeFile(temp, JSON.stringify(next, null, 2) + '\\n', 'utf8')
+  await fs.rename(temp, file)
 }
