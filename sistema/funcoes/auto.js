@@ -1,9 +1,9 @@
 function base(config) {
-return String(config.autoSystem.url || '').replace(/\/$/, '')
+return String(config?.autoSystem?.url || process.env.AUTO_SYSTEM_URL || '').replace(/\/$/, '')
 }
 
 function key(config) {
-const token = String(config.autoSystem.token || '')
+const token = String(config?.autoSystem?.token || process.env.AUTO_SYSTEM_TOKEN || process.env.AUTOSYSTEM_TOKEN || '')
 if (!token || token.includes('COLOQUE_SEU_TOKEN')) throw new Error('Configure autoSystem.token no config.json.')
 return token
 }
