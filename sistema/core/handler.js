@@ -1,5 +1,5 @@
 import { makeSystem, extractText, messageKind } from './contexto.js'
-import { db, groupState, saveState, hasCmd, hasGcmd, isVipCmd, isBanGp, aluguelOn, aluguelOk } from '../funcoes/banco.js'
+import { db, groupState, saveState, hasCmd, hasGcmd, isVipCmd, isBanGp, aluguelOn, aluguelOk, getLimiteFF, setLimiteFF, consultarCotaFF, consumirCotaFF } from '../funcoes/banco.js'
 import { showCommand } from '../funcoes/terminal.js'
 import messages from '../funcoes/global.js'
 import { handleTicTacToe } from '../funcoes/velha.js'
@@ -211,6 +211,18 @@ if (!sent) return system.reply(text)
 return
 }
 
+// Configuração local do Free Fire: não altera nenhum outro grupo.
+if (system.command === 'configurarff' || system.command === 'configff') {
+  if (!system.isGroup) return system.reply('⚠️ Use este comando dentro do grupo.')
+  if (!system.isOwner && !system.isAdmin) return system.reply('🔒 Somente o dono ou administrador deste grupo pode configurar o Free Fire.')
+  const argumento = String(text).trim().split(/\\s+/).slice(1)[0]
+  if (!argumento) return system.reply('🎮 *Configurações Free Fire*\\n\\nLimite atual: *' + getLimiteFF(system.from) + ' IDs por usuário/dia*\\n\\nPara alterar: *' + system.prefix + 'configurarff 3*\\n\\nA configuração vale somente para este grupo.')
+  const n = Number(argumento)
+  if (!Number.isInteger(n) || n < 1 || n > 100) return system.reply('Informe um limite entre 1 e 100 IDs por dia.')
+  setLimiteFF(system.from, n)
+  return system.reply('✅ Limite de Free Fire configurado: *' + n + ' IDs por usuário/dia*.\\nSomente neste grupo.')
+}
+
 const plugin = registry.commands.get(system.command)
 if (!plugin) {
 const started = performance.now()
@@ -242,8 +254,16 @@ if (plugin.ownerOnly && !system.isOwner) return system.reply(messages.onlyOwner(
 if (plugin.groupOnly && !system.isGroup) return system.reply(messages.onlyGroup())
 if (plugin.adminOnly && !system.isAdmin && !system.isOwner) return system.reply(messages.onlyAdmin())
 if (plugin.botAdminOnly && !system.isBotAdmin) return system.reply(messages.onlyBotAdmin())
-const vipRequired = plugin.vipOnly === true || plugin.premiumOnly === true || isVipCmd(system.command)
+const ffInfo = system.isGroup && /^(info|ffinfo|infoplayer)$/i.test(system.command)
+const ffDislike = system.isGroup && /^(dislike|deslike|ffdislike)$/i.test(system.command)
+const ffAutolike = /^(autolike|autolikes|ffautolike)$/i.test(system.command)
+const vipRequired = ffAutolike || (!ffInfo && !ffDislike && (plugin.vipOnly === true || plugin.premiumOnly === true || isVipCmd(system.command)))
 if (vipRequired && !system.isVip && !system.isOwner) return system.reply(messages.onlyVip())
+
+if (ffDislike) {
+  const quota = consultarCotaFF(system.from, system.senderKey)
+  if (!quota.ok) return system.reply('🎮 Seu limite diário de *' + quota.limite + ' IDs* acabou neste grupo. Volte amanhã.')
+}
 
 showCommand(system)
 if (system.profile) {
@@ -252,6 +272,7 @@ system.profile.lastSeen = new Date().toISOString()
 system.profile.name = system.pushName || system.profile.name || 'Usuário'
 }
 await plugin.run(system)
+if (ffDislike) consumirCotaFF(system.from, system.senderKey)
 await saveState()
 } catch (err) {
 console.error('[ AURORA ] Erro no handler:', err)
