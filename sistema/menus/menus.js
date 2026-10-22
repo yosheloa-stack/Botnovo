@@ -2,7 +2,7 @@ const exports = {}
 
 exports.menuPrincipal = (NomeDoBot, pushname, isCargo, isChVip, hora, prefix, grupo, zapo) => {
 return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
-┣━〔 • 𝑨𝑼𝑹𝑶𝑹𝑨 𝑺𝒀𝑺𝑻𝑬𝑴 • 💚 〕
+┣━〔 • ${NomeDoBot.toUpperCase()} • 💚 〕
 ┃
 ┃╎୨୧ 👤 ᴜsᴜᴀ́ʀɪᴏ: ${pushname}
 ┃╎୨୧ 🛡️ ᴄᴀʀɢᴏ: ${isCargo}
@@ -41,7 +41,7 @@ return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 
 exports.adms = (NomeDoBot, pushname, isCargo, isChVip, hora, prefix, grupo, zapo) => {
 return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
-┣━〔 • 𝑨𝑼𝑹𝑶𝑹𝑨 𝑨𝑫𝑴 • 🛡️ 〕
+┣━〔 • ${NomeDoBot.toUpperCase()} ADM • 🛡️ 〕
 ┃
 ┃╎୨୧ 👤 ᴜsᴜᴀ́ʀɪᴏ: ${pushname}
 ┃╎୨୧ 🛡️ ᴄᴀʀɢᴏ: ${isCargo}
