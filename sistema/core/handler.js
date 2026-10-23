@@ -175,7 +175,9 @@ if (!remote) return
 const isGroup = remote.endsWith('@g.us')
 if (Number(db().settings?.antiPv ?? 0) === 1 && !isGroup) return
 
+const startedContext = Date.now()
 system = await makeSystem({ client, event, config, registry, necesarios: flags })
+if (system.command) console.log('[ AURORA CONTEXTO ]', system.command, '| duração:', Date.now() - startedContext, 'ms', '| remetente:', system.senderKey || '(ausente)')
 if (!system.senderKey) return
 if (flags?.botoff === true && !system.isOwner) return
 if (system.isGroup && isBanGp(system.from) && !system.isOwner) return
