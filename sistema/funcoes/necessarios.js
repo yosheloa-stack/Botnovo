@@ -1,7 +1,8 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
-const file = path.resolve('sistema/dados/necessarios.json')
+const file = path.resolve(process.env.AURORA_DATA_DIR || '/application/.aurora-data', 'necessarios.json')
+const legacyFile = path.resolve('sistema/dados/necessarios.json')
 
 const defaults = Object.freeze({
 verificado: false,
@@ -64,9 +65,16 @@ return data
 export async function loadNecessarios() {
 try {
 replaceInPlace(JSON.parse(await fs.readFile(file, 'utf8')))
-} catch {
+} catch (error) {
+if (error?.code !== 'ENOENT') throw error
+try {
+replaceInPlace(JSON.parse(await fs.readFile(legacyFile, 'utf8')))
+await saveNecessarios()
+} catch (legacyError) {
+if (legacyError?.code !== 'ENOENT') throw legacyError
 replaceInPlace(defaults)
 await saveNecessarios()
+}
 }
 return data
 }
