@@ -25,7 +25,7 @@ const traduzirMenu = (texto, idioma = 'pt') => {
 
 
 exports.menuPrincipal = (NomeDoBot, pushname, isCargo, isChVip, hora, prefix, grupo, zapo, idioma = 'pt') => {
-return traduzirMenu(`┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
+return traduzirSubmenu(`┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 ┣━〔 • ${NomeDoBot.toUpperCase()} • 💚 〕
 ┃
 ┃╎୨୧ 👤 ᴜsᴜᴀ́ʀɪᴏ: ${pushname}
