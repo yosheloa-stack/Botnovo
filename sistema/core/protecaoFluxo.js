@@ -6,9 +6,9 @@ const MAX_ENTRIES = 12_000
 
 export function uniqueIncoming(event) {
   const id = event?.key?.id
-  const chat = event?.key?.remoteJid
+  const chat = [event?.key?.remoteJid, event?.key?.remoteJidAlt].find(jid => String(jid || '').endsWith('@g.us')) || event?.key?.remoteJid || event?.key?.remoteJidAlt
   if (!id || !chat) return true
-  const sender = event?.key?.participant || ''
+  const sender = event?.key?.participant || event?.key?.participantAlt || ''
   const key = chat + ':' + sender + ':' + id
   const now = Date.now()
   if (seen.has(key) && now - seen.get(key) < TTL_MS) return false
