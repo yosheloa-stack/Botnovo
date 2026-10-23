@@ -27,7 +27,7 @@ importNecessarios(flags)
 const registry = await loadPlugins()
 await fs.mkdir('sistema/dados/sessao', { recursive: true })
 
-const logger = await createPinoLogger({ level: 'fatal', pretty: false })
+const logger = await createPinoLogger({ level: 'warn', pretty: false })
 const store = createStore({
 backends: { file: createFileStore('sistema/dados/sessao') },
 providers: {
@@ -100,6 +100,7 @@ let reconnectTimer = null
 client.on('connection', (event) => {
 const status = String(event?.status || '')
 if (status === 'open') {
+console.log('[ AURORA CONEXÃO ] WhatsApp conectado', new Date().toISOString())
 connectionOpen = true
 if (reconnectTimer) clearTimeout(reconnectTimer)
 reconnectTimer = null
@@ -131,7 +132,13 @@ client.on('stream_failure', (event) => console.error(chalk.redBright('[ ERRO ] F
 client.on('message_send', createOutgoingX9Tracker())
 const handleMessage = createHandler({ client, config, registry })
 client.on('message', (event) => {
-  if (!uniqueIncoming(event)) return
+  const rawText = event?.message?.conversation || event?.message?.extendedTextMessage?.text || event?.message?.imageMessage?.caption || ''
+  const isPossibleCommand = /^[!/\.]/.test(String(rawText).trim())
+  if (isPossibleCommand) console.log('[ AURORA RECEBIMENTO ]', new Date().toISOString(), '| id:', event?.key?.id || '-', '| grupo:', event?.key?.remoteJid || '-', '| comando:', String(rawText).trim().split(/\s+/)[0])
+  if (!uniqueIncoming(event)) {
+    if (isPossibleCommand) console.warn('[ AURORA RECEBIMENTO ] evento duplicado ignorado:', event?.key?.id || '-')
+    return
+  }
   void Promise.resolve().then(() => handleMessage(event)).catch((err) => {
     console.error('[ AURORA ] Erro isolado no processamento da mensagem:', err?.message || err)
   })
