@@ -416,3 +416,15 @@ export function consultarCotaFF(gp, usuario) {
   const usado = Number(getKv('ff:uso:' + txt(gp) + ':' + txt(usuario) + ':' + dia, 0)) || 0
   return { ok: usado < limite, usado, limite, restante: Math.max(0, limite - usado) }
 }
+
+// Idioma independente por grupo (persistido no SQLite).
+export function getIdiomaGrupo(gp) {
+  const v = String(getKv('idioma:grupo:' + txt(gp), 'pt')).toLowerCase()
+  return ['pt','es','en'].includes(v) ? v : 'pt'
+}
+export function setIdiomaGrupo(gp, idioma) {
+  const v = String(idioma || '').toLowerCase()
+  if (!txt(gp) || !['pt','es','en'].includes(v)) throw new Error('Idioma inválido')
+  setKv('idioma:grupo:' + txt(gp), v)
+  return v
+}
