@@ -134,6 +134,15 @@ export function createAluguelWorker({ client, config }) {
     running = true
     try {
       await sairVencidos(client, config)
+      const gruposAtuais = await client.group.queryAllGroups()
+      if (Array.isArray(gruposAtuais) && gruposAtuais.length > 0) {
+        const ids = new Set(gruposAtuais.map(g => clean(g?.jid)))
+        for (const alugado of listAluguel()) {
+          if (Number(alugado?.ate) <= Date.now() || ids.has(clean(alugado?.gp))) continue
+          const pedidoAnterior = ultimoPedidoAluguel(alugado.gp)
+          if (pedidoAnterior?.pedido) await resultado(config, { pedido_id: pedidoAnterior.pedido, status: 'erro', erro: 'BOT_FORA_DO_GRUPO' })
+        }
+      }
       const data = await api(config, '/api/bot/alugueis/pendentes')
       authFailureLogged = false
       retryAfter = 0
