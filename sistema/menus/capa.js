@@ -41,7 +41,7 @@ async function baixarCapa(url) {
   const response = await fetch(url, { signal: AbortSignal.timeout(10000), redirect: 'error' })
   if (!response.ok) throw new Error('download da capa HTTP ' + response.status)
   const mime = (response.headers.get('content-type') || '').split(';')[0].toLowerCase()
-  if (!['image/png','image/jpeg','image/webp'].includes(mime)) throw new Error('formato de capa inválido')
+  if (!['image/png','image/jpeg','image/webp','image/gif'].includes(mime)) throw new Error('formato de capa inválido')
   if (Number(response.headers.get('content-length') || 0) > 5_000_000) throw new Error('capa maior que 5 MB')
   const chunks = []
   let size = 0
@@ -50,7 +50,7 @@ async function baixarCapa(url) {
     if (size > 5_000_000) throw new Error('capa maior que 5 MB')
     chunks.push(chunk)
   }
-  const ext = mime === 'image/png' ? '.png' : mime === 'image/webp' ? '.webp' : '.jpg'
+  const ext = mime === 'image/png' ? '.png' : mime === 'image/webp' ? '.webp' : mime === 'image/gif' ? '.gif' : '.jpg'
   const file = path.join(os.tmpdir(), 'aurora-menu-' + randomUUID() + ext)
   let bytes = Buffer.concat(chunks)
   let outputMime = mime
@@ -58,12 +58,13 @@ async function baixarCapa(url) {
   try {
     const { default: sharp } = await import('sharp')
     // Insere margens quando necessário, sem cortar a foto original.
-    bytes = await sharp(bytes, { limitInputPixels: 25_000_000 }).rotate()
+    bytes = await sharp(bytes, { limitInputPixels: 25_000_000, animated: false }).rotate()
       .resize(1080, 1080, { fit: 'contain', background: { r: 15, g: 20, b: 19, alpha: 1 }, withoutEnlargement: true })
       .jpeg({ quality: 88, mozjpeg: true }).toBuffer()
     outputMime = 'image/jpeg'
     outputExt = '.jpg'
   } catch (err) {
+    if (mime === 'image/gif') throw new Error('não foi possível converter o GIF em imagem de capa: ' + (err?.message || err))
     console.warn('[ AURORA ] Normalização da capa indisponível, usando imagem original:', err?.message || err)
   }
   const finalFile = outputExt === ext ? file : file.slice(0, -ext.length) + outputExt
