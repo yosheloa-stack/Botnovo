@@ -117,10 +117,18 @@ async function ativarUm(client, config, item, getGroups) {
 // A lista de grupos da sessão é independente da consulta de metadados.
 // Só usamos uma resposta estruturada completa; erros nunca removem aluguéis.
 let ultimaLista = 0
+const ausenciasConfirmadas = new Map()
+let avisoListaIndisponivel = false
 async function conferirListaDeGrupos(client, config) {
   if (Date.now() - ultimaLista < 5 * 60_000) return
   ultimaLista = Date.now()
-  if (typeof client?.group?.list !== 'function') return
+  if (typeof client?.group?.list !== 'function') {
+    if (!avisoListaIndisponivel) {
+      console.warn('[ AURORA ALUGUEL ] A biblioteca não oferece group.list; verificação de saída por lista indisponível.')
+      avisoListaIndisponivel = true
+    }
+    return
+  }
   try {
     const resposta = await Promise.race([
       client.group.list(),
@@ -130,11 +138,22 @@ async function conferirListaDeGrupos(client, config) {
     if (!grupos) return
     const jids = new Set(grupos.map(g => clean(g?.jid || g?.id)).filter(j => j.endsWith('@g.us')))
     // Lista vazia pode representar sincronização incompleta; não é prova de saída.
-    if (!jids.size) return
+    if (!jids.size) {
+      console.warn('[ AURORA ALUGUEL ] Lista de grupos vazia; não será usada para confirmar saída.')
+      return
+    }
+    console.log('[ AURORA ALUGUEL ] Lista da sessão consultada:', jids.size, 'grupos')
     for (const item of listAluguel()) {
       if (!(Number(item?.ate) > Date.now())) continue
       const jid = clean(item?.gp)
-      if (!jid || jids.has(jid)) continue
+      if (!jid) continue
+      if (jids.has(jid)) { ausenciasConfirmadas.delete(jid); continue }
+      const faltas = (ausenciasConfirmadas.get(jid) || 0) + 1
+      ausenciasConfirmadas.set(jid, faltas)
+      if (faltas < 2) {
+        console.warn('[ AURORA ALUGUEL ] Grupo ausente da primeira lista; aguardando segunda confirmação:', jid)
+        continue
+      }
       const pedido = ultimoPedidoAluguel(jid)?.pedido
       if (!pedido) continue
       try {
