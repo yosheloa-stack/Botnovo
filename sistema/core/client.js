@@ -7,6 +7,7 @@ import { loadNecessarios } from '../funcoes/necessarios.js'
 import { loadState, importNecessarios } from '../funcoes/banco.js'
 import { loadPlugins } from './loader.js'
 import { createHandler } from './handler.js'
+import { uniqueIncoming } from './protecaoFluxo.js'
 import { createGroupHandler } from './eventos.js'
 import { createOutgoingX9Tracker, createProtocolX9Handler, createInteractionX9Handler, createGroupX9Handler, createCallX9Handler, createUnavailableX9Handler } from '../funcoes/x9.js'
 import { showConnected, showPairing, showStart } from '../funcoes/terminal.js'
@@ -110,7 +111,13 @@ if (event.status === 'close' || event.status === 'closed') setTimeout(() => proc
 
 client.on('stream_failure', (event) => console.error(chalk.redBright('[ ERRO ] Falha no stream:'), event))
 client.on('message_send', createOutgoingX9Tracker())
-client.on('message', createHandler({ client, config, registry }))
+const handleMessage = createHandler({ client, config, registry })
+client.on('message', (event) => {
+  if (!uniqueIncoming(event)) return
+  void Promise.resolve().then(() => handleMessage(event)).catch((err) => {
+    console.error('[ AURORA ] Erro isolado no processamento da mensagem:', err?.message || err)
+  })
+})
 client.on('message_protocol', createProtocolX9Handler({ client }))
 client.on('message_addon', createInteractionX9Handler({ client }))
 client.on('message_unavailable', createUnavailableX9Handler({ client }))
