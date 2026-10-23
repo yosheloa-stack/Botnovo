@@ -126,7 +126,8 @@ const sender = event?.key?.participant ?? event?.participant ?? from
 const senderAlt = event?.key?.participantAlt ?? event?.participantAlt ?? event?.key?.remoteJidAlt ?? ''
 const text = extractText(event?.message)
 const prefix = String(config.prefix || '!')
-const raw = text.startsWith(prefix) ? text.slice(prefix.length).trim() : /^\/(?:menu|menú)(?:\s|$)/i.test(text.trim()) ? text.trim().slice(1) : ''
+// Aceita o prefixo escolhido pelo dono e o padrão / usado pelos clientes.
+const raw = text.startsWith(prefix) ? text.slice(prefix.length).trim() : text.startsWith('/') ? text.slice(1).trim() : ''
 const parts = raw ? raw.split(/\s+/) : []
 const commandRaw = (parts.shift() ?? '').toLowerCase()
 const command = commandRaw === 'menú' ? 'menu' : commandRaw
