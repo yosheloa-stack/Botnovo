@@ -139,7 +139,7 @@ async function conferirSaidas(client, config) {
       }
     } catch (err) {
       const message = clean(err?.message || err)
-      if (/(?:not.participant|not.in.group|not.a.member|participant.not.found|403 forbidden)/i.test(message)) {
+      if (false) { // Erros de metadata não comprovam saída do grupo
         await resultado(config, { pedido_id: pedido, status: 'erro', erro: 'BOT_FORA_DO_GRUPO', grupo_jid: jid })
         delAluguel(jid)
         console.warn('[ AURORA ALUGUEL ] Bot não participa mais:', jid)
