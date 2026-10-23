@@ -230,61 +230,6 @@ if (system.command === 'like2' && String(text || '').trim().startsWith('/like2')
     return system.reply('⚠️ Não foi possível verificar a autorização do /like2 agora. Nenhum saldo foi descontado.');
   }
 }
-).test(system.senderNumber)) return system.reply('⚠️ Não consegui confirmar seu número do WhatsApp.');
-  try {
-    const base = String(config?.autoSystem?.url || '').replace(/\/$/, '');
-    const token = String(process.env.AURORA_RENTAL_TOKEN || config?.autoSystem?.rentalToken || '');
-    if (!base || !token) throw new Error('integração não configurada');
-    const response = await fetch(base + '/api/bot/alugueis/like2/permissao', {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Aurora-Token': token },
-      body: JSON.stringify({ grupo_jid: system.from, dono_numero: system.senderNumber })
-    });
-    const data = await response.json();
-    if (response.status === 403) return system.reply('🔒 Somente o dono cadastrado do aluguel pode utilizar /like2.');
-    if (!response.ok) throw new Error(data?.erro || 'consulta indisponível');
-    if (!data.ativo) return system.reply('⚠️ O comando /like2 não está ativado no seu aluguel. Acesse o painel do Auto Like System e habilite essa função nas configurações do bot.');
-    return system.reply('⏳ O /like2 está habilitado, mas os envios ainda não foram liberados: a tarifa por envio e a cobrança segura na carteira estão em configuração. Nenhum saldo foi descontado.');
-  } catch (error) {
-    console.error('[ AURORA LIKE2 ] Falha na autorização:', error?.message || error);
-    return system.reply('⚠️ Não foi possível verificar a autorização do /like2 agora. Nenhum saldo foi descontado.');
-  }
-}
-), '');
-    const token = String(process.env.AURORA_RENTAL_TOKEN || config?.autoSystem?.rentalToken || '');
-    if (!base || !token) throw new Error('integração não configurada');
-    const response = await fetch(base + '/api/bot/alugueis/like2/permissao', {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Aurora-Token': token },
-      body: JSON.stringify({ grupo_jid: system.from, dono_numero: system.senderNumber })
-    });
-    const data = await response.json();
-    if (response.status === 403) return system.reply('🔒 Somente o dono cadastrado do aluguel pode utilizar /like2.');
-    if (!response.ok) throw new Error(data?.erro || 'consulta indisponível');
-    if (!data.ativo) return system.reply('⚠️ O comando /like2 não está ativado no seu aluguel. Acesse o painel do Auto Like System e habilite essa função nas configurações do bot.');
-    return system.reply('⏳ O /like2 está habilitado, mas os envios ainda não foram liberados: a tarifa por envio e a cobrança segura na carteira estão em configuração. Nenhum saldo foi descontado.');
-  } catch (error) {
-    console.error('[ AURORA LIKE2 ] Falha na autorização:', error?.message || error);
-    return system.reply('⚠️ Não foi possível verificar a autorização do /like2 agora. Nenhum saldo foi descontado.');
-  }
-}
-).test(system.senderNumber)) return system.reply('⚠️ Não consegui confirmar seu número do WhatsApp.');
-  try {
-    const base = String(config?.autoSystem?.url || '').replace(/\/$/, '');
-    const token = String(process.env.AURORA_RENTAL_TOKEN || config?.autoSystem?.rentalToken || '');
-    if (!base || !token) throw new Error('integração não configurada');
-    const response = await fetch(base + '/api/bot/alugueis/like2/permissao', {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Aurora-Token': token },
-      body: JSON.stringify({ grupo_jid: system.from, dono_numero: system.senderNumber })
-    });
-    const data = await response.json();
-    if (response.status === 403) return system.reply('🔒 Somente o dono cadastrado do aluguel pode utilizar /like2.');
-    if (!response.ok) throw new Error(data?.erro || 'consulta indisponível');
-    if (!data.ativo) return system.reply('⚠️ O comando /like2 não está ativado no seu aluguel. Acesse o painel do Auto Like System e habilite essa função nas configurações do bot.');
-    return system.reply('⏳ O /like2 está habilitado, mas os envios ainda não foram liberados: a tarifa por envio e a cobrança segura na carteira estão em configuração. Nenhum saldo foi descontado.');
-  } catch (error) {
-    console.error('[ AURORA LIKE2 ] Falha na autorização:', error?.message || error);
-    return system.reply('⚠️ Não foi possível verificar a autorização do /like2 agora. Nenhum saldo foi descontado.');
-  }
-}
 if (!text || !text.startsWith(config.prefix)) return
 // Idioma exclusivo do grupo; somente administradores podem alterá-lo.
 if (system.isGroup && ['idioma', 'language', 'lenguaje'].includes(system.command)) {
