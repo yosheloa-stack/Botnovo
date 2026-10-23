@@ -112,6 +112,42 @@ async function ativarUm(client, config, item, getGroups) {
   }
 }
 
+// Confirma no WhatsApp se o bot ainda participa dos grupos alugados.
+// Falhas de rede/rate limit NÃO são tratadas como saída do grupo.
+async function conferirSaidas(client, config) {
+  for (const item of listAluguel()) {
+    if (!(Number(item?.ate) > Date.now())) continue
+    const jid = clean(item?.gp)
+    if (!jid) continue
+    const pedido = ultimoPedidoAluguel(jid)?.pedido
+    if (!pedido) continue
+    try {
+      const meta = await Promise.race([
+        client.group.queryGroupMetadata(jid),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout metadata')), 8000))
+      ])
+      if (!meta) continue
+      const me = clean(client?.user?.id || client?.user?.jid || client?.authState?.creds?.me?.id).split(':')[0].split('@')[0]
+      const participantes = Array.isArray(meta?.participants) ? meta.participants : null
+      if (me && participantes && !participantes.some(p => {
+        const id = clean(p?.id || p?.jid || p).split(':')[0].split('@')[0]
+        return id === me
+      })) {
+        await resultado(config, { pedido_id: pedido, status: 'erro', erro: 'BOT_FORA_DO_GRUPO', grupo_jid: jid })
+        delAluguel(jid)
+        console.warn('[ AURORA ALUGUEL ] Saída confirmada pelo WhatsApp:', jid)
+      }
+    } catch (err) {
+      const message = clean(err?.message || err)
+      if (/(?:not.participant|not.in.group|not.a.member|participant.not.found|403 forbidden)/i.test(message)) {
+        await resultado(config, { pedido_id: pedido, status: 'erro', erro: 'BOT_FORA_DO_GRUPO', grupo_jid: jid })
+        delAluguel(jid)
+        console.warn('[ AURORA ALUGUEL ] Bot não participa mais:', jid)
+      } else console.warn('[ AURORA ALUGUEL ] Consulta inconclusiva:', jid, message)
+    }
+  }
+}
+
 async function sairVencidos(client, config) {
   const agora = Date.now()
   for (const item of listAluguel()) {
@@ -141,6 +177,7 @@ export function createAluguelWorker({ client, config }) {
     if (stopped || running || Date.now() < retryAfter) return
     running = true
     try {
+      await conferirSaidas(client, config)
       await sairVencidos(client, config)
       const data = await api(config, '/api/bot/alugueis/pendentes')
       authFailureLogged = false
@@ -167,7 +204,8 @@ export function createAluguelWorker({ client, config }) {
   }
 
   const start = () => {
-    if (timer || stopped) return
+    if (timer) return
+    stopped = false
     void sync()
     timer = setInterval(() => { void sync() }, 15_000)
     timer.unref?.()
