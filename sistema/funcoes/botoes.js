@@ -1,3 +1,4 @@
+import fsSync from 'node:fs'
 import { prepareMenuHeader } from '../menus/capa.js'
 const clean = (value = '') => String(value ?? '').trim()
 
@@ -132,7 +133,7 @@ timeZone: 'America/Fortaleza'
 const grupo = system.isGroup ? (system.metadata?.subject || 'Grupo') : 'Privado'
 const usuario = system.senderNumber ? `@${system.senderNumber}` : `@${system.pushName || 'usuario'}`
 const mentionJid = system.senderInfo?.pnJid || system.senderInfo?.jid || system.sender
-const zapo = '1.8.2'
+const zapo = String(JSON.parse(fsSync.readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).dependencies?.['zapo-js'] || 'desconhecida').replace(/^[^0-9]*/, '')
 const header = await prepareMenuHeader(system)
 
 const body = `⏤͟͟͞͞𝐀𝐮𝐫𝐨𝐫𝐚 𝐌𝐞𝐧𝐮! 𖤐⃝💚
