@@ -169,7 +169,7 @@ const eventId = event?.key?.id || ''
 // A Zapo devolve mensagens do próprio número via multi-device com fromMe=true.
 // Ignoramos apenas o que foi enviado localmente pelo Aurora (rastreado em message_send).
 if (event?.key?.fromMe && isLocalSentMessage(eventId)) return
-const remote = event?.key?.remoteJid ?? ''
+const remote = [event?.key?.remoteJid, event?.key?.remoteJidAlt].find(jid => String(jid || '').endsWith('@g.us')) || event?.key?.remoteJid || event?.key?.remoteJidAlt || ''
 if (!remote) return
 
 const isGroup = remote.endsWith('@g.us')
@@ -206,12 +206,12 @@ const text = extractText(event?.message)
 const blockedKeys = [system.senderNumber, system.senderInfo?.pnJid, system.senderInfo?.lidJid, system.senderInfo?.jid].filter(Boolean)
 if (blockedKeys.some((key) => db().blocked.includes(key)) && !system.isOwner) return
 
-// Solicitação de entrada: depois de #soli, o ADM responde 1 ou 0 sem prefixo.
-if (await handleSoli(system)) return
-
-// Sistemas interativos herdados da Akame: aceitam resposta sem prefixo (sim/não e 1-9).
-if (await handleTicTacToe(system)) return
-if (await handleDating(system)) return
+// Fluxos interativos só recebem mensagens sem comando. Nunca seguram /like, /menu etc.
+if (!system.command) {
+  if (await handleSoli(system)) return
+  if (await handleTicTacToe(system)) return
+  if (await handleDating(system)) return
+}
 
 // /like2 é exclusivo do titular do aluguel; autorização sempre no site.
 // Até a tarifa e a cobrança serem configuradas, não envia likes nem cobra.
