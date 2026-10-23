@@ -458,24 +458,54 @@ return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 
 // Todos os submenus recebem o idioma como 9º argumento de menuData.
 // Mantemos nomes de comandos intactos para não quebrar o prefixo.
-const traducaoExtra = {
+// Tradução de textos de ajuda, sem alterar o nome de nenhum comando.
+// O idioma do grupo é recebido de menuData na posição 9.
+const menuHelp = {
+  en: {
+    'numero':'number', 'nome':'name', 'texto':'text', 'motivo':'reason',
+    'novo texto':'new text', 'sua bio':'your bio',
+    'foto/vídeo':'photo/video', 'responda foto/vídeo':'reply to a photo/video',
+    'pedra/papel/tesoura':'rock/paper/scissors',
+    'comandos-base da Akame':'Akame base commands',
+    '@usuario':'@user', 'grupo':'group', 'Limite':'Limit'
+  },
+  es: {
+    'numero':'número', 'nome':'nombre', 'texto':'texto', 'motivo':'motivo',
+    'novo texto':'texto nuevo', 'sua bio':'tu biografía',
+    'foto/vídeo':'foto/video', 'responda foto/vídeo':'responde a una foto/video',
+    'pedra/papel/tesoura':'piedra/papel/tijera',
+    'comandos-base da Akame':'comandos base de Akame',
+    '@usuario':'@usuario', 'grupo':'grupo'
+  }
+}
+const menuSections = {
   en: [
-    ['𝑮𝑹𝑼𝑷𝑶','𝑮𝑹𝑶𝑼𝑷'],['𝑷𝑹𝑶𝑻𝑬𝑪̧𝑶̃𝑬𝑺','𝑷𝑹𝑶𝑻𝑬𝑪𝑻𝑰𝑶𝑵'],['𝑺𝑰𝑺𝑻𝑬𝑴𝑨𝑺','𝑺𝒀𝑺𝑻𝑬𝑴𝑺'],['𝑭𝑰𝑮𝑼𝑹𝑰𝑵𝑯𝑨𝑺','𝑺𝑻𝑰𝑪𝑲𝑬𝑹𝑺'],
-    ['𝑩𝑹𝑰𝑵𝑪𝑨𝑫𝑬𝑰𝑹𝑨𝑺','𝑮𝑨𝑴𝑬𝑺'],['𝑫𝑶𝑾𝑵𝑳𝑶𝑨𝑫𝑺','𝑫𝑶𝑾𝑵𝑳𝑶𝑨𝑫𝑺'],
-    ['sua bio','your bio'],['@usuario','@user'],['numero','number'],['novo texto','new text'],['responda foto/vídeo','reply to photo/video'],
-    ['pedra/papel/tesoura','rock/paper/scissors'],['comandos-base da Akame','Akame base commands']
+    ['𝑮𝑹𝑼𝑷𝑶','𝑮𝑹𝑶𝑼𝑷'], ['𝑷𝑹𝑶𝑻𝑬𝑪̧𝑶̃𝑬𝑺','𝑷𝑹𝑶𝑻𝑬𝑪𝑻𝑰𝑶𝑵'],
+    ['𝑺𝑰𝑺𝑻𝑬𝑴𝑨𝑺','𝑺𝒀𝑺𝑻𝑬𝑴𝑺'], ['𝑭𝑰𝑮𝑼𝑹𝑰𝑵𝑯𝑨𝑺','𝑺𝑻𝑰𝑪𝑲𝑬𝑹𝑺'],
+    ['𝑩𝑹𝑰𝑵𝑪𝑨𝑫𝑬𝑰𝑹𝑨𝑺','𝑮𝑨𝑴𝑬𝑺'],
+    ['𝑬𝑿𝑻𝑹𝑨𝑺 𝑫𝑶 𝑨𝑼𝑹𝑶𝑹𝑨','𝑨𝑼𝑹𝑶𝑹𝑨 𝑬𝑿𝑻𝑹𝑨𝑺']
   ],
   es: [
-    ['𝑮𝑹𝑼𝑷𝑶','𝑮𝑹𝑼𝑷𝑶'],['𝑷𝑹𝑶𝑻𝑬𝑪̧𝑶̃𝑬𝑺','𝑷𝑹𝑶𝑻𝑬𝑪𝑪𝑰𝑶𝑵𝑬𝑺'],['𝑺𝑰𝑺𝑻𝑬𝑴𝑨𝑺','𝑺𝑰𝑺𝑻𝑬𝑴𝑨𝑺'],['𝑭𝑰𝑮𝑼𝑹𝑰𝑵𝑯𝑨𝑺','𝑺𝑻𝑰𝑪𝑲𝑬𝑹𝑺'],
-    ['𝑩𝑹𝑰𝑵𝑪𝑨𝑫𝑬𝑰𝑹𝑨𝑺','𝑱𝑼𝑬𝑮𝑶𝑺'],['sua bio','tu biografía'],['@usuario','@usuario'],
-    ['numero','número'],['novo texto','texto nuevo'],['responda foto/vídeo','responde a foto/video'],
-    ['pedra/papel/tesoura','piedra/papel/tijera'],['comandos-base da Akame','comandos base de Akame']
+    ['𝑷𝑹𝑶𝑻𝑬𝑪̧𝑶̃𝑬𝑺','𝑷𝑹𝑶𝑻𝑬𝑪𝑪𝑰𝑶𝑵𝑬𝑺'],
+    ['𝑭𝑰𝑮𝑼𝑹𝑰𝑵𝑯𝑨𝑺','𝑺𝑻𝑰𝑪𝑲𝑬𝑹𝑺'],
+    ['𝑩𝑹𝑰𝑵𝑪𝑨𝑫𝑬𝑰𝑹𝑨𝑺','𝑱𝑼𝑬𝑮𝑶𝑺'],
+    ['𝑬𝑿𝑻𝑹𝑨𝑺 𝑫𝑶 𝑨𝑼𝑹𝑶𝑹𝑨','𝑬𝑿𝑻𝑹𝑨𝑺 𝑫𝑬 𝑨𝑼𝑹𝑶𝑹𝑨']
   ]
 }
 function traduzirSubmenu(texto, idioma) {
-  let saida = traduzirMenu(texto, idioma)
-  const lang = String(idioma || 'pt').slice(0,2)
-  for (const [a,b] of traducaoExtra[lang] || []) saida = saida.split(a).join(b)
+  const lang = String(idioma || 'pt').toLowerCase().slice(0, 2)
+  if (!['en','es'].includes(lang)) return texto
+  let saida = traduzirMenu(texto, lang)
+  for (const [from,to] of menuSections[lang]) saida = saida.split(from).join(to)
+  // Traduza somente argumentos explicativos após o comando; nunca o comando.
+  const dict = menuHelp[lang]
+  saida = saida.replace(/(#[a-z0-9_]+)([^\n]*)/gi, (_, cmd, suffix) => {
+    let help = suffix
+    for (const [from,to] of Object.entries(dict).sort((a,b)=>b[0].length-a[0].length)) {
+      help = help.replace(new RegExp(from.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'g'), to)
+    }
+    return cmd + help
+  })
   return saida
 }
 for (const key of ['adms','menudono','downloads','menuff','brincadeiras','fig']) {
