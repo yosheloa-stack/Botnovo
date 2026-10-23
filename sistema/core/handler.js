@@ -211,9 +211,9 @@ if (await handleDating(system)) return
 // Até a tarifa e a cobrança serem configuradas, não envia likes nem cobra.
 if (system.command === 'like2' && String(text || '').trim().startsWith('/like2')) {
   if (!system.isGroup) return system.reply('⚠️ Use /like2 dentro do grupo alugado.');
-  if (!system.senderNumber || !new RegExp('^[0-9]{12,15}(system.senderNumber)) return system.reply('⚠️ Não consegui confirmar seu número do WhatsApp.');
+  if (!system.senderNumber || !String(system.senderNumber).match(/^[0-9]{12,15}$/)) return system.reply('⚠️ Não consegui confirmar seu número do WhatsApp.');
   try {
-    const base = String(config?.autoSystem?.url || '').replace(new RegExp('/;
+    const base = String(config?.autoSystem?.url || '').replace(/\/$/, '');
     const token = String(process.env.AURORA_RENTAL_TOKEN || config?.autoSystem?.rentalToken || '');
     if (!base || !token) throw new Error('integração não configurada');
     const response = await fetch(base + '/api/bot/alugueis/like2/permissao', {
@@ -232,7 +232,7 @@ if (system.command === 'like2' && String(text || '').trim().startsWith('/like2')
 }
 ).test(system.senderNumber)) return system.reply('⚠️ Não consegui confirmar seu número do WhatsApp.');
   try {
-    const base = String(config?.autoSystem?.url || '').replace(/\\/$/, '');
+    const base = String(config?.autoSystem?.url || '').replace(/\/$/, '');
     const token = String(process.env.AURORA_RENTAL_TOKEN || config?.autoSystem?.rentalToken || '');
     if (!base || !token) throw new Error('integração não configurada');
     const response = await fetch(base + '/api/bot/alugueis/like2/permissao', {
@@ -268,7 +268,7 @@ if (system.command === 'like2' && String(text || '').trim().startsWith('/like2')
 }
 ).test(system.senderNumber)) return system.reply('⚠️ Não consegui confirmar seu número do WhatsApp.');
   try {
-    const base = String(config?.autoSystem?.url || '').replace(/\\/$/, '');
+    const base = String(config?.autoSystem?.url || '').replace(/\/$/, '');
     const token = String(process.env.AURORA_RENTAL_TOKEN || config?.autoSystem?.rentalToken || '');
     if (!base || !token) throw new Error('integração não configurada');
     const response = await fetch(base + '/api/bot/alugueis/like2/permissao', {
