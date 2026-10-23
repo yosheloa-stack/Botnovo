@@ -57,17 +57,25 @@ async function ativarUm(client, config, item) {
   try {
     // A consulta do convite nos dá o JID antes de entrar e evita duplicar uma
     // entrada quando o bot já faz parte do grupo.
-    const preview = await client.group.queryGroupInviteInfo(code)
-    const jid = clean(preview?.jid)
-    if (!jid) throw new Error('o WhatsApp não retornou o grupo deste convite')
-
+    // Em personalizações, o grupo já está vinculado ao pedido.
+    // Convites podem ter sido revogados depois da ativação; não dependemos
+    // de um link antigo para atualizar nome, imagem e idioma.
+    const atualizacao = Boolean(item?.somente_personalizacao)
     const atuais = await client.group.queryAllGroups()
+    let jid = atualizacao ? clean(item?.grupo_jid) : ''
+    let preview = null
+    if (!jid) {
+      preview = await client.group.queryGroupInviteInfo(code)
+      jid = clean(preview?.jid)
+    }
+    if (!jid) throw new Error('o WhatsApp não retornou o grupo deste convite')
     let meta = atuais.find((g) => g?.jid === jid) || null
-    if (!meta && !item?.somente_personalizacao) meta = await client.group.joinGroupViaInvite(code)
-    if (!meta && item?.somente_personalizacao) throw new Error('bot não está mais no grupo configurado')
+    if (!meta && !atualizacao) meta = await client.group.joinGroupViaInvite(code)
+    if (!meta && atualizacao) throw new Error('bot não está mais no grupo configurado')
+    if (!meta) throw new Error('não foi possível confirmar a entrada no grupo')
 
     aluguelOn(true)
-    const registro = item?.somente_personalizacao ? { ate: Date.now(), repetido: true } : setAluguelPedido(jid, dias, pedido)
+    const registro = atualizacao ? { ate: null, repetido: true } : setAluguelPedido(jid, dias, pedido)
     const dono = setDonoAluguel(jid, item?.dono_numero)
     const personalizacao = setPersonalizacaoAluguel(jid, { nome: item?.nome_bot, foto: item?.foto_menu })
     const idioma = setIdiomaGrupo(jid, ['pt','es','en'].includes(item?.idioma) ? item.idioma : 'pt')
@@ -88,7 +96,9 @@ async function ativarUm(client, config, item) {
         }, dono ? { mentions: [`${dono}@s.whatsapp.net`], contextInfo: { mentionedJid: [`${dono}@s.whatsapp.net`] } } : {})
       } catch {}
     }
-    console.log(`[ AURORA ALUGUEL ] ${registro.repetido ? 'Confirmado' : 'Ativado'}: ${jid} até ${new Date(Number(registro.ate)).toLocaleString('pt-BR')}`)
+    console.log(registro.repetido
+      ? `[ AURORA ALUGUEL ] Personalização atualizada no grupo ${jid}: nome=${personalizacao.nome || 'padrão'}, foto=${personalizacao.foto ? 'configurada' : 'sem foto'}, idioma=${idioma}`
+      : `[ AURORA ALUGUEL ] Ativado: ${jid} até ${new Date(Number(registro.ate)).toLocaleString('pt-BR')}`)
   } catch (err) {
     const msg = clean(err?.message || err || 'não foi possível entrar no grupo').slice(0, 220)
     await resultado(config, { pedido_id: pedido, status: 'erro', erro: msg })
