@@ -101,7 +101,12 @@ async function cachedGroupMetadata(client, jid) {
   const cached = groupMetadataCache.get(jid)
   if (cached && now < cached.expires) return cached.data
   try {
-    const data = await client.group.queryGroupMetadata(jid)
+    // Metadados não podem travar o processamento de /like e /menu.
+    // A consulta subjacente pode continuar, mas não bloqueia o handler.
+    const data = await Promise.race([
+      client.group.queryGroupMetadata(jid),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('group metadata timeout 5s')), 5_000))
+    ])
     groupMetadataCache.set(jid, { data, expires: Date.now() + GROUP_METADATA_TTL })
     if (groupMetadataCache.size > 1000) {
       for (const [key, value] of groupMetadataCache) {
