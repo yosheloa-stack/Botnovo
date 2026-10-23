@@ -67,7 +67,6 @@ async function ativarUm(client, config, item, getGroups) {
     // de um link antigo para atualizar nome, imagem e idioma.
     const recuperacao = Boolean(item?.recuperacao_pendente)
     const atualizacao = Boolean(item?.somente_personalizacao)
-    const atuais = await getGroups()
     let jid = atualizacao ? clean(item?.grupo_jid) : ''
     let preview = null
     if (!jid) {
@@ -75,9 +74,30 @@ async function ativarUm(client, config, item, getGroups) {
       jid = clean(preview?.jid)
     }
     if (!jid) throw new Error('o WhatsApp não retornou o grupo deste convite')
-    let meta = atuais.find((g) => g?.jid === jid) || null
-    if (!meta && !atualizacao) meta = await client.group.joinGroupViaInvite(code)
-    if (!meta && atualizacao) throw new Error('bot não está mais no grupo configurado')
+    let meta = null
+    if (atualizacao) {
+      // Personalização nunca tenta entrar em outro grupo.
+      meta = await client.group.queryGroupMetadata(jid)
+    } else {
+      // O banco local não prova participação: tenta entrar de verdade.
+      try {
+        const entrada = await client.group.joinGroupViaInvite(code)
+        meta = typeof entrada === 'object' && entrada ? entrada : { jid }
+        console.log('[ AURORA ALUGUEL ] Entrada solicitada pelo convite:', jid)
+      } catch (err) {
+        const mensagem = clean(err?.message || err)
+        if (!/(?:already|participant|member|já.participa|ja.participa)/i.test(mensagem)) throw err
+        // Mesmo quando o servidor diz "já participa", verifica a lista real.
+        const verificado = await client.group.queryGroupMetadata(jid)
+        const me = clean(client?.user?.id || client?.user?.jid || client?.authState?.creds?.me?.id).split(':')[0].split('@')[0]
+        const participantes = Array.isArray(verificado?.participants) ? verificado.participants : null
+        if (!me || !participantes?.some(p => clean(p?.id || p?.jid || p).split(':')[0].split('@')[0] === me)) {
+          throw new Error('participação no grupo não confirmada pelo WhatsApp')
+        }
+        meta = verificado
+        console.log('[ AURORA ALUGUEL ] Bot já participa do grupo, confirmado:', jid)
+      }
+    }
     if (!meta) throw new Error('não foi possível confirmar a entrada no grupo')
 
     aluguelOn(true)
