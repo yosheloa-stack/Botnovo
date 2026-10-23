@@ -195,7 +195,11 @@ if (system.isGroup && aluguelOn() && !aluguelOk(system.from) && !system.isOwner)
   return
 }
 
-if (system.isGroup) await cacheIncomingX9(system)
+// X9 é acessório: downloads de mídia/arquivos não podem segurar comandos.
+if (system.isGroup) {
+  void Promise.resolve().then(() => cacheIncomingX9(system)).catch(err =>
+    console.warn('[ AURORA X9 ] Falha ao armazenar mensagem:', err?.message || err))
+}
 if (system.isGroup && await applyGroupProtection(system)) return
 
 const text = extractText(event?.message)
