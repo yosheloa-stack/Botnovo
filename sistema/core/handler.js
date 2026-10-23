@@ -287,7 +287,7 @@ if (system.command === 'configurarff' || system.command === 'configff') {
   if (!system.isGroup) return system.reply(msgIdioma(system, '⚠️ Use este comando dentro do grupo.', '⚠️ Usa este comando dentro del grupo.', '⚠️ Use this command in a group.'))
   if (!system.isOwner && !system.isAdmin) return system.reply(msgIdioma(system, '🔒 Somente o dono ou administrador deste grupo pode configurar o Free Fire.', '🔒 Solo el dueño o un administrador puede configurar Free Fire.', '🔒 Only the group owner or an admin can configure Free Fire.'))
   const argumento = String(text).trim().split(/\s+/).slice(1)[0]
-  if (!argumento) return system.reply('🎮 *Configurações Free Fire*\\n\\nLimite atual: *' + getLimiteFF(system.from) + ' IDs por usuário/dia*\\n\\nPara alterar: *' + system.prefix + 'configurarff 3*\\n\\nA configuração vale somente para este grupo.')
+  if (!argumento) return system.reply('🎮 *Configurações Free Fire*\n\nLimite atual: *' + getLimiteFF(system.from) + ' IDs por usuário/dia*\n\nPara alterar: *' + system.prefix + 'configurarff 3*\n\nA configuração vale somente para este grupo.')
   const n = Number(argumento)
   if (!Number.isInteger(n) || n < 1 || n > 100) return system.reply(msgIdioma(system, 'Informe um limite entre 1 e 100 IDs por dia.', 'Indica un límite entre 1 y 100 IDs por día.', 'Enter a limit between 1 and 100 IDs per day.'))
   setLimiteFF(system.from, n)
@@ -328,7 +328,7 @@ if (plugin.botAdminOnly && !system.isBotAdmin) return system.reply(messages.only
 const ffInfo = system.isGroup && /^(info|ffinfo|infoplayer)$/i.test(system.command)
 const ffDislike = system.isGroup && /^(dislike|deslike|ffdislike)$/i.test(system.command)
 const ffAutolike = /^(autolike|autolikes|ffautolike)$/i.test(system.command)
-const vipRequired = ffAutolike || (!ffInfo && !ffDislike && (plugin.vipOnly === true || plugin.premiumOnly === true || isVipCmd(system.command)))
+const vipRequired = ffAutolike || (system.command !== 'like' && !ffInfo && !ffDislike && (plugin.vipOnly === true || plugin.premiumOnly === true || isVipCmd(system.command)))
 if (vipRequired && !system.isVip && !system.isOwner) return system.reply(messages.onlyVip())
 
 if (ffDislike) {
