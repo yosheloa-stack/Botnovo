@@ -132,7 +132,7 @@ client.on('stream_failure', (event) => console.error(chalk.redBright('[ ERRO ] F
 client.on('message_send', createOutgoingX9Tracker())
 const handleMessage = createHandler({ client, config, registry })
 client.on('message', (event) => {
-  const rawText = event?.message?.conversation || event?.message?.extendedTextMessage?.text || event?.message?.imageMessage?.caption || ''
+  const rawText = event?.message?.conversation || event?.message?.extendedTextMessage?.text || event?.message?.imageMessage?.caption || event?.message?.buttonsResponseMessage?.selectedButtonId || event?.message?.listResponseMessage?.singleSelectReply?.selectedRowId || ''
   const isPossibleCommand = /^[!/\.]/.test(String(rawText).trim())
   if (isPossibleCommand) console.log('[ AURORA RECEBIMENTO ]', new Date().toISOString(), '| id:', event?.key?.id || '-', '| grupo:', event?.key?.remoteJid || '-', '| comando:', String(rawText).trim().split(/\s+/)[0])
   if (!uniqueIncoming(event)) {
