@@ -1,6 +1,10 @@
 import { aluguelOn, delAluguel, listAluguel, setAluguelPedido, transferirAluguelPedido, ultimoPedidoAluguel, setDonoAluguel, setPersonalizacaoAluguel, setIdiomaGrupo, tokenAluguelSalvo } from './banco.js'
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+const isRateLimit = (error) => /(?:429|rate.overlimit|rate.limit|too many requests)/i.test(String(error?.message || error || ''))
+const GROUP_CACHE_MS = 5 * 60_000
+const GROUP_RETRY_BASE_MS = 2 * 60_000
+const GROUP_RETRY_MAX_MS = 30 * 60_000
 const clean = (value = '') => String(value ?? '').trim()
 const codeFromLink = (value = '') => {
   const raw = clean(value)
@@ -43,7 +47,7 @@ async function resultado(config, body) {
   }
 }
 
-async function ativarUm(client, config, item) {
+async function ativarUm(client, config, item, getGroups) {
   const pedido = clean(item?.pedido_id), dias = Math.max(1, Math.floor(Number(item?.dias) || 30))
   if (!pedido) return
 
@@ -62,7 +66,7 @@ async function ativarUm(client, config, item) {
     // de um link antigo para atualizar nome, imagem e idioma.
     const recuperacao = Boolean(item?.recuperacao_pendente)
     const atualizacao = Boolean(item?.somente_personalizacao)
-    const atuais = await client.group.queryAllGroups()
+    const atuais = await getGroups()
     let jid = atualizacao ? clean(item?.grupo_jid) : ''
     let preview = null
     if (!jid) {
@@ -128,14 +132,42 @@ async function sairVencidos(client, config) {
 export function createAluguelWorker({ client, config }) {
   let stopped = false, running = false, timer = null
   let authFailureLogged = false, retryAfter = 0
+  let cachedGroups = null, groupsCachedAt = 0, groupRetryAfter = 0, groupFailures = 0
+  const getGroups = async () => {
+    const now = Date.now()
+    if (Array.isArray(cachedGroups) && now - groupsCachedAt < GROUP_CACHE_MS) return cachedGroups
+    if (now < groupRetryAfter) {
+      if (Array.isArray(cachedGroups)) return cachedGroups
+      throw new Error('GROUP_RATE_LIMIT_COOLDOWN')
+    }
+    try {
+      const groups = await client.group.queryAllGroups()
+      if (!Array.isArray(groups)) throw new Error('listagem de grupos inválida')
+      cachedGroups = groups
+      groupsCachedAt = Date.now()
+      groupFailures = 0
+      groupRetryAfter = 0
+      return groups
+    } catch (err) {
+      if (isRateLimit(err)) {
+        groupFailures = Math.min(groupFailures + 1, 6)
+        const backoff = Math.min(GROUP_RETRY_BASE_MS * (2 ** (groupFailures - 1)), GROUP_RETRY_MAX_MS)
+        groupRetryAfter = Date.now() + backoff + Math.floor(Math.random() * 15_000)
+        console.warn('[ AURORA ALUGUEL ] Limite de consultas de grupos (429). Próxima consulta em aproximadamente ' + Math.ceil(backoff / 60_000) + ' minuto(s).')
+        if (Array.isArray(cachedGroups)) return cachedGroups
+        throw new Error('GROUP_RATE_LIMIT_COOLDOWN')
+      }
+      throw err
+    }
+  }
 
   const sync = async () => {
     if (stopped || running || Date.now() < retryAfter) return
     running = true
     try {
       await sairVencidos(client, config)
-      const gruposAtuais = await client.group.queryAllGroups()
-      if (Array.isArray(gruposAtuais) && gruposAtuais.length > 0) {
+      const gruposAtuais = await getGroups()
+      if (Array.isArray(gruposAtuais) && gruposAtuais.length > 0 && Date.now() >= groupRetryAfter) {
         const ids = new Set(gruposAtuais.map(g => clean(g?.jid)))
         for (const alugado of listAluguel()) {
           if (Number(alugado?.ate) <= Date.now() || ids.has(clean(alugado?.gp))) continue
@@ -147,7 +179,7 @@ export function createAluguelWorker({ client, config }) {
       authFailureLogged = false
       retryAfter = 0
       for (const item of (Array.isArray(data?.alugueis) ? data.alugueis : [])) {
-        await ativarUm(client, config, item)
+        await ativarUm(client, config, item, getGroups)
         await sleep(400)
       }
     } catch (err) {
@@ -159,6 +191,8 @@ export function createAluguelWorker({ client, config }) {
           console.error('[ AURORA ALUGUEL ] Autenticação recusada pelo site. Confira se AURORA_RENTAL_TOKEN na Square Cloud do bot é idêntico ao AURORA_RENTAL_TOKEN no site Kasane. Próxima tentativa em 5 minutos.')
           authFailureLogged = true
         }
+      } else if (message === 'GROUP_RATE_LIMIT_COOLDOWN') {
+        // Evita logs repetidos durante a espera após 429.
       } else if (!/não configurada/i.test(message)) {
         console.error('[ AURORA ALUGUEL ] Sincronização:', message)
       }
