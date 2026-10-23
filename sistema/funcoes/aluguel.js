@@ -1,4 +1,4 @@
-import { aluguelOn, delAluguel, listAluguel, setAluguelPedido, ultimoPedidoAluguel, setDonoAluguel, setPersonalizacaoAluguel, tokenAluguelSalvo } from './banco.js'
+import { aluguelOn, delAluguel, listAluguel, setAluguelPedido, ultimoPedidoAluguel, setDonoAluguel, setPersonalizacaoAluguel, setIdiomaGrupo, tokenAluguelSalvo } from './banco.js'
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const clean = (value = '') => String(value ?? '').trim()
@@ -70,6 +70,7 @@ async function ativarUm(client, config, item) {
     const registro = item?.somente_personalizacao ? { ate: Date.now(), repetido: true } : setAluguelPedido(jid, dias, pedido)
     const dono = setDonoAluguel(jid, item?.dono_numero)
     const personalizacao = setPersonalizacaoAluguel(jid, { nome: item?.nome_bot, foto: item?.foto_menu })
+    const idioma = setIdiomaGrupo(jid, ['pt','es','en'].includes(item?.idioma) ? item.idioma : 'pt')
     await resultado(config, {
       pedido_id: pedido,
       status: 'ativo',
@@ -79,11 +80,11 @@ async function ativarUm(client, config, item) {
     })
     if (!registro.repetido) {
       const validade = new Date(Number(registro.ate)).toLocaleString('pt-BR', { timeZone: config?.timezone || 'America/Sao_Paulo' })
-      const linhaDono = dono ? `\n• 👑 Dono do bot aqui: @${dono}` : ''
+      const linhaDono = dono ? `\n• 👑 ${idioma === 'es' ? 'Dueño del bot' : idioma === 'en' ? 'Bot owner' : 'Dono do bot'}: @${dono}` : ''
       try {
         await client.message.send(jid, {
           type: 'text',
-          text: `• ✅ *${personalizacao.nome || 'Aurora'} ativado neste grupo!*${linhaDono}\n• 📅 Válido até: *${validade}*\n• Use *${config?.prefix || '#'}menu* para ver os comandos.`
+          text: idioma === 'es' ? `• ✅ *${personalizacao.nome || 'Aurora'} activado en este grupo!*${linhaDono}\n• 📅 Válido hasta: *${validade}*\n• Usa *${config?.prefix || '#'}menu* para ver los comandos.` : idioma === 'en' ? `• ✅ *${personalizacao.nome || 'Aurora'} activated in this group!*${linhaDono}\n• 📅 Valid until: *${validade}*\n• Use *${config?.prefix || '#'}menu* to see commands.` : `• ✅ *${personalizacao.nome || 'Aurora'} ativado neste grupo!*${linhaDono}\n• 📅 Válido até: *${validade}*\n• Use *${config?.prefix || '#'}menu* para ver os comandos.`
         }, dono ? { mentions: [`${dono}@s.whatsapp.net`], contextInfo: { mentionedJid: [`${dono}@s.whatsapp.net`] } } : {})
       } catch {}
     }
