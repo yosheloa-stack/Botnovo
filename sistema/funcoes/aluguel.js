@@ -1,4 +1,4 @@
-import { aluguelOn, delAluguel, listAluguel, setAluguelPedido, ultimoPedidoAluguel, setDonoAluguel, setPersonalizacaoAluguel, setIdiomaGrupo, tokenAluguelSalvo } from './banco.js'
+import { aluguelOn, delAluguel, listAluguel, setAluguelPedido, transferirAluguelPedido, ultimoPedidoAluguel, setDonoAluguel, setPersonalizacaoAluguel, setIdiomaGrupo, tokenAluguelSalvo } from './banco.js'
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const clean = (value = '') => String(value ?? '').trim()
@@ -60,6 +60,7 @@ async function ativarUm(client, config, item) {
     // Em personalizações, o grupo já está vinculado ao pedido.
     // Convites podem ter sido revogados depois da ativação; não dependemos
     // de um link antigo para atualizar nome, imagem e idioma.
+    const recuperacao = Boolean(item?.recuperacao_pendente)
     const atualizacao = Boolean(item?.somente_personalizacao)
     const atuais = await client.group.queryAllGroups()
     let jid = atualizacao ? clean(item?.grupo_jid) : ''
@@ -75,7 +76,7 @@ async function ativarUm(client, config, item) {
     if (!meta) throw new Error('não foi possível confirmar a entrada no grupo')
 
     aluguelOn(true)
-    const registro = atualizacao ? { ate: null, repetido: true } : setAluguelPedido(jid, dias, pedido)
+    const registro = atualizacao ? { ate: null, repetido: true } : recuperacao ? transferirAluguelPedido(pedido, jid, item?.expira) : setAluguelPedido(jid, dias, pedido)
     const dono = setDonoAluguel(jid, item?.dono_numero)
     const personalizacao = setPersonalizacaoAluguel(jid, { nome: item?.nome_bot, foto: item?.foto_menu })
     const idioma = setIdiomaGrupo(jid, ['pt','es','en'].includes(item?.idioma) ? item.idioma : 'pt')
@@ -86,7 +87,7 @@ async function ativarUm(client, config, item) {
       grupo_nome: clean(meta?.subject || preview?.subject || 'Grupo'),
       ...(item?.somente_personalizacao ? {} : { expira: new Date(Number(registro.ate)).toISOString() })
     })
-    if (!registro.repetido) {
+    if (!registro.repetido && !recuperacao) {
       const validade = new Date(Number(registro.ate)).toLocaleString('pt-BR', { timeZone: config?.timezone || 'America/Sao_Paulo' })
       const linhaDono = dono ? `\n• 👑 ${idioma === 'es' ? 'Dueño del bot' : idioma === 'en' ? 'Bot owner' : 'Dono do bot'}: @${dono}` : ''
       try {
