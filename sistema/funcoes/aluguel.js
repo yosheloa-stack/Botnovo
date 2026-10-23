@@ -152,11 +152,13 @@ async function conferirListaDeGrupos(client, config) {
     console.warn('[ AURORA ALUGUEL ] Lista de grupos indisponível; nenhum aluguel alterado:', err?.message || err)
   }
 }
+const proximaConsultaMetadata = new Map()
 async function conferirSaidas(client, config) {
   for (const item of listAluguel()) {
     if (!(Number(item?.ate) > Date.now())) continue
     const jid = clean(item?.gp)
     if (!jid) continue
+    if (Date.now() < (proximaConsultaMetadata.get(jid) || 0)) continue
     const pedido = ultimoPedidoAluguel(jid)?.pedido
     if (!pedido) continue
     try {
@@ -177,7 +179,9 @@ async function conferirSaidas(client, config) {
       }
     } catch (err) {
       const message = clean(err?.message || err)
-      console.warn('[ AURORA ALUGUEL ] Consulta inconclusiva (aluguel mantido):', jid, message)
+      const espera = /(?:403|forbidden|429|rate.limit)/i.test(message) ? 10 * 60_000 : 2 * 60_000
+      proximaConsultaMetadata.set(jid, Date.now() + espera)
+      console.warn('[ AURORA ALUGUEL ] Consulta inconclusiva; nova tentativa em', Math.round(espera / 60000), 'minutos:', jid, message)
     }
   }
 }
