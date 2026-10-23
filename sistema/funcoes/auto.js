@@ -13,7 +13,16 @@ const url = new URL(`${base(config)}${pathname}`)
 for (const [k, v] of Object.entries(params)) {
 if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, String(v))
 }
-const response = await fetch(url, { headers: { 'X-Api-Key': key(config), Accept: 'application/json' } })
+const started = Date.now()
+const timeoutMs = 45_000
+let response
+try {
+response = await fetch(url, { headers: { 'X-Api-Key': key(config), Accept: 'application/json' }, signal: AbortSignal.timeout(timeoutMs) })
+} catch (err) {
+console.error('[ AURORA API ] Falha', pathname, 'após', Date.now() - started, 'ms:', err?.message || err)
+return { sucesso: false, erro: err?.name === 'TimeoutError' ? 'A API demorou mais de 45 segundos. O envio pode estar em andamento; confira antes de repetir.' : 'Não foi possível consultar a API agora.' }
+}
+console.log('[ AURORA API ]', pathname, 'HTTP', response.status, 'em', Date.now() - started, 'ms')
 const text = await response.text()
 let data
 try { data = JSON.parse(text) } catch { data = { sucesso: false, erro: text || `HTTP ${response.status}` } }
