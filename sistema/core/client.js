@@ -7,7 +7,6 @@ import { loadNecessarios } from '../funcoes/necessarios.js'
 import { loadState, importNecessarios } from '../funcoes/banco.js'
 import { loadPlugins } from './loader.js'
 import { createHandler } from './handler.js'
-import { uniqueIncoming } from './protecaoFluxo.js'
 import { createGroupHandler } from './eventos.js'
 import { createOutgoingX9Tracker, createProtocolX9Handler, createInteractionX9Handler, createGroupX9Handler, createCallX9Handler, createUnavailableX9Handler } from '../funcoes/x9.js'
 import { showConnected, showPairing, showStart } from '../funcoes/terminal.js'
@@ -135,10 +134,6 @@ client.on('message', (event) => {
   const rawText = event?.message?.conversation || event?.message?.extendedTextMessage?.text || event?.message?.imageMessage?.caption || event?.message?.buttonsResponseMessage?.selectedButtonId || event?.message?.listResponseMessage?.singleSelectReply?.selectedRowId || ''
   const isPossibleCommand = /^[!/\.]/.test(String(rawText).trim())
   if (isPossibleCommand) console.log('[ AURORA RECEBIMENTO ]', new Date().toISOString(), '| id:', event?.key?.id || '-', '| grupo:', event?.key?.remoteJid || '-', '| comando:', String(rawText).trim().split(/\s+/)[0])
-  if (!uniqueIncoming(event)) {
-    if (isPossibleCommand) console.warn('[ AURORA RECEBIMENTO ] evento duplicado ignorado:', event?.key?.id || '-')
-    return
-  }
   void Promise.resolve().then(() => handleMessage(event)).catch((err) => {
     console.error('[ AURORA ] Erro isolado no processamento da mensagem:', err?.message || err)
   })
