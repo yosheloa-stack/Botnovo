@@ -27,6 +27,7 @@ async function api(config, pathname, options = {}) {
   if (!host || !secret) throw new Error('integração de aluguel não configurada')
   const response = await fetch(`${host}${pathname}`, {
     method: options.method || 'GET',
+    signal: AbortSignal.timeout(20_000),
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json',
