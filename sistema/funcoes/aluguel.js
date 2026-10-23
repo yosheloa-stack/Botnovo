@@ -139,11 +139,7 @@ async function conferirSaidas(client, config) {
       }
     } catch (err) {
       const message = clean(err?.message || err)
-      if (false) { // Erros de metadata não comprovam saída do grupo
-        await resultado(config, { pedido_id: pedido, status: 'erro', erro: 'BOT_FORA_DO_GRUPO', grupo_jid: jid })
-        delAluguel(jid)
-        console.warn('[ AURORA ALUGUEL ] Bot não participa mais:', jid)
-      } else console.warn('[ AURORA ALUGUEL ] Consulta inconclusiva:', jid, message)
+      console.warn('[ AURORA ALUGUEL ] Consulta inconclusiva (aluguel mantido):', jid, message)
     }
   }
 }
@@ -203,6 +199,28 @@ export function createAluguelWorker({ client, config }) {
     } finally { running = false }
   }
 
+  const onGroupEvent = async (event) => {
+    const jid = clean(event?.groupJid || '')
+    const pedido = ultimoPedidoAluguel(jid)?.pedido
+    if (!pedido) return
+    const action = clean(event?.action).toLowerCase()
+    if (!['remove', 'leave', 'left', 'participant_remove'].includes(action)) return
+    const me = clean(client?.user?.id || client?.user?.jid || client?.authState?.creds?.me?.id).split(':')[0].split('@')[0]
+    const participants = Array.isArray(event?.participants) ? event.participants : []
+    const saiu = me && participants.some(p => clean(p?.id || p?.jid || p).split(':')[0].split('@')[0] === me)
+    if (!saiu) return
+    try {
+      await api(config, '/api/bot/alugueis/resultado', {
+        method: 'POST',
+        body: { pedido_id: pedido, status: 'erro', erro: 'BOT_FORA_DO_GRUPO', grupo_jid: jid }
+      })
+      delAluguel(jid)
+      console.warn('[ AURORA ALUGUEL ] Saída confirmada pelo evento de participantes:', jid)
+    } catch (err) {
+      console.error('[ AURORA ALUGUEL ] Falha ao confirmar saída no site:', err?.message || err)
+    }
+  }
+
   const start = () => {
     if (timer) return
     stopped = false
@@ -215,5 +233,5 @@ export function createAluguelWorker({ client, config }) {
     if (timer) clearInterval(timer)
     timer = null
   }
-  return { start, stop, sync }
+  return { start, stop, sync, onGroupEvent }
 }
