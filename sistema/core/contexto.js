@@ -128,7 +128,8 @@ const text = extractText(event?.message)
 const prefix = String(config.prefix || '!')
 const raw = text.startsWith(prefix) ? text.slice(prefix.length).trim() : /^\/(?:menu|menú)(?:\s|$)/i.test(text.trim()) ? text.trim().slice(1) : ''
 const parts = raw ? raw.split(/\s+/) : []
-const command = (parts.shift() ?? '').toLowerCase()
+const commandRaw = (parts.shift() ?? '').toLowerCase()
+const command = commandRaw === 'menú' ? 'menu' : commandRaw
 const args = parts
 const q = args.join(' ')
 const isGroup = isGroupJid(from)
