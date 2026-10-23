@@ -114,6 +114,44 @@ async function ativarUm(client, config, item, getGroups) {
 
 // Confirma no WhatsApp se o bot ainda participa dos grupos alugados.
 // Falhas de rede/rate limit NÃO são tratadas como saída do grupo.
+// A lista de grupos da sessão é independente da consulta de metadados.
+// Só usamos uma resposta estruturada completa; erros nunca removem aluguéis.
+let ultimaLista = 0
+async function conferirListaDeGrupos(client, config) {
+  if (Date.now() - ultimaLista < 5 * 60_000) return
+  ultimaLista = Date.now()
+  if (typeof client?.group?.list !== 'function') return
+  try {
+    const resposta = await Promise.race([
+      client.group.list(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout lista de grupos')), 12_000))
+    ])
+    const grupos = Array.isArray(resposta) ? resposta : Array.isArray(resposta?.groups) ? resposta.groups : null
+    if (!grupos) return
+    const jids = new Set(grupos.map(g => clean(g?.jid || g?.id)).filter(j => j.endsWith('@g.us')))
+    // Lista vazia pode representar sincronização incompleta; não é prova de saída.
+    if (!jids.size) return
+    for (const item of listAluguel()) {
+      if (!(Number(item?.ate) > Date.now())) continue
+      const jid = clean(item?.gp)
+      if (!jid || jids.has(jid)) continue
+      const pedido = ultimoPedidoAluguel(jid)?.pedido
+      if (!pedido) continue
+      try {
+        await api(config, '/api/bot/alugueis/resultado', {
+          method: 'POST',
+          body: { pedido_id: pedido, status: 'erro', erro: 'BOT_FORA_DO_GRUPO', grupo_jid: jid }
+        })
+        delAluguel(jid)
+        console.warn('[ AURORA ALUGUEL ] Grupo ausente da lista da sessão:', jid)
+      } catch (err) {
+        console.warn('[ AURORA ALUGUEL ] Não foi possível sincronizar saída:', jid, err?.message || err)
+      }
+    }
+  } catch (err) {
+    console.warn('[ AURORA ALUGUEL ] Lista de grupos indisponível; nenhum aluguel alterado:', err?.message || err)
+  }
+}
 async function conferirSaidas(client, config) {
   for (const item of listAluguel()) {
     if (!(Number(item?.ate) > Date.now())) continue
@@ -173,6 +211,7 @@ export function createAluguelWorker({ client, config }) {
     if (stopped || running || Date.now() < retryAfter) return
     running = true
     try {
+      await conferirListaDeGrupos(client, config)
       await conferirSaidas(client, config)
       await sairVencidos(client, config)
       const data = await api(config, '/api/bot/alugueis/pendentes')
