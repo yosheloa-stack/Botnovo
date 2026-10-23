@@ -11,6 +11,7 @@ import { verifiedSendOptions } from '../funcoes/meta.js'
 import { necessarios as currentNecessarios } from '../funcoes/necessarios.js'
 import { handleSoli } from '../funcoes/soli.js'
 
+const missingRentalLogs = new Map()
 const msgIdioma = (system, pt, es, en) => {
   const lang = system?.isGroup ? getIdiomaGrupo(system.from) : 'pt'
   return lang === 'es' ? es : lang === 'en' ? en : pt
@@ -178,7 +179,19 @@ system = await makeSystem({ client, event, config, registry, necesarios: flags }
 if (!system.senderKey) return
 if (flags?.botoff === true && !system.isOwner) return
 if (system.isGroup && isBanGp(system.from) && !system.isOwner) return
-if (system.isGroup && aluguelOn() && !aluguelOk(system.from) && !system.isOwner) return
+if (system.isGroup && aluguelOn() && !aluguelOk(system.from) && !system.isOwner) {
+  // Não silencie o motivo: um grupo pode ter entrado pelo convite, mas o
+  // registro local de aluguel pode ter sido perdido após um redeploy.
+  const now = Date.now()
+  const last = missingRentalLogs.get(system.from) || 0
+  if (now - last > 60_000) {
+    missingRentalLogs.set(system.from, now)
+    console.warn('[ AURORA ALUGUEL ] Mensagem ignorada: grupo sem aluguel local ativo:', system.from,
+      '| comando:', system.command || '(sem comando)',
+      '| verifique persistência de sistema/dados/dados.db e retorno da ativação pelo site')
+  }
+  return
+}
 
 if (system.isGroup) await cacheIncomingX9(system)
 if (system.isGroup && await applyGroupProtection(system)) return
