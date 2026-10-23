@@ -11,6 +11,11 @@ import { verifiedSendOptions } from '../funcoes/meta.js'
 import { necessarios as currentNecessarios } from '../funcoes/necessarios.js'
 import { handleSoli } from '../funcoes/soli.js'
 
+const msgIdioma = (system, pt, es, en) => {
+  const lang = system?.isGroup ? getIdiomaGrupo(system.from) : 'pt'
+  return lang === 'es' ? es : lang === 'en' ? en : pt
+}
+
 const linkRx = /(https?:\/\/|www\.|chat\.whatsapp\.com\/|wa\.me\/)/i
 
 function hasNewsletterContext(value, depth = 0) {
@@ -227,7 +232,7 @@ tempo: elapsed
 })
 const sent = await sendReplyButtons(system, {
 text,
-footer: 'Aurora System • Comando inválido',
+footer: msgIdioma(system, 'Aurora System • Comando inválido', 'Aurora System • Comando inválido', 'Aurora System • Invalid command'),
 buttons: [
 { id: `${system.prefix}menu`, text: '⌂ ᴍᴇɴᴜ' }
 ]
@@ -238,12 +243,12 @@ return
 
 // Configuração local do Free Fire: não altera nenhum outro grupo.
 if (system.command === 'configurarff' || system.command === 'configff') {
-  if (!system.isGroup) return system.reply('⚠️ Use este comando dentro do grupo.')
-  if (!system.isOwner && !system.isAdmin) return system.reply('🔒 Somente o dono ou administrador deste grupo pode configurar o Free Fire.')
+  if (!system.isGroup) return system.reply(msgIdioma(system, '⚠️ Use este comando dentro do grupo.', '⚠️ Usa este comando dentro del grupo.', '⚠️ Use this command in a group.'))
+  if (!system.isOwner && !system.isAdmin) return system.reply(msgIdioma(system, '🔒 Somente o dono ou administrador deste grupo pode configurar o Free Fire.', '🔒 Solo el dueño o un administrador puede configurar Free Fire.', '🔒 Only the group owner or an admin can configure Free Fire.'))
   const argumento = String(text).trim().split(/\s+/).slice(1)[0]
   if (!argumento) return system.reply('🎮 *Configurações Free Fire*\\n\\nLimite atual: *' + getLimiteFF(system.from) + ' IDs por usuário/dia*\\n\\nPara alterar: *' + system.prefix + 'configurarff 3*\\n\\nA configuração vale somente para este grupo.')
   const n = Number(argumento)
-  if (!Number.isInteger(n) || n < 1 || n > 100) return system.reply('Informe um limite entre 1 e 100 IDs por dia.')
+  if (!Number.isInteger(n) || n < 1 || n > 100) return system.reply(msgIdioma(system, 'Informe um limite entre 1 e 100 IDs por dia.', 'Indica un límite entre 1 y 100 IDs por día.', 'Enter a limit between 1 and 100 IDs per day.'))
   setLimiteFF(system.from, n)
   return system.reply('✅ Limite de Free Fire configurado: *' + n + ' IDs por usuário/dia*.\\nSomente neste grupo.')
 }
@@ -265,15 +270,15 @@ const buttons = [
 ]
 const sent = await sendReplyButtons(system, {
 text,
-footer: 'Aurora System • Comando inválido',
+footer: msgIdioma(system, 'Aurora System • Comando inválido', 'Aurora System • Comando inválido', 'Aurora System • Invalid command'),
 buttons
 })
 if (!sent) return system.reply(text)
 return
 }
 
-if (hasGcmd(system.command) && !system.isOwner) return system.reply(`• 🚫 O comando *${system.prefix}${system.command}* está bloqueado globalmente.`)
-if (system.isGroup && hasCmd(system.from, system.command) && !system.isOwner) return system.reply(`• 🚫 O comando *${system.prefix}${system.command}* está bloqueado neste grupo.`)
+if (hasGcmd(system.command) && !system.isOwner) return system.reply(msgIdioma(system, `• 🚫 O comando *${system.prefix}${system.command}* está bloqueado globalmente.`, `• 🚫 El comando *${system.prefix}${system.command}* está bloqueado globalmente.`, `• 🚫 Command *${system.prefix}${system.command}* is blocked globally.`))
+if (system.isGroup && hasCmd(system.from, system.command) && !system.isOwner) return system.reply(msgIdioma(system, `• 🚫 O comando *${system.prefix}${system.command}* está bloqueado neste grupo.`, `• 🚫 El comando *${system.prefix}${system.command}* está bloqueado en este grupo.`, `• 🚫 Command *${system.prefix}${system.command}* is blocked in this group.`))
 if (system.isGroup && Number(system.group?.soAdm) === 1 && !system.isAdmin && !system.isOwner) return system.reply(messages.onlyAdmMode())
 if (plugin.ownerOnly && !system.isOwner) return system.reply(messages.onlyOwner())
 if (plugin.groupOnly && !system.isGroup) return system.reply(messages.onlyGroup())
@@ -306,7 +311,7 @@ if (system) {
 const text = messages.commandError()
 const sent = await sendReplyButtons(system, {
 text,
-footer: 'Aurora System • Erro',
+footer: msgIdioma(system, 'Aurora System • Erro', 'Aurora System • Error', 'Aurora System • Error'),
 buttons: [
 { id: `${system.prefix}menu`, text: '⌂ ᴍᴇɴᴜ' }
 ]
