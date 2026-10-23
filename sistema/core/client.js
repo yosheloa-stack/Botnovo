@@ -95,18 +95,36 @@ client.on('auth_pairing_code', ({ code }) => showPairingCode(code))
 
 const aluguelWorker = createAluguelWorker({ client, config })
 
+let connectionOpen = false
+let reconnectTimer = null
 client.on('connection', (event) => {
-if (event.status === 'open') {
+const status = String(event?.status || '')
+if (status === 'open') {
+connectionOpen = true
+if (reconnectTimer) clearTimeout(reconnectTimer)
+reconnectTimer = null
 showConnected()
 aluguelWorker.start()
 return
 }
-if (event.isLogout) {
-console.log(chalk.yellow('[ INFO ] Sessão desconectada do WhatsApp.'))
+if (event?.isLogout) {
+console.error('[ AURORA ] WhatsApp encerrou a sessão (logout). Verifique o pareamento.')
+aluguelWorker.stop()
 setTimeout(() => process.exit(0), 500)
 return
 }
-if (event.status === 'close' || event.status === 'closed') setTimeout(() => process.exit(restartCode), 800)
+if (status === 'close' || status === 'closed') {
+connectionOpen = false
+aluguelWorker.stop()
+console.warn('[ AURORA ] Conexão WhatsApp fechada:', JSON.stringify({ status, reason: event?.reason || event?.code || event?.error?.message || null }))
+if (reconnectTimer) return
+// Evita reiniciar por uma oscilação transitória que o cliente consiga recuperar.
+reconnectTimer = setTimeout(() => {
+reconnectTimer = null
+if (!connectionOpen) process.exit(restartCode)
+}, 15_000)
+reconnectTimer.unref?.()
+}
 })
 
 client.on('stream_failure', (event) => console.error(chalk.redBright('[ ERRO ] Falha no stream:'), event))
