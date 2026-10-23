@@ -126,7 +126,7 @@ export async function makeSystem({ client, event, config, registry, necessarios 
 // Re-sincroniza o canal em TODA mensagem. Isso elimina o mesmo tipo de
 // snapshot antigo que já causou o bug do #verificado.
 bindCanalConfig(config)
-const from = event?.key?.remoteJid ?? ''
+const from = [event?.key?.remoteJid, event?.key?.remoteJidAlt].find(isGroupJid) || event?.key?.remoteJid || event?.key?.remoteJidAlt || ''
 const sender = event?.key?.participant ?? event?.participant ?? from
 const senderAlt = event?.key?.participantAlt ?? event?.participantAlt ?? event?.key?.remoteJidAlt ?? ''
 const text = extractText(event?.message)
