@@ -262,7 +262,7 @@ return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 
 exports.menuff = (NomeDoBot, pushname, isCargo, isChVip, hora, prefix, grupo, zapo) => {
 return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
-┣━〔 • 𝑨𝑼𝑹𝑶𝑹𝑨 𝑽𝑰𝑷 𝑭𝑭 • 💎 〕
+┣━〔 • 𝑨𝑼𝑹𝑶𝑹𝑨 𝑭𝑹𝑬𝑬 𝑭𝑰𝑹𝑬 • 💎 〕
 ┃
 ┃╎୨୧ 👤 ᴜsᴜᴀ́ʀɪᴏ: ${pushname}
 ┃╎୨୧ 🛡️ ᴄᴀʀɢᴏ: ${isCargo}
@@ -272,12 +272,13 @@ return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 ┃╎୨୧ 👥 ɢʀᴜᴘᴏ: ${grupo}
 ┃╎୨୧ 🟢 ᴢᴀᴘᴏ: v${zapo}
 ┃
-┣━〔 • 𝑭𝑹𝑬𝑬 𝑭𝑰𝑹𝑬 𝑽𝑰𝑷 • 🔥 〕
+┣━〔 • 𝑭𝑹𝑬𝑬 𝑭𝑰𝑹𝑬 • 🔥 〕
 ┃
 ┃╭╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╮
 ┃╎୨୧ ℹ️ ${prefix}info uid
-┃╎୨୧ 💚 ${prefix}like uid
-┃╎୨୧ ⚡ ${prefix}autolike uid
+┃╎୨୧ 💚 ${prefix}like uid (todos)
+┃╎୨୧ 🎮 ${prefix}configurarff 3 (ADM)
+┃╎୨୧ ⚡ ${prefix}autolike uid (VIP)
 ┃╎୨୧ 📋 ${prefix}listalike
 ┃╎୨୧ 🗑️ ${prefix}removelike uid
 ┃╰╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╯
