@@ -1,5 +1,5 @@
 import { makeSystem, extractText, messageKind } from './contexto.js'
-import { db, groupState, saveState, hasCmd, hasGcmd, isVipCmd, isBanGp, aluguelOn, aluguelOk, getLimiteFF, setLimiteFF, consultarCotaFF, consumirCotaFF } from '../funcoes/banco.js'
+import { db, groupState, saveState, hasCmd, hasGcmd, isVipCmd, isBanGp, aluguelOn, aluguelOk, getLimiteFF, setLimiteFF, consultarCotaFF, consumirCotaFF, getIdiomaGrupo, setIdiomaGrupo } from '../funcoes/banco.js'
 import { showCommand } from '../funcoes/terminal.js'
 import messages from '../funcoes/global.js'
 import { handleTicTacToe } from '../funcoes/velha.js'
@@ -190,6 +190,31 @@ if (await handleTicTacToe(system)) return
 if (await handleDating(system)) return
 
 if (!text || !text.startsWith(config.prefix)) return
+// Idioma exclusivo do grupo; somente administradores podem alterá-lo.
+if (system.isGroup && ['idioma', 'language', 'lenguaje'].includes(system.command)) {
+  const current = getIdiomaGrupo(system.from)
+  const chosen = String(system.args[0] || '').toLowerCase()
+  const codes = { pt:'pt', portugues:'pt', 'português':'pt', br:'pt', es:'es', espanol:'es', 'español':'es', espanhol:'es', en:'en', english:'en', ingles:'en', 'inglês':'en' }
+  if (!chosen) {
+    await system.reply({
+      pt: '🌐 *Idioma do grupo*\\nEscolha: *' + system.prefix + 'idioma pt*, *' + system.prefix + 'idioma es* ou *' + system.prefix + 'idioma en*.\\nAtual: Português.',
+      es: '🌐 *Idioma del grupo*\\nElige: *' + system.prefix + 'idioma pt*, *' + system.prefix + 'idioma es* o *' + system.prefix + 'idioma en*.\\nActual: Español.',
+      en: '🌐 *Group language*\\nChoose: *' + system.prefix + 'idioma pt*, *' + system.prefix + 'idioma es* or *' + system.prefix + 'idioma en*.\\nCurrent: English.'
+    }[current].replace(/\\n/g, '\n'))
+    return
+  }
+  if (!system.isAdmin && !system.isOwner) {
+    await system.reply({ pt:'Somente administradores podem mudar o idioma.', es:'Solo los administradores pueden cambiar el idioma.', en:'Only admins can change the language.' }[current])
+    return
+  }
+  if (!codes[chosen]) {
+    await system.reply({ pt:'Idioma inválido. Use pt, es ou en.', es:'Idioma no válido. Usa pt, es o en.', en:'Invalid language. Use pt, es or en.' }[current])
+    return
+  }
+  const next = setIdiomaGrupo(system.from, codes[chosen])
+  await system.reply({ pt:'✅ Idioma deste grupo definido como Português.', es:'✅ Idioma de este grupo configurado en Español.', en:'✅ This group language is now English.' }[next])
+  return
+}
 if (!system.command) {
 const started = performance.now()
 const elapsed = `${(performance.now() - started).toFixed(2)} ms`
