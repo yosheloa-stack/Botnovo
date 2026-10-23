@@ -1,7 +1,31 @@
 const exports = {}
 
-exports.menuPrincipal = (NomeDoBot, pushname, isCargo, isChVip, hora, prefix, grupo, zapo) => {
-return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
+// Traduz somente os rótulos do menu; nomes de comandos permanecem iguais.
+const traduzirMenu = (texto, idioma = 'pt') => {
+ const lang = String(idioma || 'pt').toLowerCase().slice(0, 2)
+ if (!['en','es'].includes(lang)) return texto
+ const labels = {
+ 'ᴜsᴜᴀ́ʀɪᴏ': ['ᴜsᴇʀ','ᴜsᴜᴀʀɪᴏ'],
+ 'ᴄᴀʀɢᴏ': ['ʀᴏʟᴇ','ʀᴏʟ'],
+ 'ᴠɪᴘ': ['ᴠɪᴘ','ᴠɪᴘ'],
+ 'ᴘʀᴇғɪxᴏ': ['ᴘʀᴇғɪx','ᴘʀᴇғɪᴊᴏ'],
+ 'ʜᴏʀᴀ': ['ᴛɪᴍᴇ','ʜᴏʀᴀ'],
+ 'ɢʀᴜᴘᴏ': ['ɢʀᴏᴜᴘ','ɢʀᴜᴘᴏ'],
+ 'Dono': ['Owner','Dueño'],
+ 'Membro': ['Member','Miembro'],
+ 'Não ❌': ['No ❌','No ❌'],
+ 'Sim ✅': ['Yes ✅','Sí ✅'],
+ '𝑴𝑬𝑵𝑼𝑺': ['𝑴𝑬𝑵𝑼𝑺','𝑴𝑬𝑵𝑼́𝑺'],
+ '𝑷𝑬𝑹𝑭𝑰𝑳': ['𝑷𝑹𝑶𝑭𝑰𝑳𝑬','𝑷𝑬𝑹𝑭𝑰𝑳']
+ }
+ let result = texto
+ for (const [source, values] of Object.entries(labels)) result = result.split(source).join(values[lang === 'en' ? 0 : 1])
+ return result
+}
+
+
+exports.menuPrincipal = (NomeDoBot, pushname, isCargo, isChVip, hora, prefix, grupo, zapo, idioma = 'pt') => {
+return traduzirMenu(`┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 ┣━〔 • ${NomeDoBot.toUpperCase()} • 💚 〕
 ┃
 ┃╎୨୧ 👤 ᴜsᴜᴀ́ʀɪᴏ: ${pushname}
@@ -36,7 +60,7 @@ return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 ┃╎୨୧ ✰ۣۜۜ͜͡ ${NomeDoBot.toUpperCase()}
 ┃╎୨୧ ᴅᴇᴠ: YoshiGGX
 ┃
-┗╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┛`
+┗╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┛`, idioma)
 }
 
 exports.adms = (NomeDoBot, pushname, isCargo, isChVip, hora, prefix, grupo, zapo) => {
