@@ -350,6 +350,23 @@ export function setAluguelPedido(gp, dias, pedido) {
   sql.prepare('INSERT INTO aluguel_pedido(pedido,gp,dias,ate,criado) VALUES(?,?,?,?,?)').run(pd,id,qtd,ate,Date.now())
   return { pedido:pd, gp:id, dias:qtd, ate, repetido:false }
 }
+export function transferirAluguelPedido(pedido, novoGrupo, validadeISO) {
+  const pd=txt(pedido), gp=txt(novoGrupo), ate=Date.parse(String(validadeISO||''))
+  if(!pd || !gp || !Number.isFinite(ate) || ate<=Date.now()) throw new Error('aluguel vencido ou destino inválido')
+  const antigo=sql.prepare('SELECT pedido,gp,dias,ate FROM aluguel_pedido WHERE pedido=?').get(pd)
+  if(!antigo) throw new Error('pedido original não encontrado no bot')
+  if(antigo.gp===gp) return { ...antigo, repetido:true }
+  const outros=sql.prepare('SELECT pedido FROM aluguel_pedido WHERE gp=? AND pedido<>? LIMIT 1').get(gp,pd)
+  if(outros) throw new Error('grupo de destino já possui outro aluguel')
+  sql.exec('BEGIN IMMEDIATE')
+  try {
+    sql.prepare('DELETE FROM aluguel WHERE gp=?').run(antigo.gp)
+    sql.prepare('INSERT INTO aluguel(gp,ate) VALUES(?,?) ON CONFLICT(gp) DO UPDATE SET ate=excluded.ate').run(gp,ate)
+    sql.prepare('UPDATE aluguel_pedido SET gp=?,ate=? WHERE pedido=?').run(gp,ate,pd)
+    sql.exec('COMMIT')
+  } catch(e) { sql.exec('ROLLBACK'); throw e }
+  return {pedido:pd,gp,ate,dias:antigo.dias,repetido:false}
+}
 export function pedidoAluguel(pedido) { return sql.prepare('SELECT pedido,gp,dias,ate FROM aluguel_pedido WHERE pedido=?').get(txt(pedido)) || null }
 export function ultimoPedidoAluguel(gp) { return sql.prepare('SELECT pedido,gp,dias,ate FROM aluguel_pedido WHERE gp=? ORDER BY criado DESC LIMIT 1').get(txt(gp)) || null }
 export function delAluguel(gp) { sql.prepare('DELETE FROM aluguel WHERE gp=?').run(gp) }
