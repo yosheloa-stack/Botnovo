@@ -2,6 +2,14 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 
 const file = path.resolve('config.json')
+const userFile = path.resolve(process.env.AURORA_CONFIG_FILE || 'sistema/dados/config.user.json')
+const merge = (base, extra) => {
+  const result = { ...base, ...extra }
+  for (const key of ['owner', 'connection', 'autoSystem', 'tokitoApi', 'akameApi']) {
+    result[key] = { ...(base[key] || {}), ...(extra[key] || {}) }
+  }
+  return result
+}
 
 const clean = (value = '') => String(value ?? '').replace(/[\r\n]+/g, ' ').trim()
 
@@ -65,7 +73,13 @@ return { jid, link: config.channelLink || '' }
 
 export async function loadConfig() {
 const raw = await fs.readFile(file, 'utf8')
-const config = JSON.parse(raw)
+const defaults = JSON.parse(raw)
+let userConfig = {}
+try { userConfig = JSON.parse(await fs.readFile(userFile, 'utf8')) } catch (err) {
+  if (err?.code !== 'ENOENT') console.warn('[ AURORA ] Configuração personalizada inválida:', err?.message || err)
+}
+const config = merge(defaults, userConfig)
+if (process.env.AURORA_PREFIX) config.prefix = clean(process.env.AURORA_PREFIX)
 config.prefix = String(config.prefix || '!').slice(0, 3)
 
 // Segredos e dados da hospedagem não precisam ir para o Git.
@@ -88,8 +102,11 @@ return config
 
 export async function saveConfig(config) {
   if (!config || typeof config !== 'object') throw new TypeError('Configuração inválida')
-  const previous = JSON.parse(await fs.readFile(file, 'utf8'))
-  const next = { ...previous, ...config }
+  let previous = {}
+  try { previous = JSON.parse(await fs.readFile(userFile, 'utf8')) } catch (err) {
+    if (err?.code !== 'ENOENT') throw err
+  }
+  const next = merge(previous, config)
   for (const section of ['owner', 'connection', 'autoSystem', 'tokitoApi', 'akameApi']) {
     next[section] = { ...(previous[section] || {}), ...(config[section] || {}) }
   }
@@ -107,7 +124,8 @@ export async function saveConfig(config) {
   if (process.env.AUTOSYSTEM_URL || process.env.KASANE_URL) {
     next.autoSystem.url = previous.autoSystem?.url || ''
   }
-  const temp = file + '.tmp'
-  await fs.writeFile(temp, JSON.stringify(next, null, 2) + '\\n', 'utf8')
-  await fs.rename(temp, file)
+  await fs.mkdir(path.dirname(userFile), { recursive: true })
+  const temp = userFile + '.tmp'
+  await fs.writeFile(temp, JSON.stringify(next, null, 2) + '\n', 'utf8')
+  await fs.rename(temp, userFile)
 }
