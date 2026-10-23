@@ -92,25 +92,6 @@ function unique(values = []) {
 return [...new Set(values.filter(Boolean))]
 }
 
-export async function makeSystem({ client, event, config, registry, necessarios = {} }) {
-// Re-sincroniza o canal em TODA mensagem. Isso elimina o mesmo tipo de
-// snapshot antigo que já causou o bug do #verificado.
-bindCanalConfig(config)
-const from = event?.key?.remoteJid ?? ''
-const sender = event?.key?.participant ?? event?.participant ?? from
-const senderAlt = event?.key?.participantAlt ?? event?.participantAlt ?? event?.key?.remoteJidAlt ?? ''
-const text = extractText(event?.message)
-const prefix = String(config.prefix || '!')
-const raw = text.startsWith(prefix) ? text.slice(prefix.length).trim() : ''
-const parts = raw ? raw.split(/\s+/) : []
-const command = (parts.shift() ?? '').toLowerCase()
-const args = parts
-const q = args.join(' ')
-const isGroup = isGroupJid(from)
-const ownerNumbers = [
-digits(config.owner?.number),
-...Array.from({ length: 6 }, (_, i) => digits(necessarios?.[`numero_dono${i + 1}`]))
-].filter(Boolean)
 // Cache de metadados: não consulta o WhatsApp em cada mensagem.
 const GROUP_METADATA_TTL = 60_000
 const GROUP_METADATA_COOLDOWN = 120_000
@@ -135,6 +116,26 @@ async function cachedGroupMetadata(client, jid) {
   }
 }
 
+
+export async function makeSystem({ client, event, config, registry, necessarios = {} }) {
+// Re-sincroniza o canal em TODA mensagem. Isso elimina o mesmo tipo de
+// snapshot antigo que já causou o bug do #verificado.
+bindCanalConfig(config)
+const from = event?.key?.remoteJid ?? ''
+const sender = event?.key?.participant ?? event?.participant ?? from
+const senderAlt = event?.key?.participantAlt ?? event?.participantAlt ?? event?.key?.remoteJidAlt ?? ''
+const text = extractText(event?.message)
+const prefix = String(config.prefix || '!')
+const raw = text.startsWith(prefix) ? text.slice(prefix.length).trim() : ''
+const parts = raw ? raw.split(/\s+/) : []
+const command = (parts.shift() ?? '').toLowerCase()
+const args = parts
+const q = args.join(' ')
+const isGroup = isGroupJid(from)
+const ownerNumbers = [
+digits(config.owner?.number),
+...Array.from({ length: 6 }, (_, i) => digits(necessarios?.[`numero_dono${i + 1}`]))
+].filter(Boolean)
 let metadata = null
 let isAdmin = false
 let isBotAdmin = false
