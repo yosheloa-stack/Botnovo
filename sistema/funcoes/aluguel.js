@@ -132,55 +132,21 @@ async function sairVencidos(client, config) {
 export function createAluguelWorker({ client, config }) {
   let stopped = false, running = false, timer = null
   let authFailureLogged = false, retryAfter = 0
-  let cachedGroups = null, groupsCachedAt = 0, groupRetryAfter = 0, groupFailures = 0
-  const getGroups = async () => {
-    const now = Date.now()
-    if (Array.isArray(cachedGroups) && now - groupsCachedAt < GROUP_CACHE_MS) return cachedGroups
-    if (now < groupRetryAfter) {
-      if (Array.isArray(cachedGroups)) return cachedGroups
-      throw new Error('GROUP_RATE_LIMIT_COOLDOWN')
-    }
-    try {
-      const groups = await client.group.queryAllGroups()
-      if (!Array.isArray(groups)) throw new Error('listagem de grupos inválida')
-      cachedGroups = groups
-      groupsCachedAt = Date.now()
-      groupFailures = 0
-      groupRetryAfter = 0
-      return groups
-    } catch (err) {
-      if (isRateLimit(err)) {
-        groupFailures = Math.min(groupFailures + 1, 6)
-        const backoff = Math.min(GROUP_RETRY_BASE_MS * (2 ** (groupFailures - 1)), GROUP_RETRY_MAX_MS)
-        groupRetryAfter = Date.now() + backoff + Math.floor(Math.random() * 15_000)
-        console.warn('[ AURORA ALUGUEL ] Limite de consultas de grupos (429). Próxima consulta em aproximadamente ' + Math.ceil(backoff / 60_000) + ' minuto(s).')
-        if (Array.isArray(cachedGroups)) return cachedGroups
-        throw new Error('GROUP_RATE_LIMIT_COOLDOWN')
-      }
-      throw err
-    }
-  }
+  // A listagem completa de grupos é dispensável: os JIDs ativos já estão no banco.
+  // Consultar group.list bloqueava toda a sincronização quando o WhatsApp respondia 429.
+  const getGroups = async () => listAluguel().map((item) => ({ jid: clean(item?.gp) })).filter((item) => item.jid)
 
   const sync = async () => {
     if (stopped || running || Date.now() < retryAfter) return
     running = true
     try {
       await sairVencidos(client, config)
-      const gruposAtuais = await getGroups()
-      if (Array.isArray(gruposAtuais) && gruposAtuais.length > 0 && Date.now() >= groupRetryAfter) {
-        const ids = new Set(gruposAtuais.map(g => clean(g?.jid)))
-        for (const alugado of listAluguel()) {
-          if (Number(alugado?.ate) <= Date.now() || ids.has(clean(alugado?.gp))) continue
-          const pedidoAnterior = ultimoPedidoAluguel(alugado.gp)
-          if (pedidoAnterior?.pedido) await resultado(config, { pedido_id: pedidoAnterior.pedido, status: 'erro', erro: 'BOT_FORA_DO_GRUPO' })
-        }
-      }
       const data = await api(config, '/api/bot/alugueis/pendentes')
       authFailureLogged = false
       retryAfter = 0
       for (const item of (Array.isArray(data?.alugueis) ? data.alugueis : [])) {
         await ativarUm(client, config, item, getGroups)
-        await sleep(400)
+        await sleep(1000)
       }
     } catch (err) {
       // Configuração ausente não derruba o bot; os outros comandos continuam.
