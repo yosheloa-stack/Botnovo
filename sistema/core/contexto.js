@@ -111,13 +111,37 @@ const ownerNumbers = [
 digits(config.owner?.number),
 ...Array.from({ length: 6 }, (_, i) => digits(necessarios?.[`numero_dono${i + 1}`]))
 ].filter(Boolean)
+// Cache de metadados: não consulta o WhatsApp em cada mensagem.
+const GROUP_METADATA_TTL = 60_000
+const GROUP_METADATA_COOLDOWN = 120_000
+const groupMetadataCache = new Map()
+async function cachedGroupMetadata(client, jid) {
+  const now = Date.now()
+  const cached = groupMetadataCache.get(jid)
+  if (cached && now < cached.expires) return cached.data
+  try {
+    const data = await client.group.queryGroupMetadata(jid)
+    groupMetadataCache.set(jid, { data, expires: Date.now() + GROUP_METADATA_TTL })
+    if (groupMetadataCache.size > 1000) {
+      for (const [key, value] of groupMetadataCache) {
+        if (value.expires < Date.now()) groupMetadataCache.delete(key)
+      }
+    }
+    return data
+  } catch (err) {
+    const limited = /(?:429|rate.overlimit|rate.limit|too many requests)/i.test(String(err?.message || err || ''))
+    groupMetadataCache.set(jid, { data: cached?.data || null, expires: Date.now() + (limited ? GROUP_METADATA_COOLDOWN : 15_000) })
+    return cached?.data || null
+  }
+}
+
 let metadata = null
 let isAdmin = false
 let isBotAdmin = false
 
 if (isGroup) {
 try {
-metadata = await client.group.queryGroupMetadata(from)
+metadata = await cachedGroupMetadata(client, from)
 } catch {}
 }
 
