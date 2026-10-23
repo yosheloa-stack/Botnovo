@@ -456,6 +456,34 @@ return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 ┗╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┛`
 }
 
+// Todos os submenus recebem o idioma como 9º argumento de menuData.
+// Mantemos nomes de comandos intactos para não quebrar o prefixo.
+const traducaoExtra = {
+  en: [
+    ['𝑮𝑹𝑼𝑷𝑶','𝑮𝑹𝑶𝑼𝑷'],['𝑷𝑹𝑶𝑻𝑬𝑪̧𝑶̃𝑬𝑺','𝑷𝑹𝑶𝑻𝑬𝑪𝑻𝑰𝑶𝑵'],['𝑺𝑰𝑺𝑻𝑬𝑴𝑨𝑺','𝑺𝒀𝑺𝑻𝑬𝑴𝑺'],['𝑭𝑰𝑮𝑼𝑹𝑰𝑵𝑯𝑨𝑺','𝑺𝑻𝑰𝑪𝑲𝑬𝑹𝑺'],
+    ['𝑩𝑹𝑰𝑵𝑪𝑨𝑫𝑬𝑰𝑹𝑨𝑺','𝑮𝑨𝑴𝑬𝑺'],['𝑫𝑶𝑾𝑵𝑳𝑶𝑨𝑫𝑺','𝑫𝑶𝑾𝑵𝑳𝑶𝑨𝑫𝑺'],
+    ['sua bio','your bio'],['@usuario','@user'],['numero','number'],['novo texto','new text'],['responda foto/vídeo','reply to photo/video'],
+    ['pedra/papel/tesoura','rock/paper/scissors'],['comandos-base da Akame','Akame base commands']
+  ],
+  es: [
+    ['𝑮𝑹𝑼𝑷𝑶','𝑮𝑹𝑼𝑷𝑶'],['𝑷𝑹𝑶𝑻𝑬𝑪̧𝑶̃𝑬𝑺','𝑷𝑹𝑶𝑻𝑬𝑪𝑪𝑰𝑶𝑵𝑬𝑺'],['𝑺𝑰𝑺𝑻𝑬𝑴𝑨𝑺','𝑺𝑰𝑺𝑻𝑬𝑴𝑨𝑺'],['𝑭𝑰𝑮𝑼𝑹𝑰𝑵𝑯𝑨𝑺','𝑺𝑻𝑰𝑪𝑲𝑬𝑹𝑺'],
+    ['𝑩𝑹𝑰𝑵𝑪𝑨𝑫𝑬𝑰𝑹𝑨𝑺','𝑱𝑼𝑬𝑮𝑶𝑺'],['sua bio','tu biografía'],['@usuario','@usuario'],
+    ['numero','número'],['novo texto','texto nuevo'],['responda foto/vídeo','responde a foto/video'],
+    ['pedra/papel/tesoura','piedra/papel/tijera'],['comandos-base da Akame','comandos base de Akame']
+  ]
+}
+function traduzirSubmenu(texto, idioma) {
+  let saida = traduzirMenu(texto, idioma)
+  const lang = String(idioma || 'pt').slice(0,2)
+  for (const [a,b] of traducaoExtra[lang] || []) saida = saida.split(a).join(b)
+  return saida
+}
+for (const key of ['adms','menudono','downloads','menuff','brincadeiras','fig']) {
+  const original = exports[key]
+  if (typeof original !== 'function') continue
+  exports[key] = (...args) => traduzirSubmenu(original(...args), args[8])
+}
+
 exports.menu = exports.menuPrincipal
 exports.menuadm = exports.adms
 exports.menudown = exports.downloads
