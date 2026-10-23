@@ -141,6 +141,11 @@ client.on('message', (event) => {
 client.on('message_protocol', createProtocolX9Handler({ client }))
 client.on('message_addon', createInteractionX9Handler({ client }))
 client.on('message_unavailable', createUnavailableX9Handler({ client }))
+client.on('group', (event) => {
+  void aluguelWorker.onGroupEvent(event).catch((err) => {
+    console.error('[ AURORA ALUGUEL ] Erro ao tratar evento de participantes:', err?.message || err)
+  })
+})
 client.on('group', createGroupHandler({ client, config, necesarios: flags }))
 client.on('group', createGroupX9Handler({ client }))
 client.on('call', createCallX9Handler({ client }))
