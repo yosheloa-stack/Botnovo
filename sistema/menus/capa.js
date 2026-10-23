@@ -163,5 +163,5 @@ const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '
 const usuario = system.senderNumber ? `@${system.senderNumber}` : `@${system.pushName || 'usuario'}`
 const grupo = system.isGroup ? (system.metadata?.subject || 'Grupo') : 'Privado'
 const personal = system.isGroup && aluguelOk(system.from) ? getPersonalizacaoAluguel(system.from) : null
-return [personal?.nome || 'Aurora System', usuario, cargo, vip, hora, system.prefix, grupo, zapoVersion]
+return [personal?.nome || 'Aurora System', usuario, cargo, vip, hora, system.prefix, grupo, zapoVersion, personal?.idioma || 'pt']
 }
