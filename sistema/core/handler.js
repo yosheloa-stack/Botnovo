@@ -230,7 +230,12 @@ if (system.command === 'like2' && String(text || '').trim().startsWith('/like2')
     return system.reply('⚠️ Não foi possível verificar a autorização do /like2 agora. Nenhum saldo foi descontado.');
   }
 }
-if (!text || !text.startsWith(config.prefix)) return
+// makeSystem aceita tanto o prefixo configurado quanto '/'.
+// Antes o parser reconhecia /menu, mas este filtro descartava a mensagem silenciosamente.
+const prefixoConfigurado = String(config.prefix || '!')
+if (!text || !(text.startsWith(prefixoConfigurado) || text.startsWith('/'))) return
+console.log('[ AURORA CMD ] recebido:', system.command || '(vazio)', '| grupo:', system.isGroup,
+  '| origem:', system.from, '| remetente:', system.senderNumber || system.senderKey || '(desconhecido)')
 // Idioma exclusivo do grupo; somente administradores podem alterá-lo.
 if (system.isGroup && ['idioma', 'language', 'lenguaje'].includes(system.command)) {
   const current = getIdiomaGrupo(system.from)
