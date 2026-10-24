@@ -1,3 +1,4 @@
+import { createAvisoCompra } from './avisoCompra.js'
 import { aluguelOn, delAluguel, listAluguel, setAluguelPedido, transferirAluguelPedido, ultimoPedidoAluguel, setDonoAluguel, setPersonalizacaoAluguel, setIdiomaGrupo, tokenAluguelSalvo } from './banco.js'
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -249,10 +250,17 @@ export function createAluguelWorker({ client, config }) {
   // A listagem completa de grupos é dispensável: os JIDs ativos já estão no banco.
   // Consultar group.list bloqueava toda a sincronização quando o WhatsApp respondia 429.
   const getGroups = async () => listAluguel().map((item) => ({ jid: clean(item?.gp) })).filter((item) => item.jid)
+  // Aviso de compra do site para o WhatsApp do dono: mesma porta, mesmo token.
+  const avisosDeCompra = createAvisoCompra({ client, config, api })
 
   const sync = async () => {
     if (stopped || running || Date.now() < retryAfter) return
     running = true
+    // Vem antes do aluguel e com erro próprio: uma falha nos grupos não pode
+    // atrasar o aviso de uma venda.
+    try { await avisosDeCompra() } catch (err) {
+      console.error('[ AURORA AVISO DE COMPRA ] Erro:', err?.message || err)
+    }
     try {
       await conferirListaDeGrupos(client, config)
       await conferirSaidas(client, config)
