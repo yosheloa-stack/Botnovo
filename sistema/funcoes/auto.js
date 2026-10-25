@@ -1,3 +1,5 @@
+import { motivoDaFalha, pedirAoSite, respostaEstranha } from './rede.js'
+
 function base(config) {
 return String(config?.autoSystem?.url || process.env.AUTO_SYSTEM_URL || '').replace(/\/$/, '')
 }
@@ -8,24 +10,32 @@ if (!token || token.includes('COLOQUE_SEU_TOKEN')) throw new Error('Configure au
 return token
 }
 
+// O site responde o /v1/like em até ~80 s (o Cloudflare corta em ~100 s).
+// Esperar menos que isso fazia o bot desistir de um envio que ainda ia dar certo.
+const timeoutMs = 95_000
+
 async function request(config, pathname, params = {}) {
 const url = new URL(`${base(config)}${pathname}`)
 for (const [k, v] of Object.entries(params)) {
 if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, String(v))
 }
 const started = Date.now()
-const timeoutMs = 45_000
 let response
 try {
-response = await fetch(url, { headers: { 'X-Api-Key': key(config), Accept: 'application/json' }, signal: AbortSignal.timeout(timeoutMs) })
+response = await pedirAoSite(url, { headers: { 'X-Api-Key': key(config), Accept: 'application/json' }, timeoutMs })
 } catch (err) {
-console.error('[ AURORA API ] Falha', pathname, 'após', Date.now() - started, 'ms:', err?.message || err)
-return { sucesso: false, erro: err?.name === 'TimeoutError' ? 'A API demorou mais de 45 segundos. O envio pode estar em andamento; confira antes de repetir.' : 'Não foi possível consultar a API agora.' }
+console.error('[ AURORA API ] Falha', pathname, 'após', Date.now() - started, 'ms:', motivoDaFalha(err))
+return { sucesso: false, erro: err?.name === 'TimeoutError' ? 'A API demorou demais para responder. O envio pode estar em andamento; confira antes de repetir.' : 'Não foi possível consultar a API agora.' }
 }
 console.log('[ AURORA API ]', pathname, 'HTTP', response.status, 'em', Date.now() - started, 'ms')
 const text = await response.text()
 let data
-try { data = JSON.parse(text) } catch { data = { sucesso: false, erro: text || `HTTP ${response.status}` } }
+try { data = JSON.parse(text) } catch {
+// Página no lugar dos dados (site fora do ar/reiniciando): o grupo vê só a
+// frase padrão, o motivo fica no console.
+console.error('[ AURORA API ]', pathname, respostaEstranha(text, response.status))
+data = { sucesso: false, erro: /^\s*</.test(text) ? 'O serviço está indisponível agora. Tente de novo em instantes.' : respostaEstranha(text, response.status) }
+}
 if (!response.ok && !data?.erro) data.erro = `HTTP ${response.status}`
 return data
 }

@@ -434,6 +434,25 @@ export function consultarCotaFF(gp, usuario) {
   return { ok: usado < limite, usado, limite, restante: Math.max(0, limite - usado) }
 }
 
+// Autolikes cadastrados de dentro de um grupo alugado. A key da API é a do
+// dono do bot, então a lista dela tem os IDs de todo mundo: no grupo alugado
+// o cliente só vê e só remove os IDs que cadastrou ali.
+const uidLimpo = (uid) => String(uid ?? '').replace(/\D/g, '').slice(0, 20)
+export function autolikesDoGrupo(gp) {
+  const lista = getKv('ff:autolikes:' + txt(gp), [])
+  return Array.isArray(lista) ? lista.map(uidLimpo).filter(Boolean) : []
+}
+export function addAutolikeGrupo(gp, uid) {
+  const id = uidLimpo(uid)
+  if (!txt(gp) || !id) return
+  const lista = autolikesDoGrupo(gp)
+  if (!lista.includes(id)) setKv('ff:autolikes:' + txt(gp), [...lista, id].slice(-500))
+}
+export function delAutolikeGrupo(gp, uid) {
+  const id = uidLimpo(uid)
+  setKv('ff:autolikes:' + txt(gp), autolikesDoGrupo(gp).filter((x) => x !== id))
+}
+
 // Idioma independente por grupo (persistido no SQLite).
 export function getIdiomaGrupo(gp) {
   const v = String(getKv('idioma:grupo:' + txt(gp), 'pt')).toLowerCase()
