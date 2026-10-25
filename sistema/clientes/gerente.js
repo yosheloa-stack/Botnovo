@@ -21,7 +21,7 @@ const limpo = (v) => String(v ?? '').trim()
 const nomePasta = (pedido) => limpo(pedido).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 80)
 
 // Variáveis do bot da casa que o bot da cliente NÃO pode herdar.
-const SO_DA_CASA = ['AURORA_RENTAL_TOKEN', 'AURORA_OWNER_NUMBER', 'AURORA_CONNECTION_NUMBER', 'AURORA_CONFIG_FILE', 'AURORA_DATA_DIR', 'AURORA_MARCA', 'AURORA_CLIENTE']
+const SO_DA_CASA = ['AURORA_RENTAL_TOKEN', 'AUTO_SYSTEM_TOKEN', 'AUTOSYSTEM_TOKEN', 'AURORA_OWNER_NUMBER', 'AURORA_CONNECTION_NUMBER', 'AURORA_CONFIG_FILE', 'AURORA_DATA_DIR', 'AURORA_MARCA', 'AURORA_CLIENTE']
 
 export function marcaDo(c) {
   return {
@@ -81,6 +81,8 @@ export function criarGerente({
   }
   const apagarSessao = (pedido) => { try { fs.rmSync(sessaoDe(pedido), { recursive: true, force: true }) } catch {} }
 
+  const tokenDo = (c) => limpo(c.api_key) || autoSystem.token || ''
+
   function ligar(estado) {
     const c = estado.conf
     const pasta = pastaDe(c.pedido)
@@ -94,7 +96,9 @@ export function criarGerente({
       AURORA_DATA_DIR: path.join(pasta, '.aurora-data'),
       AURORA_MARCA: JSON.stringify(marcaDo(c)),
       ...(autoSystem.url ? { AUTOSYSTEM_URL: autoSystem.url } : {}),
-      ...(autoSystem.token ? { AUTOSYSTEM_TOKEN: autoSystem.token } : {})
+      // A dona pode escolher no site usar a key da conta dela: aí os likes
+      // pedidos no bot saem do plano dela, não da key da casa.
+      ...(tokenDo(c) ? { AUTOSYSTEM_TOKEN: tokenDo(c) } : {})
     })
     const nome = limpo(c.nome_bot) || limpo(c.bot_numero)
     const filho = spawnImpl(process.execPath, [INDEX], { cwd: pasta, env, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] })
@@ -177,7 +181,7 @@ export function criarGerente({
           continue
         }
         const marcaMudou = JSON.stringify(marcaDo(estado.conf)) !== JSON.stringify(marcaDo(c))
-        const donoMudou = estado.conf.dono_numero !== c.dono_numero
+        const donoMudou = estado.conf.dono_numero !== c.dono_numero || tokenDo(estado.conf) !== tokenDo(c)
         estado.conf = c
         if (seq > estado.seq) {
           // Pediu código novo: liga de novo do zero (se já estava conectado,
@@ -195,7 +199,7 @@ export function criarGerente({
           continue
         }
         if (donoMudou && estado.filho) {
-          // A dona é o "dono do bot" no processo: precisa reiniciar.
+          // A dona e a key vão no ambiente do processo: precisa reiniciar.
           estado.parando = true
           estado.filho.once('exit', () => { estado.parando = false; ligar(estado) })
           estado.filho.kill('SIGTERM')

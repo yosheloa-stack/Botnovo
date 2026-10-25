@@ -114,6 +114,24 @@ test('desconectado pelo celular: apaga a sessão e espera código novo', async (
   assert.equal(filhos.length, 1)
 })
 
+test('key da conta dela: o bot usa ela no lugar da key da casa e reinicia ao trocar', async () => {
+  process.env.AUTO_SYSTEM_TOKEN = 'key-da-casa-no-ambiente'
+  let key = ''
+  const { g, filhos } = cenario(() => [cliente({ codigo_pedido: 1, ...(key ? { api_key: key } : {}) })])
+  await g.sincronizar()
+  delete process.env.AUTO_SYSTEM_TOKEN
+  assert.equal(filhos[0].opcoes.env.AUTO_SYSTEM_TOKEN, undefined)
+  assert.equal(filhos[0].opcoes.env.AUTOSYSTEM_TOKEN, undefined)
+  key = 'AUTOSYSTEM_dela'
+  await g.sincronizar()
+  await espera()
+  assert.equal(filhos.length, 2)
+  assert.equal(filhos[0].exitCode, 0)
+  assert.equal(filhos[1].opcoes.env.AUTOSYSTEM_TOKEN, 'AUTOSYSTEM_dela')
+  await g.sincronizar()
+  assert.equal(filhos.length, 2)
+})
+
 test('marcaDo limpa o número da dona', () => {
   assert.equal(marcaDo({ dono_numero: '+55 (11) 98888-0000' }).dono, '5511988880000')
 })
