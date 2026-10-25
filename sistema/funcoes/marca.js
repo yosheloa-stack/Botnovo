@@ -88,7 +88,7 @@ export function aplicarEstilo(texto, estilo) {
   return out
 }
 
-// Troca a marca da casa num texto. `marca` = { nome, dono, idioma, estilo }.
+// Troca a marca da casa num texto. `marca` = { nome, dono, donoNome, idioma, estilo }.
 // Devolve o texto novo; se nada mudou, devolve o mesmo texto.
 export function trocarMarcaTexto(texto, marca) {
   if (typeof texto !== 'string' || !texto || !marca) return texto
@@ -104,6 +104,7 @@ function trocarSoMarca(texto, marca) {
 
   const nome = String(marca.nome || '').trim() || 'Bot'
   const dono = String(marca.dono || '').replace(/\D/g, '')
+  const donoNome = String(marca.donoNome || '').trim()
   const rotulo = ROTULO_DONO[marca.idioma] || ROTULO_DONO.pt
   let out = '', fim = 0, m
   while ((m = PROCURA.exec(simples))) {
@@ -112,8 +113,10 @@ function trocarSoMarca(texto, marca) {
     out += letras.slice(fim, ini).join('')
     const achado = m[0]
     if (/yoshi ?ggx/.test(achado)) {
-      // O crédito vira o dono do aluguel; sem dono cadastrado, some.
-      if (dono) out += m[1] ? `${noEstilo(rotulo, letras.slice(ini, ini + m[1].length).join(''))}${m[2]}@${dono}` : `@${dono}`
+      // O crédito vira o dono do aluguel (o nome, se ela cadastrou; senão a
+      // menção do número); sem dono cadastrado, some.
+      if (donoNome) out += m[1] ? `${noEstilo(rotulo, letras.slice(ini, ini + m[1].length).join(''))}${m[2]}${donoNome}` : donoNome
+      else if (dono) out += m[1] ? `${noEstilo(rotulo, letras.slice(ini, ini + m[1].length).join(''))}${m[2]}@${dono}` : `@${dono}`
       else out += SUMIU
     } else if (/autolikesystem/.test(achado)) {
       out += SUMIU // endereço do site some

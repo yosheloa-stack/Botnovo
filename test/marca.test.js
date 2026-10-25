@@ -80,3 +80,9 @@ test('estilo do menu troca os ícones verdes pelos da cor escolhida', async () =
   assert.equal(aplicarEstilo('💚 Menu', ''), '💚 Menu')
   assert.equal(trocarMarcaTexto('💚 Aurora System', { nome: 'Bot da Ana', estilo: 'preto' }), '🖤 Bot da Ana')
 })
+
+test('nome da dona no lugar do crédito do dono da casa', async () => {
+  const { trocarMarcaTexto } = await import('../sistema/funcoes/marca.js')
+  assert.equal(trocarMarcaTexto('ᴅᴇᴠ: YoshiGGX', { nome: 'Bot', dono: '5511988885555', donoNome: 'Ana' }), 'ᴅᴏɴᴏ: Ana')
+  assert.equal(trocarMarcaTexto('dev: YoshiGGX', { nome: 'Bot', dono: '5511988885555' }), 'Dono: @5511988885555')
+})

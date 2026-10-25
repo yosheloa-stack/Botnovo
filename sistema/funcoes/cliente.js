@@ -16,6 +16,8 @@ export function lerMarca(raw) {
   return {
     nome: texto(m.nome, 48) || 'Bot',
     dono: String(m.dono ?? '').replace(/\D/g, '').slice(0, 15),
+    // Nome da dona (aparece no menu no lugar do número).
+    donoNome: texto(m.donoNome, 40),
     idioma: IDIOMAS.includes(m.idioma) ? m.idioma : 'pt',
     foto: /^https:\/\//i.test(String(m.foto || '')) ? texto(m.foto, 1000) : '',
     estilo: ESTILOS.includes(m.estilo) ? m.estilo : '',
