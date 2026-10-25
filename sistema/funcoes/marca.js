@@ -77,8 +77,8 @@ export function noEstilo(texto, amostra) {
 // Aurora pelos do estilo (rosa, vermelho ou preto) em todas as mensagens.
 export const ESTILOS_MENU = {
   rosa: [['💚', '🩷'], ['🟢', '🌸'], ['୨୧', '🎀'], ['✨', '💗'], ['❦', '✿'], ['🍀', '🌷']],
-  vermelho: [['💚', '❤️'], ['🟢', '🔴'], ['୨୧', '🌹'], ['✨', '🔥'], ['❦', '♦'], ['🍀', '🌹']],
-  preto: [['💚', '🖤'], ['🟢', '⚫'], ['୨୧', '🕷️'], ['✨', '🌑'], ['❦', '✠'], ['🍀', '🥀']]
+  vermelho: [['💚', '❤️'], ['🟢', '🔴'], ['୨୧', '🌹'], ['✨', '🔥'], ['❦', '♦'], ['🍀', '🌹'], ['♡', '♥']],
+  preto: [['💚', '🖤'], ['🟢', '⚫'], ['୨୧', '🕷️'], ['✨', '🌑'], ['❦', '✠'], ['🍀', '🥀'], ['♡', '†']]
 }
 export function aplicarEstilo(texto, estilo) {
   const trocas = ESTILOS_MENU[estilo]
