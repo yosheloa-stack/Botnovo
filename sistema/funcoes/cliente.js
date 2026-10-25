@@ -6,7 +6,7 @@
 
 export const modoCliente = process.env.AURORA_CLIENTE === '1'
 
-const ESTILOS = ['rosa', 'vermelho', 'preto']
+const ESTILOS = ['rosa', 'vermelho', 'preto', 'azul']
 const IDIOMAS = ['pt', 'es', 'en']
 
 export function lerMarca(raw) {
