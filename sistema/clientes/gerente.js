@@ -162,7 +162,7 @@ export function criarGerente({
       const vistos = new Set()
       for (const c of lista) {
         const pedido = limpo(c?.pedido)
-        if (!pedido || !/^\d{10,15}$/.test(limpo(c.bot_numero))) continue
+        if (!pedido || !/^\d{8,15}$/.test(limpo(c.bot_numero))) continue
         vistos.add(pedido)
         const seq = Number(c.codigo_pedido) || 0
         let estado = bots.get(pedido)
