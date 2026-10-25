@@ -4,7 +4,7 @@ import { createPinoLogger, createStore, WaClient } from 'zapo-js'
 import { createFileStore } from './store.js'
 import { loadConfig } from '../funcoes/config.js'
 import { loadNecessarios } from '../funcoes/necessarios.js'
-import { loadState, importNecessarios } from '../funcoes/banco.js'
+import { loadState, importNecessarios, boasVindasEnviada, marcarBoasVindas } from '../funcoes/banco.js'
 import { loadPlugins } from './loader.js'
 import { createHandler } from './handler.js'
 import { createGroupHandler } from './eventos.js'
@@ -16,6 +16,7 @@ import { createAluguelWorker } from '../funcoes/aluguel.js'
 import { installMarcaAluguel } from '../funcoes/marcaAluguel.js'
 import { avisarGerente, marcaCliente, modoCliente } from '../funcoes/cliente.js'
 import { destino } from '../funcoes/avisoCompra.js'
+import { textoBoasVindas } from '../funcoes/boasVindas.js'
 
 const restartCode = 75
 let desligando = false
@@ -169,6 +170,7 @@ limparTimers()
 if (modoCliente) {
 const eu = String(client.getCredentials?.()?.meJid || '').split(/[:@]/)[0]
 avisarGerente({ tipo: 'conectado', numero: eu })
+void enviarBoasVindas()
 }
 showConnected()
 aluguelWorker.start()
@@ -276,6 +278,20 @@ await enviar(t[0])
 }
 }
 if (modoCliente) setInterval(() => { void conferirValidade() }, 10 * 60_000).unref?.()
+
+// Primeira conexão (ou dona nova): explica no privado dela como configurar.
+async function enviarBoasVindas() {
+const marca = marcaCliente()
+if (!marca?.dono || boasVindasEnviada(marca.dono)) return
+await new Promise(r => setTimeout(r, 4000))
+if (!connectionOpen) return
+const link = String(config?.autoSystem?.url || '').replace(/\/$/, '') + '/aluguel-bot'
+try {
+await client.message.send(await destino(client, marca.dono), { type: 'text', text: textoBoasVindas(marca, config?.prefix, link) }, { semMarca: true })
+marcarBoasVindas(marca.dono)
+console.log('[ AURORA CLIENTE ] Boas-vindas enviadas no privado da dona.')
+} catch (err) { console.warn('[ AURORA CLIENTE ] Não consegui mandar as boas-vindas:', err?.message || err) }
+}
 
 const shutdown = async () => {
 desligando = true
