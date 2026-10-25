@@ -13,8 +13,33 @@ import { showConnected, showPairing, showStart } from '../funcoes/terminal.js'
 import { runHora } from '../funcoes/hora.js'
 import { installCanalGlobal } from '../funcoes/canal.js'
 import { createAluguelWorker } from '../funcoes/aluguel.js'
+import { installMarcaAluguel } from '../funcoes/marcaAluguel.js'
 
 const restartCode = 75
+let desligando = false
+
+// Logger do Zapo sem enxurrada: o mesmo aviso (ex.: 'socket open failed'
+// durante uma queda de rede) aparece no máximo uma vez por minuto, com quantas
+// vezes se repetiu.
+function semEnxurrada(base, vistos = new Map()) {
+const filtrar = (nivel) => (message, context) => {
+const agora = Date.now()
+const visto = vistos.get(message)
+if (visto && agora - visto.ultimo < 60_000) { visto.repetidas++; return }
+if (vistos.size > 300) vistos.clear()
+vistos.set(message, { ultimo: agora, repetidas: 0 })
+base[nivel](message, visto?.repetidas ? { ...(context || {}), repetidas: visto.repetidas } : context)
+}
+return {
+get level() { return base.level },
+trace: (message, context) => base.trace(message, context),
+debug: (message, context) => base.debug(message, context),
+info: (message, context) => base.info(message, context),
+warn: filtrar('warn'),
+error: filtrar('error'),
+child: (bindings, options) => semEnxurrada(base.child(bindings, options), vistos)
+}
+}
 const sessionId = 'aurora'
 const digits = (value = '') => String(value).replace(/\D/g, '')
 
@@ -26,7 +51,7 @@ importNecessarios(flags)
 const registry = await loadPlugins()
 await fs.mkdir('sistema/dados/sessao', { recursive: true })
 
-const logger = await createPinoLogger({ level: 'warn', pretty: false })
+const logger = semEnxurrada(await createPinoLogger({ level: 'warn', pretty: false }))
 const store = createStore({
 backends: { file: createFileStore('sistema/dados/sessao') },
 providers: {
@@ -60,6 +85,8 @@ nodeQueryTimeoutMs: 30_000
 
 // rgchannel global: injeta o canal no ponto final de todo envio visível.
 installCanalGlobal(client, config)
+// Grupo alugado: troca nome, criador e site da casa pela marca do cliente.
+installMarcaAluguel(client)
 
 let pairingRequested = false
 let pairingShown = false
@@ -94,15 +121,35 @@ client.on('auth_pairing_code', ({ code }) => showPairingCode(code))
 
 const aluguelWorker = createAluguelWorker({ client, config })
 
+// CONEXÃO COM O WHATSAPP.
+// Queda de rede o próprio Zapo resolve sozinho (reabre o socket a cada 2 s,
+// sem evento). O evento 'close' só vem quando o WhatsApp encerra a sessão
+// (erro de stream etc.) e aí o Zapo NÃO reconecta: antes o bot esperava 15 s
+// e reiniciava o processo inteiro. Agora reconecta aqui mesmo em 5 s; só
+// reinicia o processo se em 45 s a conexão não voltar.
 let connectionOpen = false
 let reconnectTimer = null
+let restartTimer = null
+let quedas = 0
+const limparTimers = () => {
+if (reconnectTimer) clearTimeout(reconnectTimer)
+if (restartTimer) clearTimeout(restartTimer)
+reconnectTimer = restartTimer = null
+}
+const MOTIVOS = {
+stream_error_replaced: 'outra conexão abriu com esta mesma sessão (o bot está rodando em dois lugares?)',
+failure_banned: 'o WhatsApp bloqueou este número',
+failure_locked: 'o WhatsApp travou esta conta temporariamente',
+failure_service_unavailable: 'o WhatsApp está fora do ar',
+failure_client_too_old: 'a versão do Zapo ficou velha para o WhatsApp'
+}
 client.on('connection', (event) => {
 const status = String(event?.status || '')
 if (status === 'open') {
-console.log('[ AURORA CONEXÃO ] WhatsApp conectado', new Date().toISOString())
+console.log('[ AURORA CONEXÃO ] WhatsApp conectado', new Date().toISOString(), quedas ? `(voltou depois de ${quedas} queda(s))` : '')
 connectionOpen = true
-if (reconnectTimer) clearTimeout(reconnectTimer)
-reconnectTimer = null
+quedas = 0
+limparTimers()
 showConnected()
 aluguelWorker.start()
 return
@@ -113,18 +160,37 @@ aluguelWorker.stop()
 setTimeout(() => process.exit(0), 500)
 return
 }
-if (status === 'close' || status === 'closed') {
+if (status !== 'close' && status !== 'closed') return
 connectionOpen = false
 aluguelWorker.stop()
-console.warn('[ AURORA ] Conexão WhatsApp fechada:', JSON.stringify({ status, reason: event?.reason || event?.code || event?.error?.message || null }))
-if (reconnectTimer) return
-// Evita reiniciar por uma oscilação transitória que o cliente consiga recuperar.
+const reason = String(event?.reason || event?.code || event?.error?.message || '')
+// Desligamento pedido pelo próprio bot (SIGTERM): não reconecta.
+if (reason === 'client_disconnected' && desligando) return
+if (reconnectTimer || restartTimer) return
+quedas++
+console.warn('[ AURORA CONEXÃO ] WhatsApp fechou a conexão:', reason || 'sem motivo', MOTIVOS[reason] ? `— ${MOTIVOS[reason]}` : '')
+// Sessão aberta em outro lugar / número bloqueado: reconectar na hora só
+// derrubaria a outra ponta de novo. Espera bem mais antes de tentar.
+const espera = reason === 'stream_error_force_login' ? 0 : reason === 'stream_error_replaced' ? 60_000 : /^failure_(banned|locked)$/.test(reason) ? 10 * 60_000 : 5_000
+// "force_login" o próprio Zapo já reconecta; aqui só fica o prazo de 45 s.
+const zapoReconecta = reason === 'stream_error_force_login'
 reconnectTimer = setTimeout(() => {
 reconnectTimer = null
-if (!connectionOpen) process.exit(restartCode)
-}, 15_000)
-reconnectTimer.unref?.()
+if (connectionOpen) return
+if (!zapoReconecta) {
+console.log('[ AURORA CONEXÃO ] Reconectando...')
+client.connect().catch((err) => console.warn('[ AURORA CONEXÃO ] Reconexão falhou:', err?.message || err))
 }
+restartTimer = setTimeout(() => {
+restartTimer = null
+if (!connectionOpen) {
+console.warn('[ AURORA CONEXÃO ] A conexão não voltou em 45 s; reiniciando o bot.')
+process.exit(restartCode)
+}
+}, 45_000)
+restartTimer.unref?.()
+}, espera)
+reconnectTimer.unref?.()
 })
 
 client.on('stream_failure', (event) => console.error(chalk.redBright('[ ERRO ] Falha no stream:'), event))
@@ -164,6 +230,8 @@ const horaTimer = setInterval(() => { void horaTick() }, 1_000)
 horaTimer.unref?.()
 
 const shutdown = async () => {
+desligando = true
+limparTimers()
 clearInterval(horaTimer)
 aluguelWorker.stop()
 try { if (typeof client?.disconnect === 'function') await client.disconnect() } catch {}

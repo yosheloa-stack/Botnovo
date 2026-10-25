@@ -1,4 +1,5 @@
 import { createAvisoCompra } from './avisoCompra.js'
+import { criarLogRaro, motivoDaFalha, pedirAoSite, respostaEstranha } from './rede.js'
 import { aluguelOn, delAluguel, listAluguel, setAluguelPedido, transferirAluguelPedido, ultimoPedidoAluguel, setDonoAluguel, setPersonalizacaoAluguel, setIdiomaGrupo, tokenAluguelSalvo } from './banco.js'
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -26,20 +27,25 @@ function token(config) {
 async function api(config, pathname, options = {}) {
   const host = base(config), secret = token(config)
   if (!host || !secret) throw new Error('integração de aluguel não configurada')
-  const response = await fetch(`${host}${pathname}`, {
-    method: options.method || 'GET',
-    signal: AbortSignal.timeout(20_000),
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      'X-Aurora-Token': secret
-    },
-    ...(options.body ? { body: JSON.stringify(options.body) } : {})
-  })
+  let response
+  try {
+    response = await pedirAoSite(`${host}${pathname}`, {
+      method: options.method || 'GET',
+      timeoutMs: 20_000,
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        'X-Aurora-Token': secret
+      },
+      ...(options.body ? { body: JSON.stringify(options.body) } : {})
+    })
+  } catch (err) {
+    throw new Error(motivoDaFalha(err))
+  }
   const text = await response.text()
-  let data
-  try { data = JSON.parse(text) } catch { data = { erro: text || `HTTP ${response.status}` } }
-  if (!response.ok) throw new Error(data?.erro || `HTTP ${response.status}`)
+  let data, json = true
+  try { data = JSON.parse(text) } catch { json = false; data = { erro: respostaEstranha(text, response.status) } }
+  if (!response.ok || !json) throw new Error(data?.erro || `HTTP ${response.status}`)
   return data
 }
 
@@ -119,7 +125,7 @@ async function ativarUm(client, config, item, getGroups) {
       try {
         await client.message.send(jid, {
           type: 'text',
-          text: idioma === 'es' ? `• ✅ *${personalizacao.nome || 'Aurora'} activado en este grupo!*${linhaDono}\n• 📅 Válido hasta: *${validade}*\n• Usa *${config?.prefix || '#'}menu* para ver los comandos.` : idioma === 'en' ? `• ✅ *${personalizacao.nome || 'Aurora'} activated in this group!*${linhaDono}\n• 📅 Valid until: *${validade}*\n• Use *${config?.prefix || '#'}menu* to see commands.` : `• ✅ *${personalizacao.nome || 'Aurora'} ativado neste grupo!*${linhaDono}\n• 📅 Válido até: *${validade}*\n• Use *${config?.prefix || '#'}menu* para ver os comandos.`
+          text: idioma === 'es' ? `• ✅ *${personalizacao.nome || 'Bot'} activado en este grupo!*${linhaDono}\n• 📅 Válido hasta: *${validade}*\n• Usa *${config?.prefix || '#'}menu* para ver los comandos.` : idioma === 'en' ? `• ✅ *${personalizacao.nome || 'Bot'} activated in this group!*${linhaDono}\n• 📅 Valid until: *${validade}*\n• Use *${config?.prefix || '#'}menu* to see commands.` : `• ✅ *${personalizacao.nome || 'Bot'} ativado neste grupo!*${linhaDono}\n• 📅 Válido até: *${validade}*\n• Use *${config?.prefix || '#'}menu* para ver os comandos.`
         }, dono ? { mentions: [`${dono}@s.whatsapp.net`], contextInfo: { mentionedJid: [`${dono}@s.whatsapp.net`] } } : {})
       } catch {}
     }
@@ -252,6 +258,8 @@ export function createAluguelWorker({ client, config }) {
   const getGroups = async () => listAluguel().map((item) => ({ jid: clean(item?.gp) })).filter((item) => item.jid)
   // Aviso de compra do site para o WhatsApp do dono: mesma porta, mesmo token.
   const avisosDeCompra = createAvisoCompra({ client, config, api })
+  // Site fora do ar = a mesma falha a cada 15 s; no console, uma linha por minuto.
+  const logSite = criarLogRaro()
 
   const sync = async () => {
     if (stopped || running || Date.now() < retryAfter) return
@@ -268,6 +276,7 @@ export function createAluguelWorker({ client, config }) {
       const data = await api(config, '/api/bot/alugueis/pendentes')
       authFailureLogged = false
       retryAfter = 0
+      logSite.voltou('sync', '[ AURORA ALUGUEL ] Conexão com o site voltou.')
       for (const item of (Array.isArray(data?.alugueis) ? data.alugueis : [])) {
         await ativarUm(client, config, item, getGroups)
         await sleep(1000)
@@ -284,7 +293,7 @@ export function createAluguelWorker({ client, config }) {
       } else if (message === 'GROUP_RATE_LIMIT_COOLDOWN') {
         // Evita logs repetidos durante a espera após 429.
       } else if (!/não configurada/i.test(message)) {
-        console.error('[ AURORA ALUGUEL ] Sincronização:', message)
+        logSite.falha('sync', '[ AURORA ALUGUEL ] Sincronização com o site falhou:', message)
       }
     } finally { running = false }
   }

@@ -1,4 +1,5 @@
 import { autoSystem } from '../../funcoes/auto.js'
+import { addAutolikeGrupo } from '../../funcoes/banco.js'
 
 export default {name: 'autolike',aliases: [],category: 'ff',vipOnly: true,description: 'Adiciona ID ao autolike',async run(system){
 if (!system.args[0]) return system.reply(system.messages.ffAutoUsage(system.prefix))
@@ -9,7 +10,9 @@ const [key, value] = item.split(' = ')
 if (['likes', 'dias', 'qtd'].includes(key) && value) options[key] = value
 }
 const d = await autoSystem.add(system.config, uid, options)
-if (!d.sucesso) return system.reply(system.messages.apiError(d.erro || system.messages.ffAutoError()))
+if (!d.sucesso) return system.reply(system.messages.apiError(system.erroApi(d.erro, system.messages.ffAutoError())))
+// No grupo alugado o ID fica anotado: é o que o cliente vai ver no #listalike.
+if (system.isGroup) addAutolikeGrupo(system.from, d.uid ?? uid)
 await system.reply(system.messages.ffAuto(d, uid))
 }
 }

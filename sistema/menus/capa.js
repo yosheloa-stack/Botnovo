@@ -79,6 +79,9 @@ async function resolverCapa(media) {
 export async function getMenuMedia(system = null) {
 const personal = system?.isGroup && aluguelOk(system.from) ? getPersonalizacaoAluguel(system.from) : null
 if (personal?.foto) return { type: 'image', file: personal.foto, mimetype: 'image/jpeg' }
+// Grupo alugado sem foto do cliente: a capa padrão tem a arte "Aurora System",
+// então o menu vai só em texto.
+if (personal) return null
 if (await exists(video)) return { type: 'video', file: video, mimetype: 'video/mp4' }
 for (const [name, mimetype] of images) {
 const file = path.join(dir, name)
@@ -163,5 +166,5 @@ const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '
 const usuario = system.senderNumber ? `@${system.senderNumber}` : `@${system.pushName || 'usuario'}`
 const grupo = system.isGroup ? (system.metadata?.subject || 'Grupo') : 'Privado'
 const personal = system.isGroup && aluguelOk(system.from) ? getPersonalizacaoAluguel(system.from) : null
-return [personal?.nome || 'Aurora System', usuario, cargo, vip, hora, system.prefix, grupo, zapoVersion, system.isGroup ? getIdiomaGrupo(system.from) : 'pt']
+return [personal ? (personal.nome || 'Bot') : 'Aurora System', usuario, cargo, vip, hora, system.prefix, grupo, zapoVersion, system.isGroup ? getIdiomaGrupo(system.from) : 'pt']
 }

@@ -1,4 +1,5 @@
-import { db, ensureGroupState, groupState, saveGroupState, saveState, userProfile, getDonoAluguel, aluguelOk, getPersonalizacaoAluguel } from '../funcoes/banco.js'
+import { db, ensureGroupState, groupState, saveGroupState, saveState, userProfile, getDonoAluguel, aluguelOk } from '../funcoes/banco.js'
+import { erroParaCliente } from '../funcoes/marca.js'
 import {
 digits,
 findParticipant,
@@ -287,28 +288,9 @@ delete out.quote
 return out
 }
 
-// Marca exclusivamente mensagens enviadas no grupo alugado. Nunca altera dados globais.
-const branding = () => {
-if (!system.isGroup || !aluguelOk(from)) return ''
-return String(getPersonalizacaoAluguel(from)?.nome || '').trim().slice(0, 48)
-}
-const substituirMarca = (value, nome, depth = 0) => {
-if (!nome || depth > 12) return value
-if (typeof value === 'string') return value.replace(/aurora(?:[\\s\\u00a0]+system)?/gi, nome).replace(/𝐀𝐔𝐑𝐎𝐑𝐀(?:\\s+𝐒𝐘𝐒𝐓𝐄𝐌)?/g, nome).replace(/𝑨𝑼𝑹𝑶𝑹𝑨/g, nome).replace(/ᴀᴜʀᴏʀᴀ(?:\\s+sʏsᴛᴇᴍ)?/gi, nome).replace(/ᴬᵁᴿᴼᴿᴬ/g, nome)
-if (Array.isArray(value)) return value.map(item => substituirMarca(item, nome, depth + 1))
-if (!value || typeof value !== 'object' || Buffer.isBuffer(value) || value instanceof Uint8Array) return value
-const result = { ...value }
-for (const key of ['text','caption','footer','title','description','contentText','footerText','selectedDisplayText','messageParamsJson']) {
-if (typeof result[key] === 'string' && key !== 'messageParamsJson') result[key] = substituirMarca(result[key], nome, depth + 1)
-}
-for (const key of ['interactiveMessage','body','header','nativeFlowMessage','buttons','sections','rows','templateMessage','hydratedTemplate','extendedTextMessage','conversation','imageMessage','videoMessage']) {
-if (result[key] && typeof result[key] === 'object') result[key] = substituirMarca(result[key], nome, depth + 1)
-}
-return result
-}
-
 const sendVisible = async (content, jid = from, options = {}) => {
-let payload = typedContent(substituirMarca(content, jid === from ? branding() : ''))
+// A marca do cliente nos grupos alugados é trocada no envio (marcaAluguel.js).
+let payload = typedContent(content)
 const finalOptions = sendOptions(jid, options)
 
 // No Termux, o pipeline de mídia do Zapo pode tentar reabrir/stagear um caminho
@@ -334,6 +316,11 @@ return client.message.send(jid, payload, finalOptions)
 }
 
 system.reply = (content, options = {}) => sendVisible(content, from, options)
+// Grupo alugado visto por quem não é o dono do bot (o próprio cliente e os
+// membros do grupo dele).
+system.noAluguel = Boolean(isGroup && !system.isOwner && aluguelOk(from))
+// Erro da API: no grupo alugado não pode citar site nem hospedagem.
+system.erroApi = (erro, padrao) => isGroup && aluguelOk(from) ? erroParaCliente(erro, padrao) : (erro || padrao)
 system.send = (content, jid = from, options = {}) => sendVisible(content, jid, options)
 system.revoke = () => client.message.send(from, { type: 'revoke', target: event })
 
