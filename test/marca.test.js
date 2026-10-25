@@ -85,6 +85,7 @@ test('estilo do menu troca também o ícone de cada linha e de cada título', as
   const { aplicarEstilo } = await import('../sistema/funcoes/marca.js')
   const menu = '┣━〔 • 𝑴𝑬𝑵𝑼𝑺 • ✨ 〕\n┃╎୨୧ 💎 #menuff\n┃╎୨୧ 🛡️ #menuadm\n┃╎୨୧ 👑 #menudono\n┃╎୨୧ ᴅᴇᴠ: X\nSim ✅'
   assert.equal(aplicarEstilo(menu, 'rosa'), '┣━〔 • 𝑴𝑬𝑵𝑼𝑺 • 🌸 〕\n┃╎♡ 🎀 #menuff\n┃╎♡ 💗 #menuadm\n┃╎♡ 🌷 #menudono\n┃╎♡ ᴅᴇᴠ: X\nSim ✅')
+  assert.equal(aplicarEstilo('┃╎୨୧ 💎 #menuff\n💚 Aurora', 'azul'), '┃╎✧ 💙 #menuff\n💙 Aurora')
   assert.equal(aplicarEstilo(menu, 'preto'), '┣━〔 • 𝑴𝑬𝑵𝑼𝑺 • 🖤 〕\n┃╎† 🥀 #menuff\n┃╎† 🕷️ #menuadm\n┃╎† 🦇 #menudono\n┃╎† ᴅᴇᴠ: X\nSim ✅')
 })
 

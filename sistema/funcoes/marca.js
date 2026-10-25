@@ -74,11 +74,12 @@ export function noEstilo(texto, amostra) {
 }
 
 // ESTILO DO MENU que a cliente escolheu no site: troca os ícones verdes do
-// Aurora pelos do estilo (rosa, vermelho ou preto) em todas as mensagens.
+// Aurora pelos do estilo (rosa, vermelho, preto ou azul) em todas as mensagens.
 export const ESTILOS_MENU = {
   rosa: [['💚', '🩷'], ['🟢', '🌸'], ['୨୧', '♡'], ['✨', '💗'], ['❦', '✿'], ['🍀', '🌷']],
   vermelho: [['💚', '❤️'], ['🟢', '🔴'], ['୨୧', '♥'], ['✨', '🔥'], ['❦', '♦'], ['🍀', '🌹'], ['♡', '♥']],
-  preto: [['💚', '🖤'], ['🟢', '⚫'], ['୨୧', '†'], ['✨', '🌑'], ['❦', '✠'], ['🍀', '🥀'], ['♡', '†']]
+  preto: [['💚', '🖤'], ['🟢', '⚫'], ['୨୧', '†'], ['✨', '🌑'], ['❦', '✠'], ['🍀', '🥀'], ['♡', '†']],
+  azul: [['💚', '💙'], ['🟢', '🔵'], ['୨୧', '✧'], ['✨', '❄️'], ['❦', '❅'], ['🍀', '💠']]
 }
 // Os ícones de cada linha do menu (👤 💎 🛡️...) também saem: cada linha e
 // cada título ganham o próximo ícone do estilo, em rodízio (Yosh, 25/10: "é
@@ -86,7 +87,8 @@ export const ESTILOS_MENU = {
 export const ICONES_MENU = {
   rosa: ['🌸', '🎀', '💗', '🌷'],
   vermelho: ['❤️', '🌹', '🔥', '🍒'],
-  preto: ['🖤', '🥀', '🕷️', '🦇']
+  preto: ['🖤', '🥀', '🕷️', '🦇'],
+  azul: ['💙', '🦋', '🌊', '🧊']
 }
 const EMOJI = '\\p{Extended_Pictographic}(?:\\uFE0F|\\u200D\\p{Extended_Pictographic}|[\\u{1F3FB}-\\u{1F3FF}])*'
 const ICONE_DO_MENU = new RegExp(`(^┃╎୨୧ |〔 • [^•〕\\n]+ • )${EMOJI}(?=\\s)`, 'gmu')
