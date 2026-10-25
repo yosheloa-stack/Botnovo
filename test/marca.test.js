@@ -81,6 +81,13 @@ test('estilo do menu troca os ícones verdes pelos da cor escolhida', async () =
   assert.equal(trocarMarcaTexto('💚 Aurora System', { nome: 'Bot da Ana', estilo: 'preto' }), '🖤 Bot da Ana')
 })
 
+test('estilo do menu troca também o ícone de cada linha e de cada título', async () => {
+  const { aplicarEstilo } = await import('../sistema/funcoes/marca.js')
+  const menu = '┣━〔 • 𝑴𝑬𝑵𝑼𝑺 • ✨ 〕\n┃╎୨୧ 💎 #menuff\n┃╎୨୧ 🛡️ #menuadm\n┃╎୨୧ 👑 #menudono\n┃╎୨୧ ᴅᴇᴠ: X\nSim ✅'
+  assert.equal(aplicarEstilo(menu, 'rosa'), '┣━〔 • 𝑴𝑬𝑵𝑼𝑺 • 🌸 〕\n┃╎♡ 🎀 #menuff\n┃╎♡ 💗 #menuadm\n┃╎♡ 🌷 #menudono\n┃╎♡ ᴅᴇᴠ: X\nSim ✅')
+  assert.equal(aplicarEstilo(menu, 'preto'), '┣━〔 • 𝑴𝑬𝑵𝑼𝑺 • 🖤 〕\n┃╎† 🥀 #menuff\n┃╎† 🕷️ #menuadm\n┃╎† 🦇 #menudono\n┃╎† ᴅᴇᴠ: X\nSim ✅')
+})
+
 test('nome da dona no lugar do crédito do dono da casa', async () => {
   const { trocarMarcaTexto } = await import('../sistema/funcoes/marca.js')
   assert.equal(trocarMarcaTexto('ᴅᴇᴠ: YoshiGGX', { nome: 'Bot', dono: '5511988885555', donoNome: 'Ana' }), 'ᴅᴏɴᴏ: Ana')

@@ -76,14 +76,26 @@ export function noEstilo(texto, amostra) {
 // ESTILO DO MENU que a cliente escolheu no site: troca os ícones verdes do
 // Aurora pelos do estilo (rosa, vermelho ou preto) em todas as mensagens.
 export const ESTILOS_MENU = {
-  rosa: [['💚', '🩷'], ['🟢', '🌸'], ['୨୧', '🎀'], ['✨', '💗'], ['❦', '✿'], ['🍀', '🌷']],
-  vermelho: [['💚', '❤️'], ['🟢', '🔴'], ['୨୧', '🌹'], ['✨', '🔥'], ['❦', '♦'], ['🍀', '🌹'], ['♡', '♥']],
-  preto: [['💚', '🖤'], ['🟢', '⚫'], ['୨୧', '🕷️'], ['✨', '🌑'], ['❦', '✠'], ['🍀', '🥀'], ['♡', '†']]
+  rosa: [['💚', '🩷'], ['🟢', '🌸'], ['୨୧', '♡'], ['✨', '💗'], ['❦', '✿'], ['🍀', '🌷']],
+  vermelho: [['💚', '❤️'], ['🟢', '🔴'], ['୨୧', '♥'], ['✨', '🔥'], ['❦', '♦'], ['🍀', '🌹'], ['♡', '♥']],
+  preto: [['💚', '🖤'], ['🟢', '⚫'], ['୨୧', '†'], ['✨', '🌑'], ['❦', '✠'], ['🍀', '🥀'], ['♡', '†']]
 }
+// Os ícones de cada linha do menu (👤 💎 🛡️...) também saem: cada linha e
+// cada título ganham o próximo ícone do estilo, em rodízio (Yosh, 25/10: "é
+// pra trocar, não manter os ícones"). A prévia do site usa a mesma lista.
+export const ICONES_MENU = {
+  rosa: ['🌸', '🎀', '💗', '🌷'],
+  vermelho: ['❤️', '🌹', '🔥', '🍒'],
+  preto: ['🖤', '🥀', '🕷️', '🦇']
+}
+const EMOJI = '\\p{Extended_Pictographic}(?:\\uFE0F|\\u200D\\p{Extended_Pictographic}|[\\u{1F3FB}-\\u{1F3FF}])*'
+const ICONE_DO_MENU = new RegExp(`(^┃╎୨୧ |〔 • [^•〕\\n]+ • )${EMOJI}(?=\\s)`, 'gmu')
 export function aplicarEstilo(texto, estilo) {
   const trocas = ESTILOS_MENU[estilo]
   if (!trocas || typeof texto !== 'string' || !texto) return texto
-  let out = texto
+  const icones = ICONES_MENU[estilo]
+  let i = 0
+  let out = texto.replace(ICONE_DO_MENU, (_, antes) => antes + icones[i++ % icones.length])
   for (const [de, para] of trocas) if (out.includes(de)) out = out.split(de).join(para)
   return out
 }
