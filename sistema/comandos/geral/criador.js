@@ -1,5 +1,6 @@
 import { getIdiomaGrupo } from '../../funcoes/banco.js'
 import { marcaDoGrupo } from '../../funcoes/marcaAluguel.js'
+import { modoCliente } from '../../funcoes/cliente.js'
 
 const ROTULO = { pt: 'Dono do bot', es: 'Dueño del bot', en: 'Bot owner' }
 
@@ -16,12 +17,12 @@ return system.send({ contactMessage: { displayName: name, vcard } }, system.from
 
 export default {name:'criador',aliases:['owner'],category:'geral',description:'Envia o contato do criador',async run(system){
 // Grupo alugado: o "criador" é quem alugou (número cadastrado no site).
-// Nunca o contato do dono do bot.
-const marca = system.isGroup ? marcaDoGrupo(system.from) : null
+// Nunca o contato do dono do bot. No bot da cliente vale também no privado.
+const marca = system.isGroup || modoCliente ? marcaDoGrupo(system.from) : null
 if (marca) {
-const rotulo = ROTULO[getIdiomaGrupo(system.from)] || ROTULO.pt
+const rotulo = ROTULO[system.isGroup ? getIdiomaGrupo(system.from) : marca.idioma] || ROTULO.pt
 if (!marca.dono) return system.reply(`👑 *${marca.nome}*`)
-return contato(system, `${rotulo} • ${marca.nome}`, marca.dono)
+return contato(system, marca.donoNome || `${rotulo} • ${marca.nome}`, marca.dono)
 }
 
 const name = String(system.config?.owner?.name || 'Criador').trim()

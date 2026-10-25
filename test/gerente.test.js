@@ -54,7 +54,7 @@ test('pediu código: liga o bot dela com o número e a marca dela, sem nada da c
   assert.equal(env.AURORA_CONNECTION_NUMBER, '5511999990000')
   assert.equal(env.AURORA_OWNER_NUMBER, '5511888880000')
   assert.equal(env.AURORA_RENTAL_TOKEN, undefined)
-  assert.deepEqual(JSON.parse(env.AURORA_MARCA), { nome: 'Bot da Ana', dono: '5511888880000', idioma: 'pt', foto: '', estilo: 'rosa', expira: '' })
+  assert.deepEqual(JSON.parse(env.AURORA_MARCA), { nome: 'Bot da Ana', dono: '5511888880000', donoNome: '', idioma: 'pt', foto: '', estilo: 'rosa', expira: '' })
   assert.equal(filhos[0].opcoes.cwd, path.join(pastaBase, 'p1'))
 })
 

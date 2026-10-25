@@ -27,6 +27,7 @@ export function marcaDo(c) {
   return {
     nome: limpo(c.nome_bot),
     dono: limpo(c.dono_numero).replace(/\D/g, ''),
+    donoNome: limpo(c.dono_nome),
     idioma: limpo(c.idioma) || 'pt',
     foto: limpo(c.foto_menu),
     estilo: limpo(c.estilo_menu),

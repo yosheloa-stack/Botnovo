@@ -2,6 +2,7 @@ import fs from 'node:fs/promises'
 import { mkdirSync, existsSync } from 'node:fs'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
+import { modoCliente } from './cliente.js'
 
 const dir = path.resolve('sistema/dados')
 const file = path.join(dir, 'dados.db')
@@ -407,13 +408,16 @@ export function getPersonalizacaoAluguel(gp) {
 
 
 // Limites de Free Fire isolados por grupo alugado e usuário.
+// Limite de IDs por usuário/dia. 0 = sem limite. No bot da cliente o limite
+// é opcional (ela liga pelo #configurarff); no bot da casa o padrão é 3.
+const LIMITE_FF_PADRAO = modoCliente ? 0 : 3
 export function getLimiteFF(gp) {
-  const n = Number(getKv('ff:limite:' + txt(gp), 3))
-  return Number.isInteger(n) && n >= 1 && n <= 100 ? n : 3
+  const n = Number(getKv('ff:limite:' + txt(gp), LIMITE_FF_PADRAO))
+  return Number.isInteger(n) && n >= 0 && n <= 100 ? n : LIMITE_FF_PADRAO
 }
 export function setLimiteFF(gp, limite) {
   const n = Number(limite)
-  if (!txt(gp) || !Number.isInteger(n) || n < 1 || n > 100) throw new Error('Limite deve ser de 1 a 100 IDs')
+  if (!txt(gp) || !Number.isInteger(n) || n < 0 || n > 100) throw new Error('Limite deve ser de 0 a 100 IDs')
   setKv('ff:limite:' + txt(gp), n)
   return n
 }
@@ -422,7 +426,7 @@ export function consumirCotaFF(gp, usuario) {
   const dia = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
   const chave = 'ff:uso:' + txt(gp) + ':' + txt(usuario) + ':' + dia
   const usado = Number(getKv(chave, 0)) || 0
-  if (usado >= limite) return { ok: false, usado, limite, restante: 0 }
+  if (limite && usado >= limite) return { ok: false, usado, limite, restante: 0 }
   setKv(chave, usado + 1)
   return { ok: true, usado: usado + 1, limite, restante: limite - usado - 1 }
 }
@@ -431,6 +435,7 @@ export function consultarCotaFF(gp, usuario) {
   const limite = getLimiteFF(gp)
   const dia = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
   const usado = Number(getKv('ff:uso:' + txt(gp) + ':' + txt(usuario) + ':' + dia, 0)) || 0
+  if (!limite) return { ok: true, usado, limite, restante: Infinity }
   return { ok: usado < limite, usado, limite, restante: Math.max(0, limite - usado) }
 }
 
@@ -464,3 +469,7 @@ export function setIdiomaGrupo(gp, idioma) {
   setKv('idioma:grupo:' + txt(gp), v)
   return v
 }
+
+// Bot da cliente: o modo aluguel começa LIGADO, pra ninguém usar o bot dela
+// num grupo que ela não registrou (#rgaluguel). Ela pode mudar com #modoaluguel.
+if (modoCliente && getCfg('aluguel', null) === null) setCfg('aluguel', true)

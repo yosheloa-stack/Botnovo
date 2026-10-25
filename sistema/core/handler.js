@@ -293,11 +293,12 @@ if (system.command === 'configurarff' || system.command === 'configff') {
   if (!system.isGroup) return system.reply(msgIdioma(system, '⚠️ Use este comando dentro do grupo.', '⚠️ Usa este comando dentro del grupo.', '⚠️ Use this command in a group.'))
   if (!system.isOwner && !system.isAdmin) return system.reply(msgIdioma(system, '🔒 Somente o dono ou administrador deste grupo pode configurar o Free Fire.', '🔒 Solo el dueño o un administrador puede configurar Free Fire.', '🔒 Only the group owner or an admin can configure Free Fire.'))
   const argumento = String(text).trim().split(/\s+/).slice(1)[0]
-  if (!argumento) return system.reply('🎮 *Configurações Free Fire*\n\nLimite atual: *' + getLimiteFF(system.from) + ' IDs por usuário/dia*\n\nPara alterar: *' + system.prefix + 'configurarff 3*\n\nA configuração vale somente para este grupo.')
+  const atual = getLimiteFF(system.from)
+  if (!argumento) return system.reply('🎮 *Configurações Free Fire*\n\nLimite atual: *' + (atual ? atual + ' IDs por usuário/dia' : 'sem limite') + '*\n\nPara alterar: *' + system.prefix + 'configurarff 3*\nSem limite: *' + system.prefix + 'configurarff 0*\n\nA configuração vale somente para este grupo.')
   const n = Number(argumento)
-  if (!Number.isInteger(n) || n < 1 || n > 100) return system.reply(msgIdioma(system, 'Informe um limite entre 1 e 100 IDs por dia.', 'Indica un límite entre 1 y 100 IDs por día.', 'Enter a limit between 1 and 100 IDs per day.'))
+  if (!Number.isInteger(n) || n < 0 || n > 100) return system.reply(msgIdioma(system, 'Informe um limite de 1 a 100 IDs por dia, ou 0 para sem limite.', 'Indica un límite de 1 a 100 IDs por día, o 0 para sin límite.', 'Enter a limit from 1 to 100 IDs per day, or 0 for no limit.'))
   setLimiteFF(system.from, n)
-  return system.reply('✅ Limite de Free Fire configurado: *' + n + ' IDs por usuário/dia*.\\nSomente neste grupo.')
+  return system.reply(n ? '✅ Limite de Free Fire configurado: *' + n + ' IDs por usuário/dia*.\nSomente neste grupo.' : '✅ Free Fire *sem limite* de IDs neste grupo.')
 }
 
 const plugin = registry.commands.get(system.command)
