@@ -1,7 +1,10 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const file = path.resolve('config.json')
+// O config.json padrão fica junto do código (o bot de cliente roda em outra
+// pasta, a de dados dele).
+const file = fileURLToPath(new URL('../../config.json', import.meta.url))
 const userFile = path.resolve(process.env.AURORA_CONFIG_FILE || 'sistema/dados/config.user.json')
 const merge = (base, extra) => {
   const result = { ...base, ...extra }

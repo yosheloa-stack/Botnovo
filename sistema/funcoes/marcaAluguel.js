@@ -1,11 +1,14 @@
 import { aluguelOk, getDonoAluguel, getIdiomaGrupo, getPersonalizacaoAluguel } from './banco.js'
 import { trocarMarca } from './marca.js'
+import { marcaCliente, modoCliente } from './cliente.js'
 
 const clean = (value = '') => String(value ?? '').trim()
 
 // Marca do grupo alugado ativo: nome que o cliente deu ao bot (ou "Bot"),
 // número de quem alugou e idioma do grupo. Fora de grupo alugado: null.
+// No bot da cliente (modo cliente) a marca dela vale em toda conversa.
 export function marcaDoGrupo(jid) {
+  if (modoCliente) return marcaCliente()
   const gp = clean(jid)
   if (!gp.endsWith('@g.us') || !aluguelOk(gp)) return null
   return {
@@ -31,6 +34,11 @@ export function installMarcaAluguel(client) {
   if (!box || typeof box.send !== 'function' || box.__auroraMarcaAluguel) return false
   const original = box.send.bind(box)
   box.send = async (jid, content, options = {}) => {
+    // semMarca: só o aviso de renovação no privado da dona leva o link do site.
+    if (options && typeof options === 'object' && options.semMarca) {
+      const { semMarca, ...resto } = options
+      return original(jid, content, resto)
+    }
     let marca = null
     try { marca = marcaDoGrupo(jid) } catch {}
     if (!marca || !content || !['object', 'string'].includes(typeof content) || content.type === 'revoke' || content.type === 'reaction') {

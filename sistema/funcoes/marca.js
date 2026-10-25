@@ -73,10 +73,29 @@ export function noEstilo(texto, amostra) {
   return out.normalize('NFC')
 }
 
-// Troca a marca da casa num texto. `marca` = { nome, dono, idioma }.
+// ESTILO DO MENU que a cliente escolheu no site: troca os ícones verdes do
+// Aurora pelos do estilo (rosa, vermelho ou preto) em todas as mensagens.
+export const ESTILOS_MENU = {
+  rosa: [['💚', '🩷'], ['🟢', '🌸'], ['୨୧', '🎀'], ['✨', '💗'], ['❦', '✿'], ['🍀', '🌷']],
+  vermelho: [['💚', '❤️'], ['🟢', '🔴'], ['୨୧', '🌹'], ['✨', '🔥'], ['❦', '♦'], ['🍀', '🌹']],
+  preto: [['💚', '🖤'], ['🟢', '⚫'], ['୨୧', '🕷️'], ['✨', '🌑'], ['❦', '✠'], ['🍀', '🥀']]
+}
+export function aplicarEstilo(texto, estilo) {
+  const trocas = ESTILOS_MENU[estilo]
+  if (!trocas || typeof texto !== 'string' || !texto) return texto
+  let out = texto
+  for (const [de, para] of trocas) if (out.includes(de)) out = out.split(de).join(para)
+  return out
+}
+
+// Troca a marca da casa num texto. `marca` = { nome, dono, idioma, estilo }.
 // Devolve o texto novo; se nada mudou, devolve o mesmo texto.
 export function trocarMarcaTexto(texto, marca) {
   if (typeof texto !== 'string' || !texto || !marca) return texto
+  return aplicarEstilo(trocarSoMarca(texto, marca), marca.estilo)
+}
+
+function trocarSoMarca(texto, marca) {
   const letras = Array.from(texto)
   const simples = letras.map(letraSimples).join('')
   PROCURA.lastIndex = 0

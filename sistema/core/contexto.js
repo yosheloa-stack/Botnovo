@@ -1,5 +1,6 @@
 import { db, ensureGroupState, groupState, saveGroupState, saveState, userProfile, getDonoAluguel, aluguelOk } from '../funcoes/banco.js'
 import { erroParaCliente } from '../funcoes/marca.js'
+import { modoCliente } from '../funcoes/cliente.js'
 import {
 digits,
 findParticipant,
@@ -318,9 +319,10 @@ return client.message.send(jid, payload, finalOptions)
 system.reply = (content, options = {}) => sendVisible(content, from, options)
 // Grupo alugado visto por quem não é o dono do bot (o próprio cliente e os
 // membros do grupo dele).
-system.noAluguel = Boolean(isGroup && !system.isOwner && aluguelOk(from))
+// No bot da cliente (modo cliente) vale sempre: a key da API é da casa.
+system.noAluguel = Boolean(modoCliente || (isGroup && !system.isOwner && aluguelOk(from)))
 // Erro da API: no grupo alugado não pode citar site nem hospedagem.
-system.erroApi = (erro, padrao) => isGroup && aluguelOk(from) ? erroParaCliente(erro, padrao) : (erro || padrao)
+system.erroApi = (erro, padrao) => modoCliente || (isGroup && aluguelOk(from)) ? erroParaCliente(erro, padrao) : (erro || padrao)
 system.send = (content, jid = from, options = {}) => sendVisible(content, jid, options)
 system.revoke = () => client.message.send(from, { type: 'revoke', target: event })
 

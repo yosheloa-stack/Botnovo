@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import { iniciarGerenteClientes } from './clientes/iniciar.js'
 
 const restartCode = 75
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -9,17 +10,23 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 // • saída 0 = parada normal (logout ou desligamento): o launcher para junto.
 let child = null
 let stopping = false
+let gerente = null
 for (const signal of ['SIGTERM', 'SIGINT']) {
 process.once(signal, () => {
 // Repassa a parada ao bot: sem isso o processo do bot podia ficar vivo
 // sozinho e brigar pela mesma sessão do WhatsApp com o próximo.
 stopping = true
+gerente?.parar()
 if (child && child.exitCode === null) child.kill(signal)
 else process.exit(0)
 })
 }
 
 async function boot() {
+// Bots das clientes (cada uma no número dela) rodam ao lado do bot da casa.
+try { gerente = await iniciarGerenteClientes() } catch (err) {
+console.error('[ AURORA CLIENTES ] Gerente não ligou:', err?.message || err)
+}
 let failures = 0
 while (true) {
 const started = Date.now()
@@ -29,7 +36,12 @@ env: process.env
 })
 
 const code = await new Promise((resolve) => child.once('exit', (exitCode, signal) => resolve(exitCode ?? (signal ? 1 : 0))))
-if (stopping || code === 0) process.exit(0)
+if (stopping) process.exit(0)
+if (code === 0) {
+// Bot da casa parou (logout): os bots das clientes continuam.
+if (gerente) { console.warn('[ AURORA ] O bot da casa parou; os bots das clientes continuam ligados.'); return }
+process.exit(0)
+}
 
 // Evita ciclos rápidos de reconexão quando o stream falha repetidamente.
 failures = Date.now() - started > 120_000 ? 0 : Math.min(failures + 1, 5)

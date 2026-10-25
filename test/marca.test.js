@@ -71,3 +71,12 @@ test('erro da API com site ou HTML vira a mensagem padrão no grupo alugado', ()
   assert.equal(erroParaCliente('', 'padrão'), 'padrão')
   assert.equal(erroParaCliente('ID não encontrado.', 'padrão'), 'ID não encontrado.')
 })
+
+test('estilo do menu troca os ícones verdes pelos da cor escolhida', async () => {
+  const { aplicarEstilo, trocarMarcaTexto } = await import('../sistema/funcoes/marca.js')
+  assert.equal(aplicarEstilo('💚 Menu 🟢', 'rosa'), '🩷 Menu 🌸')
+  assert.equal(aplicarEstilo('💚 Menu 🟢', 'vermelho'), '❤️ Menu 🔴')
+  assert.equal(aplicarEstilo('💚 Menu 🟢', 'preto'), '🖤 Menu ⚫')
+  assert.equal(aplicarEstilo('💚 Menu', ''), '💚 Menu')
+  assert.equal(trocarMarcaTexto('💚 Aurora System', { nome: 'Bot da Ana', estilo: 'preto' }), '🖤 Bot da Ana')
+})
