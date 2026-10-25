@@ -12,7 +12,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 // Números do Brasil podem estar no WhatsApp com ou sem o nono dígito; a
 // consulta ao servidor diz qual é o certo. O resultado fica guardado.
 const jidPorNumero = new Map()
-async function destino(client, numero) {
+export async function destino(client, numero) {
   if (jidPorNumero.has(numero)) return jidPorNumero.get(numero)
   const candidatos = [numero]
   const br = numero.match(/^55(\d{2})(\d{8,9})$/)

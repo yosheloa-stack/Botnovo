@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto'
 import { lookup } from 'node:dns/promises'
 import { isIP } from 'node:net'
 import { getPersonalizacaoAluguel, getIdiomaGrupo, aluguelOk } from '../funcoes/banco.js'
+import { marcaCliente, modoCliente } from '../funcoes/cliente.js'
 
 const dir = path.resolve('sistema/menus')
 const pkg = JSON.parse(fsSync.readFileSync(new URL('../../package.json', import.meta.url), 'utf8'))
@@ -77,6 +78,16 @@ async function resolverCapa(media) {
 }
 
 export async function getMenuMedia(system = null) {
+// Bot da cliente: a foto que ela mandou com #fotomenu (na pasta dela), senão
+// a do site, senão o menu vai em texto.
+if (modoCliente) {
+for (const [name, mimetype] of [['fotomenu.mp4', 'video/mp4'], ...images]) {
+const file = path.join(dir, name)
+if (await exists(file)) return { type: mimetype.startsWith('video') ? 'video' : 'image', file, mimetype }
+}
+const foto = marcaCliente()?.foto
+return foto ? { type: 'image', file: foto, mimetype: 'image/jpeg' } : null
+}
 const personal = system?.isGroup && aluguelOk(system.from) ? getPersonalizacaoAluguel(system.from) : null
 if (personal?.foto) return { type: 'image', file: personal.foto, mimetype: 'image/jpeg' }
 // Grupo alugado sem foto do cliente: a capa padrão tem a arte "Aurora System",
@@ -166,5 +177,6 @@ const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '
 const usuario = system.senderNumber ? `@${system.senderNumber}` : `@${system.pushName || 'usuario'}`
 const grupo = system.isGroup ? (system.metadata?.subject || 'Grupo') : 'Privado'
 const personal = system.isGroup && aluguelOk(system.from) ? getPersonalizacaoAluguel(system.from) : null
-return [personal ? (personal.nome || 'Bot') : 'Aurora System', usuario, cargo, vip, hora, system.prefix, grupo, zapoVersion, system.isGroup ? getIdiomaGrupo(system.from) : 'pt']
+const nome = modoCliente ? marcaCliente().nome : personal ? (personal.nome || 'Bot') : 'Aurora System'
+return [nome, usuario, cargo, vip, hora, system.prefix, grupo, zapoVersion, system.isGroup ? getIdiomaGrupo(system.from) : modoCliente ? marcaCliente().idioma : 'pt']
 }

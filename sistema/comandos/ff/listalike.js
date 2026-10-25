@@ -1,5 +1,6 @@
 import { autoSystem } from '../../funcoes/auto.js'
 import { autolikesDoGrupo } from '../../funcoes/banco.js'
+import { modoCliente } from '../../funcoes/cliente.js'
 
 export default {name: 'listalike',aliases: [],category: 'ff',vipOnly: true,description: 'Lista autolikes',async run(system){
 const d = await autoSystem.list(system.config)
@@ -9,7 +10,7 @@ list = Array.isArray(list) ? list : []
 // A lista da key tem os IDs de todos os clientes do dono do bot. No grupo
 // alugado aparecem só os IDs cadastrados nele.
 if (system.noAluguel) {
-const meus = new Set(autolikesDoGrupo(system.from))
+const meus = new Set(autolikesDoGrupo(modoCliente ? 'bot' : system.from))
 list = list.filter((x) => meus.has(String(x?.uid ?? x?.id ?? x).replace(/\D/g, '')))
 }
 await system.reply(system.messages.ffList(list))

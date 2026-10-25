@@ -14,6 +14,8 @@ import { runHora } from '../funcoes/hora.js'
 import { installCanalGlobal } from '../funcoes/canal.js'
 import { createAluguelWorker } from '../funcoes/aluguel.js'
 import { installMarcaAluguel } from '../funcoes/marcaAluguel.js'
+import { avisarGerente, marcaCliente, modoCliente } from '../funcoes/cliente.js'
+import { destino } from '../funcoes/avisoCompra.js'
 
 const restartCode = 75
 let desligando = false
@@ -95,6 +97,18 @@ const showPairingCode = (code) => {
 if (!code || pairingShown) return
 pairingShown = true
 showPairing(code)
+// Bot da cliente: o código aparece pra ela no site ("Configurar meu bot").
+avisarGerente({ tipo: 'codigo', codigo: String(code) })
+if (modoCliente) {
+// Ela tem 10 minutos para digitar o código; depois o bot desliga e espera
+// ela pedir um código novo no site (não fica pedindo código sem parar).
+setTimeout(() => {
+if (connectionOpen) return
+avisarGerente({ tipo: 'codigo_expirou' })
+console.warn('[ AURORA CLIENTE ] O código de conexão não foi usado em 10 minutos.')
+process.exit(0)
+}, 10 * 60_000).unref?.()
+}
 }
 
 const requestCode = async () => {
@@ -119,7 +133,9 @@ client.on('auth_pairing_required', requestCode)
 client.on('auth_qr', requestCode) // fallback: nunca exibe o QR
 client.on('auth_pairing_code', ({ code }) => showPairingCode(code))
 
-const aluguelWorker = createAluguelWorker({ client, config })
+// O bot da cliente não busca aluguéis nem avisos de compra no site: isso é
+// só do bot da casa.
+const aluguelWorker = modoCliente ? { start() {}, stop() {}, onGroupEvent: async () => {} } : createAluguelWorker({ client, config })
 
 // CONEXÃO COM O WHATSAPP.
 // Queda de rede o próprio Zapo resolve sozinho (reabre o socket a cada 2 s,
@@ -150,12 +166,17 @@ console.log('[ AURORA CONEXÃO ] WhatsApp conectado', new Date().toISOString(), 
 connectionOpen = true
 quedas = 0
 limparTimers()
+if (modoCliente) {
+const eu = String(client.getCredentials?.()?.meJid || '').split(/[:@]/)[0]
+avisarGerente({ tipo: 'conectado', numero: eu })
+}
 showConnected()
 aluguelWorker.start()
 return
 }
 if (event?.isLogout) {
 console.error('[ AURORA ] WhatsApp encerrou a sessão (logout). Verifique o pareamento.')
+avisarGerente({ tipo: 'desconectado' })
 aluguelWorker.stop()
 setTimeout(() => process.exit(0), 500)
 return
@@ -228,6 +249,33 @@ finally { horaRodando = false }
 }
 const horaTimer = setInterval(() => { void horaTick() }, 1_000)
 horaTimer.unref?.()
+
+// BOT DA CLIENTE: um dia antes de vencer, avisa a dona no privado (com o link
+// de renovação, o único lugar onde o site aparece); vencido, avisa e desliga.
+let avisoVence = ''
+const conferirValidade = async () => {
+const marca = marcaCliente()
+const ate = Date.parse(marca?.expira || '')
+if (!connectionOpen || !marca?.dono || !Number.isFinite(ate)) return
+const falta = ate - Date.now()
+const link = String(config?.autoSystem?.url || '').replace(/\/$/, '') + '/aluguel-bot'
+const t = {
+pt: [`⏳ Seu bot *${marca.nome}* vence em menos de 1 dia.\n\n• Renove em: ${link}\n• Use o mesmo número do bot: grupos e configurações continuam.`, `⛔ O aluguel do seu bot *${marca.nome}* venceu e ele foi desligado.\n\n• Renove em: ${link}`],
+es: [`⏳ Tu bot *${marca.nome}* vence en menos de 1 día.\n\n• Renueva en: ${link}\n• Usa el mismo número del bot: grupos y ajustes se mantienen.`, `⛔ El alquiler de tu bot *${marca.nome}* venció y fue apagado.\n\n• Renueva en: ${link}`],
+en: [`⏳ Your bot *${marca.nome}* expires in less than 1 day.\n\n• Renew at: ${link}\n• Use the same bot number: groups and settings stay.`, `⛔ Your bot *${marca.nome}* rental has expired and it was turned off.\n\n• Renew at: ${link}`]
+}[marca.idioma] || []
+const enviar = async (text) => client.message.send(await destino(client, marca.dono), { type: 'text', text }, { semMarca: true }).catch(() => {})
+if (falta <= 0) {
+await enviar(t[1])
+console.warn('[ AURORA CLIENTE ] Aluguel vencido; desligando.')
+avisarGerente({ tipo: 'vencido' })
+setTimeout(() => process.exit(0), 1500)
+} else if (falta < 86_400_000 && avisoVence !== marca.expira) {
+avisoVence = marca.expira
+await enviar(t[0])
+}
+}
+if (modoCliente) setInterval(() => { void conferirValidade() }, 10 * 60_000).unref?.()
 
 const shutdown = async () => {
 desligando = true

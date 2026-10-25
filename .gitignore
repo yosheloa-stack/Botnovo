@@ -5,3 +5,4 @@ sistema/dados/sessao/*
 .env
 .env.*
 !/.env.example
+sistema/dados/clientes/

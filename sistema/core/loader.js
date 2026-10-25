@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 async function walk(dir) {
 const out = []
@@ -13,7 +13,8 @@ return out
 }
 
 export async function loadPlugins() {
-const dir = path.resolve('sistema/comandos')
+// Junto do código: o bot de cliente roda na pasta de dados dele.
+const dir = fileURLToPath(new URL('../comandos', import.meta.url))
 const files = (await walk(dir)).sort((a, b) => a.localeCompare(b))
 const plugins = []
 const commands = new Map()
