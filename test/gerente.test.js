@@ -132,6 +132,14 @@ test('key da conta dela: o bot usa ela no lugar da key da casa e reinicia ao tro
   assert.equal(filhos.length, 2)
 })
 
+test('bot com número de outro país também liga', async () => {
+  const { g, filhos } = cenario(() => [cliente({ codigo_pedido: 1, bot_numero: '50051234', dono_numero: '12125559876' })])
+  await g.sincronizar()
+  assert.equal(filhos.length, 1)
+  assert.equal(filhos[0].opcoes.env.AURORA_CONNECTION_NUMBER, '50051234')
+  assert.equal(filhos[0].opcoes.env.AURORA_OWNER_NUMBER, '12125559876')
+})
+
 test('marcaDo limpa o número da dona', () => {
   assert.equal(marcaDo({ dono_numero: '+55 (11) 98888-0000' }).dono, '5511988880000')
 })
