@@ -133,21 +133,83 @@ if (!link) throw new Error(texto.replace(/\s+/g, ' ').slice(0, 120) || 'resposta
 return link
 }
 
-async function subir(arquivo, nome, mimetype) {
-const falhas = []
-const livres = HOSTS.filter((host) => (foraAte.get(host.url) || 0) <= Date.now())
-// Todos pausados: tenta todos de novo em vez de recusar sem tentar.
-for (const host of livres.length ? livres : HOSTS) {
+// O PussyBox não publica o endereço de envio. Quando os endereços conhecidos
+// falham, o bot lê a página e os scripts do site, escreve no log o que achou
+// e tenta os caminhos de upload encontrados. A leitura roda uma vez por
+// processo; o caminho que funcionar passa a ser o primeiro da lista.
+const SITE = 'https://pussybox.moe'
+let pistas = null
+
+async function lerTexto(url) {
+const res = await fetch(url, { headers: { 'User-Agent': 'AuroraSystem/1.2 (bot WhatsApp)' }, signal: AbortSignal.timeout(15_000) })
+return (await res.text()).slice(0, 3_000_000)
+}
+
+export function pistasDoCodigo(codigo) {
+const caminhos = new Set()
+for (const m of codigo.matchAll(/["'`]((?:https:\/\/pussybox\.moe)?\/[\w\-./]*(?:upload|envia|send|file|arquivo)[\w\-./]*)["'`]/gi)) {
+const caminho = m[1].replace(SITE, '')
+if (/\.(js|css|png|jpe?g|svg|webp|gif|ico|mp4|mp3)$/i.test(caminho) || /^\/files\/./i.test(caminho)) continue
+caminhos.add(caminho)
+}
+const campos = new Set()
+for (const m of codigo.matchAll(/\.append\(\s*["'`]([\w[\]-]+)["'`]/g)) campos.add(m[1])
+return { caminhos: [...caminhos].slice(0, 10), campos: [...campos].slice(0, 10) }
+}
+
+async function pistasPussybox() {
+if (pistas) return pistas
+pistas = { scripts: [], caminhos: [], campos: [] }
+try {
+const html = await lerTexto(`${SITE}/`)
+const scripts = [...html.matchAll(/<script[^>]*\bsrc=["']([^"']+)["']/gi)]
+.map((m) => new URL(m[1], `${SITE}/`).href)
+.filter((url) => url.startsWith(SITE))
+.slice(0, 6)
+let codigo = html
+for (const src of scripts) {
+try { codigo += `\n${await lerTexto(src)}` } catch {}
+}
+pistas = { scripts, ...pistasDoCodigo(codigo) }
+} catch (err) {
+pistas.erro = String(err?.message || err)
+}
+console.error('[ UPLOAD ] PussyBox pistas:', JSON.stringify(pistas))
+return pistas
+}
+
+async function tentar(lista, arquivo, nome, mimetype, falhas) {
+for (const host of lista) {
 try {
 const link = await enviarPara(host, arquivo, nome, mimetype)
 foraAte.delete(host.url)
 return { host, link }
 } catch (err) {
-// 413 = arquivo grande demais só para esse site: não pausa o site.
+// 413 = arquivo grande demais só para esse endereço: não pausa.
 if (err?.status !== 413) foraAte.set(host.url, Date.now() + (err?.status >= 400 && err?.status < 500 ? PAUSA_RECUSA : PAUSA_FALHA))
 falhas.push(`${host.nome}: ${err?.message || err}`)
 console.error('[ UPLOAD ]', host.nome, host.url, err?.message || err)
 }
+}
+return null
+}
+
+async function subir(arquivo, nome, mimetype) {
+const falhas = []
+const livres = HOSTS.filter((host) => (foraAte.get(host.url) || 0) <= Date.now())
+// Todos pausados: tenta todos de novo em vez de recusar sem tentar.
+const feito = await tentar(livres.length ? livres : HOSTS, arquivo, nome, mimetype, falhas)
+if (feito) return feito
+
+const { caminhos, campos } = await pistasPussybox()
+const novos = caminhos
+.map((caminho) => ({ nome: 'PussyBox', url: `${SITE}${caminho}`, campo: campos[0] || 'file' }))
+.filter((host) => !HOSTS.some((h) => h.url === host.url) && (foraAte.get(host.url) || 0) <= Date.now())
+.slice(0, 3)
+const achado = await tentar(novos, arquivo, nome, mimetype, falhas)
+if (achado) {
+HOSTS.unshift(achado.host)
+return achado
 }
 throw new Error(falhas.join(' | '))
 }
