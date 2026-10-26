@@ -29,9 +29,16 @@ let marca = lerMarca(process.env.AURORA_MARCA)
 
 // O gerente manda a marca nova quando a cliente muda algo no site (nome,
 // foto, estilo...): vale na hora, sem reiniciar o bot.
+const ouvintesIdioma = []
+export const aoMudarIdioma = (fn) => { ouvintesIdioma.push(fn) }
+export function trocarMarcaCliente(nova) {
+  const antes = marca.idioma
+  marca = lerMarca(JSON.stringify(nova || {}))
+  if (marca.idioma !== antes) for (const fn of ouvintesIdioma) { try { fn(marca.idioma) } catch (err) { console.warn('[ AURORA CLIENTE ] Idioma:', err?.message || err) } }
+}
 if (modoCliente && typeof process.on === 'function') {
   process.on('message', (msg) => {
-    if (msg?.tipo === 'marca') marca = lerMarca(JSON.stringify(msg.marca || {}))
+    if (msg?.tipo === 'marca') trocarMarcaCliente(msg.marca)
   })
 }
 

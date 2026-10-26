@@ -10,10 +10,11 @@ import { cacheIncomingX9, isLocalSentMessage, suppressX9Protocol } from '../func
 import { verifiedSendOptions } from '../funcoes/meta.js'
 import { necessarios as currentNecessarios } from '../funcoes/necessarios.js'
 import { handleSoli } from '../funcoes/soli.js'
+import { marcaCliente } from '../funcoes/cliente.js'
 
 const missingRentalLogs = new Map()
 const msgIdioma = (system, pt, es, en) => {
-  const lang = system?.isGroup ? getIdiomaGrupo(system.from) : 'pt'
+  const lang = system?.isGroup ? getIdiomaGrupo(system.from) : (marcaCliente()?.idioma || 'pt')
   return lang === 'es' ? es : lang === 'en' ? en : pt
 }
 

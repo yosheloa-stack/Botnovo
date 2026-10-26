@@ -2,7 +2,7 @@ import fs from 'node:fs/promises'
 import { mkdirSync, existsSync } from 'node:fs'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
-import { modoCliente } from './cliente.js'
+import { modoCliente, marcaCliente, aoMudarIdioma } from './cliente.js'
 
 const dir = path.resolve('sistema/dados')
 const file = path.join(dir, 'dados.db')
@@ -458,11 +458,17 @@ export function delAutolikeGrupo(gp, uid) {
   setKv('ff:autolikes:' + txt(gp), autolikesDoGrupo(gp).filter((x) => x !== id))
 }
 
-// Idioma independente por grupo (persistido no SQLite).
+// Idioma independente por grupo (persistido no SQLite). Grupo que não
+// escolheu (#idioma) fala o idioma do bot: no bot da cliente, o que ela
+// escolheu no site.
+const idiomaDoBot = () => (modoCliente && ['pt','es','en'].includes(marcaCliente()?.idioma) ? marcaCliente().idioma : 'pt')
 export function getIdiomaGrupo(gp) {
-  const v = String(getKv('idioma:grupo:' + txt(gp), 'pt')).toLowerCase()
-  return ['pt','es','en'].includes(v) ? v : 'pt'
+  const v = String(getKv('idioma:grupo:' + txt(gp), '')).toLowerCase()
+  return ['pt','es','en'].includes(v) ? v : idiomaDoBot()
 }
+// A dona trocou o idioma do bot no site: vale em todos os grupos na hora,
+// sem reconectar (apaga o idioma que cada grupo tinha escolhido).
+aoMudarIdioma(() => { sql.prepare("DELETE FROM kv WHERE k LIKE 'idioma:grupo:%'").run() })
 export function setIdiomaGrupo(gp, idioma) {
   const v = String(idioma || '').toLowerCase()
   if (!txt(gp) || !['pt','es','en'].includes(v)) throw new Error('Idioma inválido')
