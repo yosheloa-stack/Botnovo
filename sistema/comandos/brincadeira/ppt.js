@@ -1,8 +1,11 @@
 const choices = ['pedra', 'papel', 'tesoura']
 const emoji = { pedra: '🪨', papel: '📄', tesoura: '✂️' }
+// Em grupo em espanhol ou inglês o menu mostra piedra/tijera, rock/paper/scissors.
+const apelidos = { piedra: 'pedra', tijera: 'tesoura', tijeras: 'tesoura', rock: 'pedra', paper: 'papel', scissors: 'tesoura', scissor: 'tesoura' }
 
 export default {name: 'ppt',aliases: ['pedrapapeltesoura'],category: 'brincadeira',description: 'Pedra, papel e tesoura',async run(system){
-const player = String(system.args[0] || '').toLowerCase()
+const digitado = String(system.args[0] || '').toLowerCase()
+const player = apelidos[digitado] || digitado
 if (!choices.includes(player)) return system.reply(`Use: *${system.prefix}ppt pedra*, *${system.prefix}ppt papel* ou *${system.prefix}ppt tesoura*`)
 const bot = choices[Math.floor(Math.random() * choices.length)]
 let result = 'Empate 😹'
