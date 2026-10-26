@@ -10,13 +10,25 @@ const LIMITE_MB = 100
 const LIMITE = LIMITE_MB * 1024 * 1024
 const TEMPO_UPLOAD = 120_000
 
-// Ordem de envio: PussyBox primeiro. Se ele falhar, Catbox (link fixo) e,
-// por último, Litterbox (link que some depois de 72 horas).
+// Ordem de envio: PussyBox primeiro. O endereço de upload dele ainda não foi
+// confirmado (o /user/api.php do Catbox deu 404), então tenta os dois mais
+// comuns. Depois vêm qu.ax e Catbox (links fixos) e, por último, Uguu
+// (3 horas) e tmpfiles (1 hora), que avisam na resposta que o link vence.
 const HOSTS = [
-{ nome: 'PussyBox', url: 'https://pussybox.moe/user/api.php', campo: 'fileToUpload', extras: { reqtype: 'fileupload' } },
+{ nome: 'PussyBox', url: 'https://pussybox.moe/api/upload', campo: 'file' },
+{ nome: 'PussyBox', url: 'https://pussybox.moe/upload', campo: 'file' },
+{ nome: 'qu.ax', url: 'https://qu.ax/upload.php', campo: 'files[]' },
 { nome: 'Catbox', url: 'https://catbox.moe/user/api.php', campo: 'fileToUpload', extras: { reqtype: 'fileupload' } },
-{ nome: 'Litterbox', url: 'https://litterbox.catbox.moe/resources/internals/api.php', campo: 'fileToUpload', extras: { reqtype: 'fileupload', time: '72h' }, expira: '72 horas' }
+{ nome: 'Uguu', url: 'https://uguu.se/upload', campo: 'files[]', expira: '3 horas' },
+// tmpfiles devolve a página do arquivo; o link direto é o mesmo com /dl/.
+{ nome: 'tmpfiles', url: 'https://tmpfiles.org/api/v1/upload', campo: 'file', expira: '1 hora', ajustar: (link) => link.replace(/^https?:\/\/tmpfiles\.org\//i, 'https://tmpfiles.org/dl/') }
 ]
+
+// Site que recusou fica de fora por um tempo: assim um arquivo grande não é
+// mandado de novo, a cada comando, para um endereço que não aceita.
+const PAUSA_RECUSA = 60 * 60_000
+const PAUSA_FALHA = 10 * 60_000
+const foraAte = new Map()
 
 const TIPOS = [
 ['imageMessage', 'foto', 'image/jpeg'],
@@ -113,24 +125,34 @@ form.append(host.campo, await openAsBlob(arquivo, { type: mimetype }), nome)
 const res = await fetch(host.url, {
 method: 'POST',
 body: form,
-headers: { 'User-Agent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/124 Mobile Safari/537.36' },
+headers: { 'User-Agent': 'AuroraSystem/1.2 (bot WhatsApp)', 'Accept': 'application/json, text/plain, */*' },
 signal: AbortSignal.timeout(TEMPO_UPLOAD)
 })
 const texto = (await res.text()).trim()
-if (!res.ok) throw new Error(`HTTP ${res.status} ${texto.slice(0, 80)}`)
+if (!res.ok) {
+const err = new Error(`HTTP ${res.status} ${texto.replace(/\s+/g, ' ').slice(0, 80)}`)
+err.status = res.status
+throw err
+}
 const link = linkDaResposta(texto)
-if (!link) throw new Error(texto.slice(0, 120) || 'resposta vazia')
-return link
+if (!link) throw new Error(texto.replace(/\s+/g, ' ').slice(0, 120) || 'resposta vazia')
+return host.ajustar ? host.ajustar(link) : link
 }
 
 async function subir(arquivo, nome, mimetype) {
 const falhas = []
-for (const host of HOSTS) {
+const livres = HOSTS.filter((host) => (foraAte.get(host.url) || 0) <= Date.now())
+// Todos pausados: tenta todos de novo em vez de recusar sem tentar.
+for (const host of livres.length ? livres : HOSTS) {
 try {
-return { host, link: await enviarPara(host, arquivo, nome, mimetype) }
+const link = await enviarPara(host, arquivo, nome, mimetype)
+foraAte.delete(host.url)
+return { host, link }
 } catch (err) {
+// 413 = arquivo grande demais só para esse site: não pausa o site.
+if (err?.status !== 413) foraAte.set(host.url, Date.now() + (err?.status >= 400 && err?.status < 500 ? PAUSA_RECUSA : PAUSA_FALHA))
 falhas.push(`${host.nome}: ${err?.message || err}`)
-console.error('[ UPLOAD ]', host.nome, err?.message || err)
+console.error('[ UPLOAD ]', host.nome, host.url, err?.message || err)
 }
 }
 throw new Error(falhas.join(' | '))
