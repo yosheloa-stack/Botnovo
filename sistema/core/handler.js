@@ -10,7 +10,7 @@ import { cacheIncomingX9, isLocalSentMessage, suppressX9Protocol } from '../func
 import { verifiedSendOptions } from '../funcoes/meta.js'
 import { necessarios as currentNecessarios } from '../funcoes/necessarios.js'
 import { handleSoli } from '../funcoes/soli.js'
-import { marcaCliente } from '../funcoes/cliente.js'
+import { marcaCliente, modoCliente } from '../funcoes/cliente.js'
 
 const missingRentalLogs = new Map()
 const msgIdioma = (system, pt, es, en) => {
@@ -183,15 +183,16 @@ if (!system.senderKey) return
 if (flags?.botoff === true && !system.isOwner) return
 if (system.isGroup && isBanGp(system.from) && !system.isOwner) return
 if (system.isGroup && aluguelOn() && !aluguelOk(system.from) && !system.isOwner) {
-  // Não silencie o motivo: um grupo pode ter entrado pelo convite, mas o
-  // registro local de aluguel pode ter sido perdido após um redeploy.
+  // Conversa normal num grupo não registrado não vira aviso (enchia o log a
+  // cada minuto e parecia erro). Só comando, e com quem mandou, para dar
+  // pra saber se foi a dona (aí é número cadastrado errado) ou outra pessoa.
   const now = Date.now()
   const last = missingRentalLogs.get(system.from) || 0
-  if (now - last > 60_000) {
+  if (system.command && now - last > 60_000) {
     missingRentalLogs.set(system.from, now)
-    console.warn('[ AURORA ALUGUEL ] Mensagem ignorada: grupo sem aluguel local ativo:', system.from,
-      '| comando:', system.command || '(sem comando)',
-      '| verifique persistência de sistema/dados/dados.db e retorno da ativação pelo site')
+    console.warn('[ AURORA ALUGUEL ] Comando ignorado: grupo não registrado:', system.from,
+      '| comando:', system.command, '| de:', system.senderNumber || system.senderKey || '(ausente)',
+      modoCliente ? '| a dona registra o grupo mandando #rgaluguel nele' : '| verifique persistência de sistema/dados/dados.db e retorno da ativação pelo site')
   }
   return
 }
