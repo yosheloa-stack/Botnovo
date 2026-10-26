@@ -253,6 +253,13 @@ return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 ┃╎୨୧ ☁️ ${prefix}soundcloud música/link
 ┃╰╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╯
 ┃
+┣━〔 • 𝑼𝑷𝑳𝑶𝑨𝑫 • 🔗 〕
+┃
+┃╭╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╮
+┃╎୨୧ 🔗 ${prefix}upload — responda um arquivo
+┃╎୨୧ 🖼️ ${prefix}imgpralink — responda uma foto
+┃╰╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╯
+┃
 ┣━〔 • 𝑨𝑼𝑹𝑶𝑹𝑨 • 💚 〕
 ┃╎୨୧ ✰ۣۜۜ͜͡ ${NomeDoBot.toUpperCase()}
 ┃╎୨୧ ᴅᴇᴠ: YoshiGGX
