@@ -47,7 +47,7 @@ function marcando(quotedMessage, text = '#upload') {
 }
 
 const PUSSY = ['https://pussybox.moe/api/upload', 'https://pussybox.moe/upload']
-const RESERVAS = ['https://qu.ax/upload.php', 'https://catbox.moe/user/api.php', 'https://uguu.se/upload', 'https://tmpfiles.org/api/v1/upload']
+const RESERVAS = ['https://qu.ax/upload.php', 'https://uguu.se/upload', 'https://tmpfiles.org/api/v1/upload']
 
 test('PDF marcado: PussyBox falha, qu.ax devolve o link', async () => {
   respostas = [{ status: 404, body: '<!DOCTYPE html>\n<title>Error</title>' }, { status: 404, body: 'x' }, { status: 200, body: JSON.stringify({ success: true, files: [{ name: 'boleto.pdf', url: 'https://qu.ax/abc.pdf' }] }) }]
@@ -72,20 +72,21 @@ test('ZIP marcado sobe direto no PussyBox', async () => {
   assert.match(s.replies.at(-1), /Link: https:\/\/pussybox\.moe\/u\/k\.zip$/)
 })
 
-test('Catbox recusando: cai no Uguu e avisa que o link vence', async () => {
-  respostas = [{ status: 404, body: '' }, { status: 404, body: '' }, { status: 502, body: '' }, { status: 412, body: 'Invalid uploader' }, { status: 200, body: JSON.stringify({ success: true, files: [{ url: 'https://n.uguu.se/zz.ogg' }] }) }]
+test('qu.ax fora: cai no Uguu e avisa que o link vence; Catbox nunca é usado', async () => {
+  respostas = [{ status: 404, body: '' }, { status: 404, body: '' }, { status: 502, body: '' }, { status: 200, body: JSON.stringify({ success: true, files: [{ url: 'https://n.uguu.se/zz.ogg' }] }) }]
   const s = sistema(marcando({ audioMessage: { mimetype: 'audio/ogg; codecs=opus', ptt: true, fileLength: 9000n } }))
   await plugin.run(s)
-  assert.equal(chamadas[3].reqtype, 'fileupload')
-  assert.match(chamadas[4].nome, /\.ogg$/)
+  assert.deepEqual(chamadas.map((c) => c.url), [...PUSSY, RESERVAS[0], RESERVAS[1]])
+  assert.ok(!chamadas.some((c) => /catbox/i.test(c.url)))
+  assert.match(chamadas[3].nome, /\.ogg$/)
   assert.match(s.replies.at(-1), /n\.uguu\.se\/zz\.ogg\n• ⏳ Esse link vale 3 horas\./)
 })
 
 test('tmpfiles: troca a página pelo link direto /dl/', async () => {
-  respostas = [{}, {}, {}, {}, {}, { status: 200, body: JSON.stringify({ status: 'success', data: { url: 'http://tmpfiles.org/123/foto.jpg' } }) }]
+  respostas = [{}, {}, {}, {}, { status: 200, body: JSON.stringify({ status: 'success', data: { url: 'http://tmpfiles.org/123/foto.jpg' } }) }]
   const s = sistema({ imageMessage: { mimetype: 'image/jpeg', caption: '#upload', fileLength: 500 } })
   await plugin.run(s)
-  assert.equal(chamadas.length, 6)
+  assert.equal(chamadas.length, 5)
   assert.equal(chamadas[0].conteudo, 'BYTES:imageMessage')
   assert.match(s.replies.at(-1), /Link: https:\/\/tmpfiles\.org\/dl\/123\/foto\.jpg\n• ⏳ Esse link vale 1 hora\./)
 })
@@ -105,11 +106,11 @@ test('todos os sites falham: avisa e, no próximo, tenta todos de novo', async (
   respostas = []
   const s = sistema({ imageMessage: { mimetype: 'image/jpeg', caption: '#upload', fileLength: 500 } })
   await plugin.run(s)
-  assert.equal(chamadas.length, 6)
+  assert.equal(chamadas.length, 5)
   assert.match(s.replies.at(-1), /Não consegui subir o arquivo agora/)
   chamadas = []
   await plugin.run(sistema({ imageMessage: { mimetype: 'image/jpeg', caption: '#upload' } }))
-  assert.equal(chamadas.length, 6)
+  assert.equal(chamadas.length, 5)
 })
 
 test('#upload texto vira um .txt', async () => {

@@ -11,14 +11,14 @@ const LIMITE = LIMITE_MB * 1024 * 1024
 const TEMPO_UPLOAD = 120_000
 
 // Ordem de envio: PussyBox primeiro. O endereço de upload dele ainda não foi
-// confirmado (o /user/api.php do Catbox deu 404), então tenta os dois mais
-// comuns. Depois vêm qu.ax e Catbox (links fixos) e, por último, Uguu
-// (3 horas) e tmpfiles (1 hora), que avisam na resposta que o link vence.
+// confirmado (/user/api.php deu 404), então tenta os dois mais
+// comuns. Depois vem qu.ax (link fixo) e, por último, Uguu (3 horas) e
+// tmpfiles (1 hora), que avisam na resposta que o link vence. Catbox não
+// entra: o dono não quer.
 const HOSTS = [
 { nome: 'PussyBox', url: 'https://pussybox.moe/api/upload', campo: 'file' },
 { nome: 'PussyBox', url: 'https://pussybox.moe/upload', campo: 'file' },
 { nome: 'qu.ax', url: 'https://qu.ax/upload.php', campo: 'files[]' },
-{ nome: 'Catbox', url: 'https://catbox.moe/user/api.php', campo: 'fileToUpload', extras: { reqtype: 'fileupload' } },
 { nome: 'Uguu', url: 'https://uguu.se/upload', campo: 'files[]', expira: '3 horas' },
 // tmpfiles devolve a página do arquivo; o link direto é o mesmo com /dl/.
 { nome: 'tmpfiles', url: 'https://tmpfiles.org/api/v1/upload', campo: 'file', expira: '1 hora', ajustar: (link) => link.replace(/^https?:\/\/tmpfiles\.org\//i, 'https://tmpfiles.org/dl/') }
