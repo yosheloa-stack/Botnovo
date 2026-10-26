@@ -4,25 +4,22 @@ import os from 'node:os'
 import path from 'node:path'
 import crypto from 'node:crypto'
 import { quotedInfo, unwrapMessage } from '../../funcoes/mensagem.js'
-import { collectUrls } from '../../funcoes/midia.js'
 
 const LIMITE_MB = 100
 const LIMITE = LIMITE_MB * 1024 * 1024
 const TEMPO_UPLOAD = 120_000
 
-// Só o PussyBox (pedido do dono: nenhum outro site). O endereço de upload
-// dele ainda não foi confirmado (/user/api.php deu 404), então tenta os dois
-// mais comuns.
-const HOSTS = [
-{ nome: 'PussyBox', url: 'https://pussybox.moe/api/upload', campo: 'file' },
-{ nome: 'PussyBox', url: 'https://pussybox.moe/upload', campo: 'file' }
-]
+// Só o PussyBox (pedido do dono: nenhum outro site). Endereço e campo vêm do
+// script do próprio site (assets/script.js); a resposta traz o link como
+// caminho relativo: {"success":true,"resultado":[{"url":"/files/..."}]}.
+const PUSSYBOX = { url: 'https://pussybox.moe/api/upload/file', campo: 'file' }
 
-// Endereço que recusou fica de fora por um tempo: assim um arquivo grande não
-// é mandado de novo, a cada comando, para onde não aceita.
-const PAUSA_RECUSA = 60 * 60_000
-const PAUSA_FALHA = 10 * 60_000
-const foraAte = new Map()
+// Até 3 tentativas: limite de envios (429), site fora do ar ou queda de rede
+// costumam passar em segundos. Arquivo recusado (4xx) não tenta de novo.
+const TENTATIVAS = 3
+const ESPERAS = [3_000, 8_000]
+const ESPERA_MAXIMA = 20_000
+const esperar = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 const TIPOS = [
 ['imageMessage', 'foto', 'image/jpeg'],
@@ -100,23 +97,31 @@ if (bytes >= 1024) return `${Math.ceil(bytes / 1024)} KB`
 return `${bytes} bytes`
 }
 
-function linkDaResposta(texto) {
+function linkDaResposta(texto, base) {
 if (/^https?:\/\/\S+$/i.test(texto)) return texto
-try {
-const urls = collectUrls(JSON.parse(texto))
-return (urls.find((x) => /url|link|file/i.test(x.trail)) || urls[0])?.url || ''
-} catch {
-return ''
+let data
+try { data = JSON.parse(texto) } catch { return '' }
+if (data?.success === false) return ''
+const achados = []
+const andar = (valor, chave = '') => {
+if (typeof valor === 'string') {
+if (/url|link|href|src|file/i.test(chave) && /^(https?:\/\/|\/)\S+$/i.test(valor)) achados.push(valor)
+} else if (Array.isArray(valor)) {
+valor.forEach((item) => andar(item, chave))
+} else if (valor && typeof valor === 'object') {
+Object.entries(valor).forEach(([k, v]) => andar(v, k))
 }
+}
+andar(data)
+return achados.length ? new URL(achados[0], base).href : ''
 }
 
-async function enviarPara(host, arquivo, nome, mimetype) {
+async function enviar(arquivo, nome, mimetype) {
 const form = new FormData()
-for (const [chave, valor] of Object.entries(host.extras || {})) form.append(chave, valor)
 // openAsBlob lê do disco aos poucos: um vídeo de 100 MB não vai inteiro pra RAM.
-form.append(host.campo, await openAsBlob(arquivo, { type: mimetype }), nome)
+form.append(PUSSYBOX.campo, await openAsBlob(arquivo, { type: mimetype }), nome)
 
-const res = await fetch(host.url, {
+const res = await fetch(PUSSYBOX.url, {
 method: 'POST',
 body: form,
 headers: { 'User-Agent': 'AuroraSystem/1.2 (bot WhatsApp)', 'Accept': 'application/json, text/plain, */*' },
@@ -124,94 +129,30 @@ signal: AbortSignal.timeout(TEMPO_UPLOAD)
 })
 const texto = (await res.text()).trim()
 if (!res.ok) {
-const err = new Error(`HTTP ${res.status} ${texto.replace(/\s+/g, ' ').slice(0, 80)}`)
+const err = new Error(`HTTP ${res.status} ${texto.replace(/\s+/g, ' ').slice(0, 100)}`)
 err.status = res.status
+err.espera = Number(res.headers.get('retry-after')) * 1000 || 0
 throw err
 }
-const link = linkDaResposta(texto)
+const link = linkDaResposta(texto, PUSSYBOX.url)
 if (!link) throw new Error(texto.replace(/\s+/g, ' ').slice(0, 120) || 'resposta vazia')
 return link
 }
 
-// O PussyBox não publica o endereço de envio. Quando os endereços conhecidos
-// falham, o bot lê a página e os scripts do site, escreve no log o que achou
-// e tenta os caminhos de upload encontrados. A leitura roda uma vez por
-// processo; o caminho que funcionar passa a ser o primeiro da lista.
-const SITE = 'https://pussybox.moe'
-let pistas = null
-
-async function lerTexto(url) {
-const res = await fetch(url, { headers: { 'User-Agent': 'AuroraSystem/1.2 (bot WhatsApp)' }, signal: AbortSignal.timeout(15_000) })
-return (await res.text()).slice(0, 3_000_000)
-}
-
-export function pistasDoCodigo(codigo) {
-const caminhos = new Set()
-for (const m of codigo.matchAll(/["'`]((?:https:\/\/pussybox\.moe)?\/[\w\-./]*(?:upload|envia|send|file|arquivo)[\w\-./]*)["'`]/gi)) {
-const caminho = m[1].replace(SITE, '')
-if (/\.(js|css|png|jpe?g|svg|webp|gif|ico|mp4|mp3)$/i.test(caminho) || /^\/files\/./i.test(caminho)) continue
-caminhos.add(caminho)
-}
-const campos = new Set()
-for (const m of codigo.matchAll(/\.append\(\s*["'`]([\w[\]-]+)["'`]/g)) campos.add(m[1])
-return { caminhos: [...caminhos].slice(0, 10), campos: [...campos].slice(0, 10) }
-}
-
-async function pistasPussybox() {
-if (pistas) return pistas
-pistas = { scripts: [], caminhos: [], campos: [] }
-try {
-const html = await lerTexto(`${SITE}/`)
-const scripts = [...html.matchAll(/<script[^>]*\bsrc=["']([^"']+)["']/gi)]
-.map((m) => new URL(m[1], `${SITE}/`).href)
-.filter((url) => url.startsWith(SITE))
-.slice(0, 6)
-let codigo = html
-for (const src of scripts) {
-try { codigo += `\n${await lerTexto(src)}` } catch {}
-}
-pistas = { scripts, ...pistasDoCodigo(codigo) }
-} catch (err) {
-pistas.erro = String(err?.message || err)
-}
-console.error('[ UPLOAD ] PussyBox pistas:', JSON.stringify(pistas))
-return pistas
-}
-
-async function tentar(lista, arquivo, nome, mimetype, falhas) {
-for (const host of lista) {
-try {
-const link = await enviarPara(host, arquivo, nome, mimetype)
-foraAte.delete(host.url)
-return { host, link }
-} catch (err) {
-// 413 = arquivo grande demais só para esse endereço: não pausa.
-if (err?.status !== 413) foraAte.set(host.url, Date.now() + (err?.status >= 400 && err?.status < 500 ? PAUSA_RECUSA : PAUSA_FALHA))
-falhas.push(`${host.nome}: ${err?.message || err}`)
-console.error('[ UPLOAD ]', host.nome, host.url, err?.message || err)
-}
-}
-return null
-}
-
 async function subir(arquivo, nome, mimetype) {
-const falhas = []
-const livres = HOSTS.filter((host) => (foraAte.get(host.url) || 0) <= Date.now())
-// Todos pausados: tenta todos de novo em vez de recusar sem tentar.
-const feito = await tentar(livres.length ? livres : HOSTS, arquivo, nome, mimetype, falhas)
-if (feito) return feito
-
-const { caminhos, campos } = await pistasPussybox()
-const novos = caminhos
-.map((caminho) => ({ nome: 'PussyBox', url: `${SITE}${caminho}`, campo: campos[0] || 'file' }))
-.filter((host) => !HOSTS.some((h) => h.url === host.url) && (foraAte.get(host.url) || 0) <= Date.now())
-.slice(0, 3)
-const achado = await tentar(novos, arquivo, nome, mimetype, falhas)
-if (achado) {
-HOSTS.unshift(achado.host)
-return achado
+let ultimo
+for (let tentativa = 1; tentativa <= TENTATIVAS; tentativa++) {
+try {
+return await enviar(arquivo, nome, mimetype)
+} catch (err) {
+ultimo = err
+console.error(`[ UPLOAD ] PussyBox tentativa ${tentativa}/${TENTATIVAS}:`, err?.message || err)
+const definitivo = err?.status >= 400 && err?.status < 500 && err.status !== 408 && err.status !== 429
+if (definitivo || tentativa === TENTATIVAS) break
+await esperar(Math.min(err?.espera || ESPERAS[tentativa - 1], ESPERA_MAXIMA))
 }
-throw new Error(falhas.join(' | '))
+}
+throw ultimo
 }
 
 export default {name: 'upload',aliases: ['imgpralink', 'tourl', 'uploadlink'],category: 'download',description: 'Sobe foto, vídeo, áudio, PDF, ZIP ou qualquer arquivo e devolve o link',async run(system){
@@ -262,10 +203,12 @@ if (!size) return system.reply('• ❌ O arquivo veio vazio. Tente mandar de no
 
 await system.reply('• ⏳ Subindo o arquivo, aguarde...')
 
-let enviado
+let link
 try {
-enviado = await subir(arquivo, nome, mimetype)
-} catch {
+link = await subir(arquivo, nome, mimetype)
+} catch (err) {
+if (err?.status === 429) return system.reply('• ❌ O PussyBox está recebendo muitos envios agora. Tente de novo em alguns minutos.')
+if (err?.status === 413) return system.reply(`• ❌ O PussyBox recusou o tamanho desse arquivo. O limite é ${LIMITE_MB} MB.`)
 return system.reply('• ❌ Não consegui subir o arquivo agora. Tente de novo em alguns minutos.')
 }
 
@@ -273,7 +216,7 @@ return system.reply(
 `• ✅ *Upload feito!*\n` +
 `• 📎 Arquivo: ${nome}\n` +
 `• 📦 Tamanho: ${tamanhoTexto(size)}\n` +
-`• 🔗 Link: ${enviado.link}`
+`• 🔗 Link: ${link}`
 )
 } finally {
 try { await fs.unlink(arquivo) } catch {}

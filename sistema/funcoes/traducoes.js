@@ -649,6 +649,8 @@ export const FRASES = [
   ['O arquivo veio vazio. Tente mandar de novo.', 'El archivo llegó vacío. Envíalo de nuevo.', 'The file came empty. Send it again.'],
   ['Subindo o arquivo, aguarde...', 'Subiendo el archivo, espera...', 'Uploading the file, please wait...'],
   ['Não consegui subir o arquivo agora. Tente de novo em alguns minutos.', 'No pude subir el archivo ahora. Inténtalo de nuevo en unos minutos.', "I couldn't upload the file now. Try again in a few minutes."],
+  ['O PussyBox está recebendo muitos envios agora. Tente de novo em alguns minutos.', 'PussyBox está recibiendo demasiados envíos ahora. Inténtalo de nuevo en unos minutos.', 'PussyBox is getting too many uploads right now. Try again in a few minutes.'],
+  ['O PussyBox recusou o tamanho desse arquivo.', 'PussyBox rechazó el tamaño de este archivo.', 'PussyBox refused the size of this file.'],
   ['Upload feito!', '¡Archivo subido!', 'Upload done!'],
   ['Arquivo:', 'Archivo:', 'File:'],
   ['Tamanho:', 'Tamaño:', 'Size:'],

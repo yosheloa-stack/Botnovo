@@ -11,8 +11,7 @@ import path from 'node:path'
 const raiz = path.resolve(import.meta.dirname, '..')
 process.chdir(fs.mkdtempSync(path.join(os.tmpdir(), 'aurora-upload-')))
 const arquivoPlugin = path.join(raiz, 'sistema/comandos/download/upload.js')
-// Cada teste carrega o comando de novo: a pausa dos sites que recusaram
-// fica na memória do módulo.
+// Cada teste carrega o comando de novo, limpo.
 let plugin
 let versao = 0
 test.beforeEach(async () => { plugin = (await import(`${arquivoPlugin}?t=${++versao}`)).default })
@@ -22,24 +21,21 @@ const menus = (await import(path.join(raiz, 'sistema/menus/menus.js'))).default
 const fetchOriginal = globalThis.fetch
 let respostas = []
 let chamadas = []
-let leituras = []
-let paginas = {}
+let esperas = []
+const timeoutOriginal = globalThis.setTimeout
 test.beforeEach(() => {
   chamadas = []
-  paginas = {}
-  leituras = []
+  esperas = []
+  // As esperas entre tentativas (3 s, 8 s) passam na hora no teste.
+  globalThis.setTimeout = (fn, ms, ...args) => { esperas.push(ms); return timeoutOriginal(fn, 0, ...args) }
   globalThis.fetch = async (url, opts = {}) => {
-    // GET = o bot lendo a página/scripts do site atrás do endereço de envio.
-    if (!opts.body) {
-      leituras.push(url)
-      return paginas[url] ? new Response(paginas[url]) : new Response('<title>Error</title>', { status: 404 })
-    }
     const [campo, arquivo] = [...opts.body.entries()].find(([, v]) => typeof v === 'object') || []
     chamadas.push({ url, campo, reqtype: opts.body.get('reqtype'), nome: arquivo?.name, tipo: arquivo?.type, conteudo: await arquivo?.text() })
     const r = respostas.shift() || { status: 503, body: '' }
-    return new Response(r.body, { status: r.status })
+    return new Response(r.body, { status: r.status, headers: r.headers })
   }
 })
+test.afterEach(() => { globalThis.setTimeout = timeoutOriginal })
 test.after(() => { globalThis.fetch = fetchOriginal })
 
 function sistema(message, q = '') {
@@ -55,94 +51,77 @@ function marcando(quotedMessage, text = '#upload') {
   return { extendedTextMessage: { text, contextInfo: { stanzaId: 'ABC', participant: '1@s.whatsapp.net', quotedMessage } } }
 }
 
-const PUSSY = ['https://pussybox.moe/api/upload', 'https://pussybox.moe/upload']
+const PUSSY = 'https://pussybox.moe/api/upload/file'
+const OK = (url) => ({ status: 200, body: JSON.stringify({ success: true, resultado: [{ name: 'x', size: 1, url }] }) })
 
-test('PDF marcado: primeiro endereço do PussyBox falha, o segundo devolve o link', async () => {
-  respostas = [{ status: 404, body: '<!DOCTYPE html>\n<title>Error</title>' }, { status: 200, body: JSON.stringify({ file: { url: 'https://pussybox.moe/u/abc.pdf' } }) }]
+test('PDF marcado sobe no PussyBox e o link relativo vira link completo', async () => {
+  respostas = [OK('/files/1793029329819abc.pdf')]
   const s = sistema(marcando({ documentWithCaptionMessage: { message: { documentMessage: { mimetype: 'application/pdf', fileName: 'boleto', fileLength: { toNumber: () => 2048 } } } } }))
   await plugin.run(s)
-  assert.deepEqual(chamadas.map((c) => c.url), PUSSY)
-  assert.equal(chamadas[1].campo, 'file')
-  assert.equal(chamadas[1].nome, 'boleto.pdf')
-  assert.equal(chamadas[1].tipo, 'application/pdf')
+  assert.deepEqual(chamadas.map((c) => c.url), [PUSSY])
+  assert.equal(chamadas[0].campo, 'file')
+  assert.equal(chamadas[0].nome, 'boleto.pdf')
+  assert.equal(chamadas[0].tipo, 'application/pdf')
   // Baixou a mensagem marcada, não a mensagem do comando.
-  assert.equal(chamadas[1].conteudo, 'BYTES:documentWithCaptionMessage')
-  assert.match(s.replies.at(-1), /Link: https:\/\/pussybox\.moe\/u\/abc\.pdf$/)
+  assert.equal(chamadas[0].conteudo, 'BYTES:documentWithCaptionMessage')
+  assert.match(s.replies.at(-1), /Link: https:\/\/pussybox\.moe\/files\/1793029329819abc\.pdf$/)
 })
 
-test('ZIP marcado sobe direto no PussyBox', async () => {
-  respostas = [{ status: 200, body: 'https://pussybox.moe/u/k.zip\n' }]
+test('ZIP marcado: aceita também link completo em texto', async () => {
+  respostas = [{ status: 200, body: 'https://pussybox.moe/files/k.zip\n' }]
   const s = sistema(marcando({ documentMessage: { mimetype: 'application/zip', fileName: 'pack.zip', fileLength: 10 } }, '/imgpralink'))
   await plugin.run(s)
   assert.equal(chamadas.length, 1)
   assert.equal(chamadas[0].nome, 'pack.zip')
-  assert.match(s.replies.at(-1), /Link: https:\/\/pussybox\.moe\/u\/k\.zip$/)
+  assert.match(s.replies.at(-1), /Link: https:\/\/pussybox\.moe\/files\/k\.zip$/)
 })
 
-test('só usa o PussyBox, nenhum outro site', async () => {
-  respostas = []
+test('limite de envios (429) e site fora: tenta de novo e sobe na 3ª', async () => {
+  respostas = [
+    { status: 429, body: '{"success":false,"status":"RATE_LIMITED"}', headers: { 'retry-after': '5' } },
+    { status: 502, body: '' },
+    OK('/files/zz.ogg')
+  ]
   const s = sistema(marcando({ audioMessage: { mimetype: 'audio/ogg; codecs=opus', ptt: true, fileLength: 9000n } }))
   await plugin.run(s)
-  assert.deepEqual(chamadas.map((c) => c.url), PUSSY)
-  assert.match(chamadas[0].nome, /\.ogg$/)
+  assert.deepEqual(chamadas.map((c) => c.url), [PUSSY, PUSSY, PUSSY])
+  // Respeita o Retry-After do site (5 s) e depois espera 8 s.
+  assert.ok(esperas.includes(5000) && esperas.includes(8000), JSON.stringify(esperas))
+  assert.match(chamadas[2].nome, /\.ogg$/)
+  assert.match(s.replies.at(-1), /Link: https:\/\/pussybox\.moe\/files\/zz\.ogg$/)
+})
+
+test('success:false com 200 conta como falha e tenta de novo', async () => {
+  respostas = [{ status: 200, body: '{"success":false,"resultado":[]}' }, OK('/files/a.jpg')]
+  const s = sistema({ imageMessage: { mimetype: 'image/jpeg', caption: '#upload' } })
+  await plugin.run(s)
+  assert.equal(chamadas.length, 2)
+  assert.match(s.replies.at(-1), /files\/a\.jpg/)
+})
+
+test('3 tentativas com limite de envios: avisa que o PussyBox está cheio', async () => {
+  respostas = [{ status: 429, body: '' }, { status: 429, body: '' }, { status: 429, body: '' }, OK('/files/nunca.jpg')]
+  const s = sistema({ imageMessage: { mimetype: 'image/jpeg', caption: '#upload', fileLength: 500 } })
+  await plugin.run(s)
+  assert.equal(chamadas.length, 3)
+  assert.match(s.replies.at(-1), /O PussyBox está recebendo muitos envios agora/)
+})
+
+test('arquivo recusado (400) não tenta de novo', async () => {
+  respostas = [{ status: 400, body: '{"success":false}' }, OK('/files/nunca.jpg')]
+  const s = sistema({ imageMessage: { mimetype: 'image/jpeg', caption: '#upload' } })
+  await plugin.run(s)
+  assert.equal(chamadas.length, 1)
   assert.match(s.replies.at(-1), /Não consegui subir o arquivo agora/)
 })
 
-test('endereço que recusou fica de fora no próximo comando', async () => {
-  respostas = [{ status: 404, body: '' }, { status: 200, body: 'https://pussybox.moe/u/1.jpg' }]
-  await plugin.run(sistema({ imageMessage: { mimetype: 'image/jpeg', caption: '#upload' } }))
-  chamadas = []
-  respostas = [{ status: 200, body: 'https://pussybox.moe/u/2.jpg' }]
-  const s = sistema({ imageMessage: { mimetype: 'image/jpeg', caption: '#upload' } })
-  await plugin.run(s)
-  assert.deepEqual(chamadas.map((c) => c.url), [PUSSY[1]])
-  assert.match(s.replies.at(-1), /pussybox\.moe\/u\/2\.jpg/)
-})
-
-test('os dois endereços falham: no próximo comando tenta os dois de novo', async () => {
-  respostas = []
-  await plugin.run(sistema({ imageMessage: { mimetype: 'image/jpeg', caption: '#upload', fileLength: 500 } }))
-  chamadas = []
-  await plugin.run(sistema({ imageMessage: { mimetype: 'image/jpeg', caption: '#upload' } }))
-  assert.deepEqual(chamadas.map((c) => c.url), PUSSY)
-})
-
-test('endereços conhecidos falham: lê o site, acha o caminho certo e passa a usar ele', async () => {
-  paginas = {
-    'https://pussybox.moe/': '<html><head><script type="module" crossorigin src="/assets/index-a1b2.js"></script></head><body><img src="https://pussybox.moe/assets/caixa.png"></body></html>',
-    'https://pussybox.moe/assets/index-a1b2.js': 'const f=new FormData();f.append("arquivo",x);fetch("/api/v2/send",{method:"POST",body:f});img.src="/files/"+id;const css="/assets/upload.css"'
-  }
-  respostas = [{ status: 404, body: '' }, { status: 404, body: '' }, { status: 200, body: JSON.stringify({ url: 'https://pussybox.moe/files/123abc.png' }) }]
-  const s = sistema({ imageMessage: { mimetype: 'image/png', caption: '#upload' } })
-  await plugin.run(s)
-  assert.deepEqual(leituras, ['https://pussybox.moe/', 'https://pussybox.moe/assets/index-a1b2.js'])
-  assert.deepEqual(chamadas.map((c) => c.url), [...PUSSY, 'https://pussybox.moe/api/v2/send'])
-  assert.equal(chamadas[2].campo, 'arquivo')
-  assert.match(s.replies.at(-1), /Link: https:\/\/pussybox\.moe\/files\/123abc\.png$/)
-
-  // Próximo comando: vai direto no caminho achado, sem ler o site de novo.
-  chamadas = []
-  leituras = []
-  respostas = [{ status: 200, body: 'https://pussybox.moe/files/456.png' }]
-  await plugin.run(sistema({ imageMessage: { mimetype: 'image/png', caption: '#upload' } }))
-  assert.deepEqual(chamadas.map((c) => c.url), ['https://pussybox.moe/api/v2/send'])
-  assert.deepEqual(leituras, [])
-})
-
-test('pistas: ignora arquivos e imagens, guarda caminhos e campos', async () => {
-  const { pistasDoCodigo } = await import(`${arquivoPlugin}?pistas`)
-  const p = pistasDoCodigo('a("/upload-file");b("https://pussybox.moe/api/files");c("/files/1.png");d("/assets/upload.js");fd.append(\'files[]\', f)')
-  assert.deepEqual(p.caminhos, ['/upload-file', '/api/files'])
-  assert.deepEqual(p.campos, ['files[]'])
-})
-
 test('#upload texto vira um .txt', async () => {
-  respostas = [{ status: 200, body: 'https://pussybox.moe/f/a.txt' }]
+  respostas = [OK('/files/a.txt')]
   const s = sistema({ conversation: '#upload olá mundo' }, 'olá mundo')
   await plugin.run(s)
   assert.equal(chamadas[0].conteudo, 'olá mundo')
   assert.match(chamadas[0].nome, /\.txt$/)
-  assert.match(s.replies.at(-1), /pussybox\.moe\/f\/a\.txt/)
+  assert.match(s.replies.at(-1), /pussybox\.moe\/files\/a\.txt/)
 })
 
 test('sem arquivo e sem texto: explica como usar, sem subir nada', async () => {
