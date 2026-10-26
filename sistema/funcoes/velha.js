@@ -176,7 +176,7 @@ const o = resolved(system, game.o)
 
 if (game.status === 'pending') {
 if (!same(system.senderInfo, game.o)) return false
-if (['s','sim','ok'].includes(text)) {
+if (['s','sim','ok','si','sí','yes','y'].includes(text)) {
 game.status = 'active'
 game.acceptedAt = Date.now()
 await system.save()

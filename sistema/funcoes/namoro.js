@@ -142,7 +142,7 @@ return sendAkameMedia(system, 'imgperfil', texto, [a, b], texto)
 export async function handleDating(system) {
 if (!system.isGroup) return false
 const text = String(system.text || '').toLowerCase().trim()
-if (!['s','sim','ok','n','nao','não','no'].includes(text)) return false
+if (!['s','sim','ok','si','sí','yes','y','n','nao','não','no'].includes(text)) return false
 const s = store(system)
 const index = s.pending.findIndex((x) => x.group === system.from && same(system.senderInfo, x.to))
 if (index < 0) return false
