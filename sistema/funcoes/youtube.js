@@ -103,6 +103,43 @@ return [
 ]
 }
 
+// Reserva: quando a API de pesquisa sai do ar ou muda as rotas (HTTP 404),
+// pesquisa direto na página de resultados do YouTube.
+function videosDaPagina(html = '') {
+const m = String(html).match(/ytInitialData\s*=\s*(\{.+?\});\s*<\/script>/s)
+if (!m) return []
+let data
+try { data = JSON.parse(m[1]) } catch { return [] }
+const achados = []
+const andar = (no) => {
+if (!no || typeof no !== 'object' || achados.length >= 20) return
+if (no.videoRenderer?.videoId) { achados.push(no.videoRenderer); return }
+for (const v of Array.isArray(no) ? no : Object.values(no)) andar(v)
+}
+andar(data)
+const texto = (t) => t?.simpleText || (t?.runs || []).map((r) => r.text).join('') || ''
+return achados.map((v) => ({
+videoId: v.videoId,
+title: texto(v.title) || 'Sem título',
+author: texto(v.ownerText || v.longBylineText) || '-',
+duration: texto(v.lengthText) || '-',
+views: texto(v.viewCountText) || null,
+url: `https://www.youtube.com/watch?v=${v.videoId}`
+}))
+}
+
+async function buscaDireta(query) {
+const response = await fetch(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}&hl=pt&gl=BR`, {
+headers: {
+'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36',
+'Accept-Language': 'pt-BR,pt;q=0.9',
+Cookie: 'CONSENT=YES+1'
+}
+})
+if (!response.ok) throw new Error(`YouTube respondeu HTTP ${response.status}.`)
+return videosDaPagina(await response.text())
+}
+
 export async function searchYouTube(query, config, limit = 1) {
 const { url, token } = apiBlock(config, 'tokitoApi')
 let lastError
@@ -113,8 +150,16 @@ const items = resultItems(data).map(normalizeVideo).filter((x) => x.url)
 if (items.length) return limit === 1 ? items[0] : items.slice(0, limit)
 } catch (err) { lastError = err }
 }
+try {
+const items = (await buscaDireta(query)).map(normalizeVideo).filter((x) => x.url)
+if (items.length) return limit === 1 ? items[0] : items.slice(0, limit)
+} catch (err) {
+console.warn('[ YOUTUBE ] Pesquisa direta falhou:', err?.message || err)
+}
 throw lastError || new Error('Nenhum resultado encontrado no YouTube.')
 }
+
+export const _teste = { videosDaPagina }
 
 function fallbackFromLink(url = '') {
 let videoId = ''

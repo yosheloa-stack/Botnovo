@@ -3,6 +3,8 @@ import { erroParaCliente } from '../funcoes/marca.js'
 import { modoCliente } from '../funcoes/cliente.js'
 import {
 digits,
+variantesNumero,
+mesmoNumero,
 findParticipant,
 isGroupJid,
 resolveIdentity,
@@ -142,9 +144,9 @@ const args = parts
 const q = args.join(' ')
 const isGroup = isGroupJid(from)
 const ownerNumbers = [
-digits(config.owner?.number),
-...Array.from({ length: 6 }, (_, i) => digits(necessarios?.[`numero_dono${i + 1}`]))
-].filter(Boolean)
+config.owner?.number,
+...Array.from({ length: 6 }, (_, i) => necessarios?.[`numero_dono${i + 1}`])
+].flatMap((n) => variantesNumero(n))
 let metadata = null
 let isAdmin = false
 let isBotAdmin = false
@@ -176,7 +178,7 @@ isBotAdmin = isAdminParticipant(botP)
 if (isGroup) await ensureGroupState(from, { nome: metadata?.subject || 'Grupo' })
 
 // Quem alugou pelo site manda como ADM e VIP, mas só no grupo alugado.
-const isDonoAluguel = Boolean(isGroup && senderNumber && getDonoAluguel(from) === senderNumber && aluguelOk(from))
+const isDonoAluguel = Boolean(isGroup && senderNumber && mesmoNumero(getDonoAluguel(from), senderNumber) && aluguelOk(from))
 if (isDonoAluguel) isAdmin = true
 
 const state = db()

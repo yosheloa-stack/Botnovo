@@ -2,6 +2,23 @@ export function digits(value = '') {
 return String(value).replace(/\D/g, '')
 }
 
+// Celular do Brasil pode estar no WhatsApp com ou sem o 9 depois do DDD
+// (contas antigas ficaram sem). Quem cadastra o número digita do jeito que
+// conhece; o bot aceita as duas formas.
+export function variantesNumero(value = '') {
+const n = digits(value)
+if (!n) return []
+const br = n.match(/^55(\d{2})(\d{8,9})$/)
+if (!br) return [n]
+const outro = br[2].length === 9 ? (br[2].startsWith('9') ? `55${br[1]}${br[2].slice(1)}` : '') : `55${br[1]}9${br[2]}`
+return outro ? [n, outro] : [n]
+}
+
+export function mesmoNumero(a = '', b = '') {
+const n = digits(b)
+return Boolean(n) && variantesNumero(a).includes(n)
+}
+
 export function jidNumber(jid = '') {
 const base = String(jid).split('@')[0].split(':')[0]
 return digits(base)
