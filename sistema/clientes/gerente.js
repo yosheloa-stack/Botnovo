@@ -21,7 +21,9 @@ const limpo = (v) => String(v ?? '').trim()
 const nomePasta = (pedido) => limpo(pedido).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 80)
 
 // Variáveis do bot da casa que o bot da cliente NÃO pode herdar.
-const SO_DA_CASA = ['AURORA_RENTAL_TOKEN', 'AUTO_SYSTEM_TOKEN', 'AUTOSYSTEM_TOKEN', 'AURORA_OWNER_NUMBER', 'AURORA_CONNECTION_NUMBER', 'AURORA_CONFIG_FILE', 'AURORA_DATA_DIR', 'AURORA_MARCA', 'AURORA_CLIENTE']
+// AURORA_PREFIX também é da casa: cada bot de cliente guarda o próprio
+// prefixo (#setprefix) na pasta dele.
+const SO_DA_CASA = ['AURORA_RENTAL_TOKEN', 'AUTO_SYSTEM_TOKEN', 'AUTOSYSTEM_TOKEN', 'AURORA_PREFIX', 'AURORA_OWNER_NUMBER', 'AURORA_CONNECTION_NUMBER', 'AURORA_CONFIG_FILE', 'AURORA_DATA_DIR', 'AURORA_MARCA', 'AURORA_CLIENTE']
 
 export function marcaDo(c) {
   return {
