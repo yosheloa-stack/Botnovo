@@ -10,22 +10,16 @@ const LIMITE_MB = 100
 const LIMITE = LIMITE_MB * 1024 * 1024
 const TEMPO_UPLOAD = 120_000
 
-// Ordem de envio: PussyBox primeiro. O endereço de upload dele ainda não foi
-// confirmado (/user/api.php deu 404), então tenta os dois mais
-// comuns. Depois vem qu.ax (link fixo) e, por último, Uguu (3 horas) e
-// tmpfiles (1 hora), que avisam na resposta que o link vence. Catbox não
-// entra: o dono não quer.
+// Só o PussyBox (pedido do dono: nenhum outro site). O endereço de upload
+// dele ainda não foi confirmado (/user/api.php deu 404), então tenta os dois
+// mais comuns.
 const HOSTS = [
 { nome: 'PussyBox', url: 'https://pussybox.moe/api/upload', campo: 'file' },
-{ nome: 'PussyBox', url: 'https://pussybox.moe/upload', campo: 'file' },
-{ nome: 'qu.ax', url: 'https://qu.ax/upload.php', campo: 'files[]' },
-{ nome: 'Uguu', url: 'https://uguu.se/upload', campo: 'files[]', expira: '3 horas' },
-// tmpfiles devolve a página do arquivo; o link direto é o mesmo com /dl/.
-{ nome: 'tmpfiles', url: 'https://tmpfiles.org/api/v1/upload', campo: 'file', expira: '1 hora', ajustar: (link) => link.replace(/^https?:\/\/tmpfiles\.org\//i, 'https://tmpfiles.org/dl/') }
+{ nome: 'PussyBox', url: 'https://pussybox.moe/upload', campo: 'file' }
 ]
 
-// Site que recusou fica de fora por um tempo: assim um arquivo grande não é
-// mandado de novo, a cada comando, para um endereço que não aceita.
+// Endereço que recusou fica de fora por um tempo: assim um arquivo grande não
+// é mandado de novo, a cada comando, para onde não aceita.
 const PAUSA_RECUSA = 60 * 60_000
 const PAUSA_FALHA = 10 * 60_000
 const foraAte = new Map()
@@ -136,7 +130,7 @@ throw err
 }
 const link = linkDaResposta(texto)
 if (!link) throw new Error(texto.replace(/\s+/g, ' ').slice(0, 120) || 'resposta vazia')
-return host.ajustar ? host.ajustar(link) : link
+return link
 }
 
 async function subir(arquivo, nome, mimetype) {
@@ -217,8 +211,7 @@ return system.reply(
 `• ✅ *Upload feito!*\n` +
 `• 📎 Arquivo: ${nome}\n` +
 `• 📦 Tamanho: ${tamanhoTexto(size)}\n` +
-`• 🔗 Link: ${enviado.link}` +
-(enviado.host.expira ? `\n• ⏳ Esse link vale ${enviado.host.expira}.` : '')
+`• 🔗 Link: ${enviado.link}`
 )
 } finally {
 try { await fs.unlink(arquivo) } catch {}

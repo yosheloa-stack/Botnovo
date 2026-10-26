@@ -1,7 +1,7 @@
 // node test/upload.test.js
 // #upload / #imgpralink: pega o arquivo marcado (ou enviado com o comando),
-// sobe no PussyBox e, se ele falhar, nos sites de reserva. Aqui o WhatsApp e
-// os sites são falsos: nada sai da máquina.
+// sobe no PussyBox (só nele, a pedido do dono). Aqui o WhatsApp e o site
+// são falsos: nada sai da máquina.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
@@ -47,70 +47,55 @@ function marcando(quotedMessage, text = '#upload') {
 }
 
 const PUSSY = ['https://pussybox.moe/api/upload', 'https://pussybox.moe/upload']
-const RESERVAS = ['https://qu.ax/upload.php', 'https://uguu.se/upload', 'https://tmpfiles.org/api/v1/upload']
 
-test('PDF marcado: PussyBox falha, qu.ax devolve o link', async () => {
-  respostas = [{ status: 404, body: '<!DOCTYPE html>\n<title>Error</title>' }, { status: 404, body: 'x' }, { status: 200, body: JSON.stringify({ success: true, files: [{ name: 'boleto.pdf', url: 'https://qu.ax/abc.pdf' }] }) }]
+test('PDF marcado: primeiro endereço do PussyBox falha, o segundo devolve o link', async () => {
+  respostas = [{ status: 404, body: '<!DOCTYPE html>\n<title>Error</title>' }, { status: 200, body: JSON.stringify({ file: { url: 'https://pussybox.moe/u/abc.pdf' } }) }]
   const s = sistema(marcando({ documentWithCaptionMessage: { message: { documentMessage: { mimetype: 'application/pdf', fileName: 'boleto', fileLength: { toNumber: () => 2048 } } } } }))
   await plugin.run(s)
-  assert.deepEqual(chamadas.map((c) => c.url), [...PUSSY, RESERVAS[0]])
-  assert.equal(chamadas[2].campo, 'files[]')
-  assert.equal(chamadas[2].nome, 'boleto.pdf')
-  assert.equal(chamadas[2].tipo, 'application/pdf')
+  assert.deepEqual(chamadas.map((c) => c.url), PUSSY)
+  assert.equal(chamadas[1].campo, 'file')
+  assert.equal(chamadas[1].nome, 'boleto.pdf')
+  assert.equal(chamadas[1].tipo, 'application/pdf')
   // Baixou a mensagem marcada, não a mensagem do comando.
-  assert.equal(chamadas[2].conteudo, 'BYTES:documentWithCaptionMessage')
-  assert.match(s.replies.at(-1), /Link: https:\/\/qu\.ax\/abc\.pdf$/)
+  assert.equal(chamadas[1].conteudo, 'BYTES:documentWithCaptionMessage')
+  assert.match(s.replies.at(-1), /Link: https:\/\/pussybox\.moe\/u\/abc\.pdf$/)
 })
 
 test('ZIP marcado sobe direto no PussyBox', async () => {
-  respostas = [{ status: 200, body: JSON.stringify({ file: { url: 'https://pussybox.moe/u/k.zip', originalName: 'pack.zip' } }) }]
+  respostas = [{ status: 200, body: 'https://pussybox.moe/u/k.zip\n' }]
   const s = sistema(marcando({ documentMessage: { mimetype: 'application/zip', fileName: 'pack.zip', fileLength: 10 } }, '/imgpralink'))
   await plugin.run(s)
   assert.equal(chamadas.length, 1)
-  assert.equal(chamadas[0].campo, 'file')
   assert.equal(chamadas[0].nome, 'pack.zip')
   assert.match(s.replies.at(-1), /Link: https:\/\/pussybox\.moe\/u\/k\.zip$/)
 })
 
-test('qu.ax fora: cai no Uguu e avisa que o link vence; Catbox nunca é usado', async () => {
-  respostas = [{ status: 404, body: '' }, { status: 404, body: '' }, { status: 502, body: '' }, { status: 200, body: JSON.stringify({ success: true, files: [{ url: 'https://n.uguu.se/zz.ogg' }] }) }]
+test('só usa o PussyBox, nenhum outro site', async () => {
+  respostas = []
   const s = sistema(marcando({ audioMessage: { mimetype: 'audio/ogg; codecs=opus', ptt: true, fileLength: 9000n } }))
   await plugin.run(s)
-  assert.deepEqual(chamadas.map((c) => c.url), [...PUSSY, RESERVAS[0], RESERVAS[1]])
-  assert.ok(!chamadas.some((c) => /catbox/i.test(c.url)))
-  assert.match(chamadas[3].nome, /\.ogg$/)
-  assert.match(s.replies.at(-1), /n\.uguu\.se\/zz\.ogg\n• ⏳ Esse link vale 3 horas\./)
+  assert.deepEqual(chamadas.map((c) => c.url), PUSSY)
+  assert.match(chamadas[0].nome, /\.ogg$/)
+  assert.match(s.replies.at(-1), /Não consegui subir o arquivo agora/)
 })
 
-test('tmpfiles: troca a página pelo link direto /dl/', async () => {
-  respostas = [{}, {}, {}, {}, { status: 200, body: JSON.stringify({ status: 'success', data: { url: 'http://tmpfiles.org/123/foto.jpg' } }) }]
-  const s = sistema({ imageMessage: { mimetype: 'image/jpeg', caption: '#upload', fileLength: 500 } })
-  await plugin.run(s)
-  assert.equal(chamadas.length, 5)
-  assert.equal(chamadas[0].conteudo, 'BYTES:imageMessage')
-  assert.match(s.replies.at(-1), /Link: https:\/\/tmpfiles\.org\/dl\/123\/foto\.jpg\n• ⏳ Esse link vale 1 hora\./)
-})
-
-test('site que recusou fica de fora no próximo comando', async () => {
-  respostas = [{ status: 404, body: '' }, { status: 404, body: '' }, { status: 200, body: JSON.stringify({ files: [{ url: 'https://qu.ax/1.jpg' }] }) }]
+test('endereço que recusou fica de fora no próximo comando', async () => {
+  respostas = [{ status: 404, body: '' }, { status: 200, body: 'https://pussybox.moe/u/1.jpg' }]
   await plugin.run(sistema({ imageMessage: { mimetype: 'image/jpeg', caption: '#upload' } }))
   chamadas = []
-  respostas = [{ status: 200, body: JSON.stringify({ files: [{ url: 'https://qu.ax/2.jpg' }] }) }]
+  respostas = [{ status: 200, body: 'https://pussybox.moe/u/2.jpg' }]
   const s = sistema({ imageMessage: { mimetype: 'image/jpeg', caption: '#upload' } })
   await plugin.run(s)
-  assert.deepEqual(chamadas.map((c) => c.url), [RESERVAS[0]])
-  assert.match(s.replies.at(-1), /qu\.ax\/2\.jpg/)
+  assert.deepEqual(chamadas.map((c) => c.url), [PUSSY[1]])
+  assert.match(s.replies.at(-1), /pussybox\.moe\/u\/2\.jpg/)
 })
 
-test('todos os sites falham: avisa e, no próximo, tenta todos de novo', async () => {
+test('os dois endereços falham: no próximo comando tenta os dois de novo', async () => {
   respostas = []
-  const s = sistema({ imageMessage: { mimetype: 'image/jpeg', caption: '#upload', fileLength: 500 } })
-  await plugin.run(s)
-  assert.equal(chamadas.length, 5)
-  assert.match(s.replies.at(-1), /Não consegui subir o arquivo agora/)
+  await plugin.run(sistema({ imageMessage: { mimetype: 'image/jpeg', caption: '#upload', fileLength: 500 } }))
   chamadas = []
   await plugin.run(sistema({ imageMessage: { mimetype: 'image/jpeg', caption: '#upload' } }))
-  assert.equal(chamadas.length, 5)
+  assert.deepEqual(chamadas.map((c) => c.url), PUSSY)
 })
 
 test('#upload texto vira um .txt', async () => {
