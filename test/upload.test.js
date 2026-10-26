@@ -1,7 +1,7 @@
 // node test/upload.test.js
 // #upload / #imgpralink: pega o arquivo marcado (ou enviado com o comando),
-// sobe no PussyBox e, se ele falhar, no Catbox e no Litterbox. Aqui o
-// WhatsApp e os sites são falsos: nada sai da máquina.
+// sobe no PussyBox e, se ele falhar, nos sites de reserva. Aqui o WhatsApp e
+// os sites são falsos: nada sai da máquina.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
@@ -10,7 +10,12 @@ import path from 'node:path'
 
 const raiz = path.resolve(import.meta.dirname, '..')
 process.chdir(fs.mkdtempSync(path.join(os.tmpdir(), 'aurora-upload-')))
-const plugin = (await import(path.join(raiz, 'sistema/comandos/download/upload.js'))).default
+const arquivoPlugin = path.join(raiz, 'sistema/comandos/download/upload.js')
+// Cada teste carrega o comando de novo: a pausa dos sites que recusaram
+// fica na memória do módulo.
+let plugin
+let versao = 0
+test.beforeEach(async () => { plugin = (await import(`${arquivoPlugin}?t=${++versao}`)).default })
 const { traduzirTexto } = await import(path.join(raiz, 'sistema/funcoes/traduzir.js'))
 const menus = (await import(path.join(raiz, 'sistema/menus/menus.js'))).default
 
@@ -20,9 +25,9 @@ let chamadas = []
 test.beforeEach(() => {
   chamadas = []
   globalThis.fetch = async (url, opts) => {
-    const arquivo = opts.body.get('fileToUpload')
-    chamadas.push({ url, reqtype: opts.body.get('reqtype'), time: opts.body.get('time'), nome: arquivo?.name, tipo: arquivo?.type, conteudo: await arquivo?.text() })
-    const r = respostas.shift()
+    const [campo, arquivo] = [...opts.body.entries()].find(([, v]) => typeof v === 'object') || []
+    chamadas.push({ url, campo, reqtype: opts.body.get('reqtype'), nome: arquivo?.name, tipo: arquivo?.type, conteudo: await arquivo?.text() })
+    const r = respostas.shift() || { status: 503, body: '' }
     return new Response(r.body, { status: r.status })
   }
 })
@@ -41,49 +46,74 @@ function marcando(quotedMessage, text = '#upload') {
   return { extendedTextMessage: { text, contextInfo: { stanzaId: 'ABC', participant: '1@s.whatsapp.net', quotedMessage } } }
 }
 
-test('PDF marcado: PussyBox falha, Catbox devolve o link', async () => {
-  respostas = [{ status: 404, body: 'not found' }, { status: 200, body: 'https://files.catbox.moe/abc.pdf' }]
+const PUSSY = ['https://pussybox.moe/api/upload', 'https://pussybox.moe/upload']
+const RESERVAS = ['https://qu.ax/upload.php', 'https://catbox.moe/user/api.php', 'https://uguu.se/upload', 'https://tmpfiles.org/api/v1/upload']
+
+test('PDF marcado: PussyBox falha, qu.ax devolve o link', async () => {
+  respostas = [{ status: 404, body: '<!DOCTYPE html>\n<title>Error</title>' }, { status: 404, body: 'x' }, { status: 200, body: JSON.stringify({ success: true, files: [{ name: 'boleto.pdf', url: 'https://qu.ax/abc.pdf' }] }) }]
   const s = sistema(marcando({ documentWithCaptionMessage: { message: { documentMessage: { mimetype: 'application/pdf', fileName: 'boleto', fileLength: { toNumber: () => 2048 } } } } }))
   await plugin.run(s)
-  assert.deepEqual(chamadas.map((c) => c.url), ['https://pussybox.moe/user/api.php', 'https://catbox.moe/user/api.php'])
-  assert.equal(chamadas[1].reqtype, 'fileupload')
-  assert.equal(chamadas[1].nome, 'boleto.pdf')
-  assert.equal(chamadas[1].tipo, 'application/pdf')
+  assert.deepEqual(chamadas.map((c) => c.url), [...PUSSY, RESERVAS[0]])
+  assert.equal(chamadas[2].campo, 'files[]')
+  assert.equal(chamadas[2].nome, 'boleto.pdf')
+  assert.equal(chamadas[2].tipo, 'application/pdf')
   // Baixou a mensagem marcada, não a mensagem do comando.
-  assert.equal(chamadas[1].conteudo, 'BYTES:documentWithCaptionMessage')
-  assert.match(s.replies.at(-1), /Link: https:\/\/files\.catbox\.moe\/abc\.pdf/)
-  assert.doesNotMatch(s.replies.at(-1), /72 horas/)
+  assert.equal(chamadas[2].conteudo, 'BYTES:documentWithCaptionMessage')
+  assert.match(s.replies.at(-1), /Link: https:\/\/qu\.ax\/abc\.pdf$/)
 })
 
 test('ZIP marcado sobe direto no PussyBox', async () => {
-  respostas = [{ status: 200, body: 'https://pussybox.moe/u/k.zip\n' }]
+  respostas = [{ status: 200, body: JSON.stringify({ file: { url: 'https://pussybox.moe/u/k.zip', originalName: 'pack.zip' } }) }]
   const s = sistema(marcando({ documentMessage: { mimetype: 'application/zip', fileName: 'pack.zip', fileLength: 10 } }, '/imgpralink'))
   await plugin.run(s)
   assert.equal(chamadas.length, 1)
+  assert.equal(chamadas[0].campo, 'file')
   assert.equal(chamadas[0].nome, 'pack.zip')
   assert.match(s.replies.at(-1), /Link: https:\/\/pussybox\.moe\/u\/k\.zip$/)
 })
 
-test('áudio marcado cai no Litterbox e avisa que o link vence', async () => {
-  respostas = [{ status: 200, body: '<html>' }, { status: 412, body: 'no' }, { status: 200, body: 'https://litter.catbox.moe/zz.ogg' }]
+test('Catbox recusando: cai no Uguu e avisa que o link vence', async () => {
+  respostas = [{ status: 404, body: '' }, { status: 404, body: '' }, { status: 502, body: '' }, { status: 412, body: 'Invalid uploader' }, { status: 200, body: JSON.stringify({ success: true, files: [{ url: 'https://n.uguu.se/zz.ogg' }] }) }]
   const s = sistema(marcando({ audioMessage: { mimetype: 'audio/ogg; codecs=opus', ptt: true, fileLength: 9000n } }))
   await plugin.run(s)
-  assert.equal(chamadas[2].time, '72h')
-  assert.match(chamadas[2].nome, /\.ogg$/)
-  assert.match(s.replies.at(-1), /litter\.catbox\.moe\/zz\.ogg\n• ⏳ Esse link vale 72 horas\./)
+  assert.equal(chamadas[3].reqtype, 'fileupload')
+  assert.match(chamadas[4].nome, /\.ogg$/)
+  assert.match(s.replies.at(-1), /n\.uguu\.se\/zz\.ogg\n• ⏳ Esse link vale 3 horas\./)
 })
 
-test('foto enviada com o comando na legenda; os três sites falham', async () => {
-  respostas = [{ status: 500, body: 'x' }, { status: 200, body: 'File type not allowed' }, { status: 503, body: '' }]
+test('tmpfiles: troca a página pelo link direto /dl/', async () => {
+  respostas = [{}, {}, {}, {}, {}, { status: 200, body: JSON.stringify({ status: 'success', data: { url: 'http://tmpfiles.org/123/foto.jpg' } }) }]
   const s = sistema({ imageMessage: { mimetype: 'image/jpeg', caption: '#upload', fileLength: 500 } })
   await plugin.run(s)
-  assert.equal(chamadas.length, 3)
+  assert.equal(chamadas.length, 6)
   assert.equal(chamadas[0].conteudo, 'BYTES:imageMessage')
+  assert.match(s.replies.at(-1), /Link: https:\/\/tmpfiles\.org\/dl\/123\/foto\.jpg\n• ⏳ Esse link vale 1 hora\./)
+})
+
+test('site que recusou fica de fora no próximo comando', async () => {
+  respostas = [{ status: 404, body: '' }, { status: 404, body: '' }, { status: 200, body: JSON.stringify({ files: [{ url: 'https://qu.ax/1.jpg' }] }) }]
+  await plugin.run(sistema({ imageMessage: { mimetype: 'image/jpeg', caption: '#upload' } }))
+  chamadas = []
+  respostas = [{ status: 200, body: JSON.stringify({ files: [{ url: 'https://qu.ax/2.jpg' }] }) }]
+  const s = sistema({ imageMessage: { mimetype: 'image/jpeg', caption: '#upload' } })
+  await plugin.run(s)
+  assert.deepEqual(chamadas.map((c) => c.url), [RESERVAS[0]])
+  assert.match(s.replies.at(-1), /qu\.ax\/2\.jpg/)
+})
+
+test('todos os sites falham: avisa e, no próximo, tenta todos de novo', async () => {
+  respostas = []
+  const s = sistema({ imageMessage: { mimetype: 'image/jpeg', caption: '#upload', fileLength: 500 } })
+  await plugin.run(s)
+  assert.equal(chamadas.length, 6)
   assert.match(s.replies.at(-1), /Não consegui subir o arquivo agora/)
+  chamadas = []
+  await plugin.run(sistema({ imageMessage: { mimetype: 'image/jpeg', caption: '#upload' } }))
+  assert.equal(chamadas.length, 6)
 })
 
 test('#upload texto vira um .txt', async () => {
-  respostas = [{ status: 200, body: JSON.stringify({ success: true, files: [{ url: 'https://pussybox.moe/f/a.txt' }] }) }]
+  respostas = [{ status: 200, body: 'https://pussybox.moe/f/a.txt' }]
   const s = sistema({ conversation: '#upload olá mundo' }, 'olá mundo')
   await plugin.run(s)
   assert.equal(chamadas[0].conteudo, 'olá mundo')
