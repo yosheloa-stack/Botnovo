@@ -106,6 +106,7 @@ installMarcaAluguel(client)
 let pairingRequested = false
 let pairingShown = false
 let avisouSemNumero = false
+let semNumero = false
 
 const showPairingCode = (code) => {
 if (!code || pairingShown) return
@@ -137,6 +138,14 @@ pairingRequested = false
 if (!avisouSemNumero) {
 avisouSemNumero = true
 console.error(chalk.redBright('[ ERRO ] O WhatsApp deste bot está desconectado e falta o número dele para gerar o código de conexão. Defina AURORA_CONNECTION_NUMBER (ou connection.number em sistema/dados/config.user.json).'))
+}
+// Sem sessão e sem número não há o que tentar: o Zapo ficaria abrindo o
+// socket a cada ~3 min só para cair ("websocket runtime error"). O bot da
+// casa fica parado (os das clientes seguem) até ter o número.
+if (!modoCliente && !semNumero) {
+semNumero = true
+console.warn('[ AURORA ] Bot principal parado até ter o número; os bots das clientes continuam.')
+client.disconnect?.().catch(() => {})
 }
 return
 }
@@ -208,7 +217,7 @@ connectionOpen = false
 aluguelWorker.stop()
 const reason = String(event?.reason || event?.code || event?.error?.message || '')
 // Desligamento pedido pelo próprio bot (SIGTERM): não reconecta.
-if (reason === 'client_disconnected' && desligando) return
+if (reason === 'client_disconnected' && (desligando || semNumero)) return
 if (reconnectTimer || restartTimer) return
 quedas++
 console.warn('[ AURORA CONEXÃO ] WhatsApp fechou a conexão:', reason || 'sem motivo', MOTIVOS[reason] ? `— ${MOTIVOS[reason]}` : '')
