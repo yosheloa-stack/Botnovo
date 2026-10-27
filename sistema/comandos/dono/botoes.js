@@ -18,6 +18,7 @@ if (sent) return
 return system.reply(`⏤͟͟͞͞𝐁𝐨𝐭𝐨̃𝐞𝐬 𝐝𝐨 𝐀𝐮𝐫𝐨𝐫𝐚! 𖤐⃝🔘\n•\n> *[⚙️]* • *sᴛᴀᴛᴜs:* ${flags.botoes ? 'Ativado ✅' : 'Desativado ❌'}\n>\n> Use *${system.prefix}botoes 1* para ativar.\n> Use *${system.prefix}botoes 0* para desativar.\n•\n> 𓂃 ࣪˖ ִֶָ𐀔 ᴀᴜʀᴏʀᴀ sʏsᴛᴇᴍ 𐀔 ִֶָ˖ ࣪𓂃`)
 }
 
+await setNecessario('botoes_escolhido', true)
 await setNecessario('botoes', Boolean(value))
 system.necessarios = getNecessarios()
 

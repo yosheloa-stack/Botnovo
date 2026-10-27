@@ -13,7 +13,11 @@ numero_dono4: '.',
 numero_dono5: '.',
 numero_dono6: '.',
 botoff: false,
-botoes: true,
+// Botões e listas começam desligados: mensagem interativa de conta comum pode
+// não aparecer para quem recebe. O dono liga com #botoes 1 se no WhatsApp dele
+// aparecer (botoes_escolhido marca que foi ele quem escolheu).
+botoes: false,
+botoes_escolhido: false,
 vipcmd: [],
 blockcmd: {},
 aluguel: false
@@ -46,7 +50,8 @@ numero_dono4: ownerSlot(raw.numero_dono4),
 numero_dono5: ownerSlot(raw.numero_dono5),
 numero_dono6: ownerSlot(raw.numero_dono6),
 botoff: bool(raw.botoff, defaults.botoff),
-botoes: bool(raw.botoes, defaults.botoes),
+botoes: bool(raw.botoes_escolhido, false) ? bool(raw.botoes, defaults.botoes) : false,
+botoes_escolhido: bool(raw.botoes_escolhido, false),
 vipcmd: Array.isArray(raw.vipcmd) ? raw.vipcmd : [],
 blockcmd: raw.blockcmd && typeof raw.blockcmd === 'object' && !Array.isArray(raw.blockcmd) ? raw.blockcmd : {},
 aluguel: bool(raw.aluguel, defaults.aluguel)
