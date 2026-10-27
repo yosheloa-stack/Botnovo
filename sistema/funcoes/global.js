@@ -542,8 +542,14 @@ exports.ffInfo = d => {
 return `- 🎮 \`𝙸𝙽𝙵𝙾 𝙵𝚁𝙴𝙴 𝙵𝙸𝚁𝙴\`\n\n- 👤 Nick: ${d.nick ?? '-'}\n- 🆔 UID: ${d.uid ?? '-'}\n- 🌎 Região: ${d.regiao ?? '-'}\n- 📊 Nível: ${d.nivel ?? '-'}\n- 💚 Likes: ${d.likes ?? '-'}\n- ⭐ Reputação: ${d.reputacao ?? '-'}`
 }
 
-exports.ffLike = (d, uid) => {
-return `- 💚 \`𝙻𝙸𝙺𝙴𝚂 𝙴𝙽𝚅𝙸𝙰𝙳𝙾𝚂\`\n\n- 👤 Jogador: ${d.nick ?? '-'}\n- 🆔 UID: ${d.uid ?? uid}\n- ➕ Enviados: ${d.likes_enviados ?? '-'}\n- 📊 Antes: ${d.likes_antes ?? '-'}\n- 📊 Agora: ${d.likes_depois ?? '-'}`
+// Enviados 0 (o site mediu e nada entrou): o título "LIKES ENVIADOS" fazia o
+// grupo achar que o bot bugou. Mostra que não entrou, o motivo e que não
+// foi descontado.
+exports.ffLike = (d, uid, motivo = '') => {
+const zero = Number(d.likes_enviados) === 0
+const titulo = zero ? '⚠️ \`𝙽𝙴𝙽𝙷𝚄𝙼 𝙻𝙸𝙺𝙴 𝙴𝙽𝚃𝚁𝙾𝚄\`' : '💚 \`𝙻𝙸𝙺𝙴𝚂 𝙴𝙽𝚅𝙸𝙰𝙳𝙾𝚂\`'
+const aviso = zero ? `\n\n- Os likes não entraram desta vez. Nada foi descontado; tente de novo mais tarde.${motivo ? `\n- Motivo: ${motivo}` : ''}` : ''
+return `- ${titulo}\n\n- 👤 Jogador: ${d.nick ?? '-'}\n- 🆔 UID: ${d.uid ?? uid}\n- ➕ Enviados: ${d.likes_enviados ?? '-'}\n- 📊 Antes: ${d.likes_antes ?? '-'}\n- 📊 Agora: ${d.likes_depois ?? '-'}${aviso}`
 }
 
 exports.ffAuto = (d, uid) => {
