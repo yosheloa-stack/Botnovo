@@ -167,7 +167,9 @@ return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 ┃
 ┃╭╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╮
 ┃╎୨୧ 🔣 ${prefix}setprefix !
-┃╎୨୧ 🖼️ ${prefix}fotomenu
+┃╎୨୧ 🖼️ ${prefix}fotomenu (foto/vídeo)
+┃╎୨୧ 🏷️ ${prefix}nomebot nome
+┃╎୨୧ 📸 ${prefix}fotobot (foto)
 ┃╎୨୧ 🔄 ${prefix}reiniciar
 ┃╎୨୧ 📴 ${prefix}botoff
 ┃╎୨୧ 🟢 ${prefix}boton
@@ -176,6 +178,14 @@ return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 ┃╎୨୧ ✅ ${prefix}verificado 1/0
 ┃╎୨୧ 🔘 ${prefix}botoes 1/0
 ┃╎୨୧ 📢 ${prefix}rgchannel link
+┃╰╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╯
+┃
+┣━〔 • 𝑺𝑼𝑩𝑫𝑶𝑵𝑶𝑺 • 🤝 〕
+┃
+┃╭╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╮
+┃╎୨୧ ➕ ${prefix}addsubdono @usuario
+┃╎୨୧ ➖ ${prefix}delsubdono @usuario
+┃╎୨୧ 📋 ${prefix}subdonos
 ┃╰╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╯
 ┃
 ┣━〔 • 𝑼𝑺𝑼𝑨́𝑹𝑰𝑶𝑺 • 👤 〕

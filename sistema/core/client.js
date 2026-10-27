@@ -279,15 +279,15 @@ await enviar(t[0])
 }
 if (modoCliente) setInterval(() => { void conferirValidade() }, 10 * 60_000).unref?.()
 
-// Primeira conexão (ou dona nova): explica no privado dela como configurar.
+// Primeira conexão (ou dona nova): manda no privado dela o passo a passo do
+// menu dono. Já vem no idioma dela, por isso vai sem tradução nem marca.
 async function enviarBoasVindas() {
 const marca = marcaCliente()
 if (!marca?.dono || boasVindasEnviada(marca.dono)) return
 await new Promise(r => setTimeout(r, 4000))
 if (!connectionOpen) return
-const link = String(config?.autoSystem?.url || '').replace(/\/$/, '') + '/aluguel-bot'
 try {
-await client.message.send(await destino(client, marca.dono), { type: 'text', text: textoBoasVindas(marca, config?.prefix, link) }, { semMarca: true })
+await client.message.send(await destino(client, marca.dono), { type: 'text', text: textoBoasVindas(marca, config?.prefix) }, { semMarca: true })
 marcarBoasVindas(marca.dono)
 console.log('[ AURORA CLIENTE ] Boas-vindas enviadas no privado da dona.')
 } catch (err) { console.warn('[ AURORA CLIENTE ] Não consegui mandar as boas-vindas:', err?.message || err) }
