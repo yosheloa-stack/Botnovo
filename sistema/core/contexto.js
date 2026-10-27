@@ -126,7 +126,7 @@ async function cachedGroupMetadata(client, jid) {
 }
 
 
-export async function makeSystem({ client, event, config, registry, necessarios = {} }) {
+export async function makeSystem({ client, event, config, registry, necessarios = liveNecessarios() }) {
 // Re-sincroniza o canal em TODA mensagem. Isso elimina o mesmo tipo de
 // snapshot antigo que já causou o bug do #verificado.
 bindCanalConfig(config)

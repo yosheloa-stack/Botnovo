@@ -476,9 +476,12 @@ export function setIdiomaGrupo(gp, idioma) {
   return v
 }
 
-// Boas-vindas do bot da cliente: guarda pra qual dona já foi mandada.
-export function boasVindasEnviada(dono) { return String(getKv('cliente:boas_vindas', '')) === txt(dono) }
-export function marcarBoasVindas(dono) { setKv('cliente:boas_vindas', txt(dono)) }
+// Boas-vindas do bot da cliente: guarda pra qual dona já foi mandada. A chave
+// tem versão: quando o passo a passo muda, quem já tinha recebido o antigo
+// recebe o novo uma vez.
+const CHAVE_BOAS_VINDAS = 'cliente:boas_vindas:v2'
+export function boasVindasEnviada(dono) { return String(getKv(CHAVE_BOAS_VINDAS, '')) === txt(dono) }
+export function marcarBoasVindas(dono) { setKv(CHAVE_BOAS_VINDAS, txt(dono)) }
 
 // Bot da cliente: o modo aluguel começa LIGADO, pra ninguém usar o bot dela
 // num grupo que ela não registrou (#rgaluguel). Ela pode mudar com #modoaluguel.
