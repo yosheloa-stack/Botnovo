@@ -58,6 +58,31 @@ if (!digits(numero)) return
 try { await fs.writeFile(ARQUIVO_NUMERO, digits(numero) + '\n', 'utf8') } catch {}
 }
 
+// Registro de cada resposta: quando o grupo diz que o bot não respondeu, o
+// log mostra se o WhatsApp aceitou, recusou (ack com erro) ou travou o envio.
+function registrarEnvios(client) {
+const box = client?.message
+if (!box || typeof box.send !== 'function') return
+const original = box.send.bind(box)
+box.send = async (jid, content, options) => {
+const tipo = typeof content === 'string' ? 'text' : String(content?.type || Object.keys(content || {})[0] || '?')
+if (tipo === 'reaction' || tipo === 'revoke' || jid === 'status@broadcast') return original(jid, content, options)
+const inicio = Date.now()
+const lento = setTimeout(() => console.warn('[ AURORA ENVIO ] WhatsApp ainda não confirmou', tipo, 'para', jid, 'depois de 30 s'), 30_000)
+try {
+const r = await original(jid, content, options)
+const erro = r?.ack?.error
+console[erro ? 'warn' : 'log']('[ AURORA ENVIO ]', tipo, 'para', jid, erro ? `RECUSADO pelo WhatsApp (erro ${erro})` : 'ok', 'em', Date.now() - inicio, 'ms', r?.attempts > 1 ? `(${r.attempts} tentativas)` : '')
+return r
+} catch (err) {
+console.error('[ AURORA ENVIO ] Falhou', tipo, 'para', jid, 'depois de', Date.now() - inicio, 'ms:', err?.message || err)
+throw err
+} finally {
+clearTimeout(lento)
+}
+}
+}
+
 export async function startAurora() {
 const config = await loadConfig()
 const flags = await loadNecessarios()
@@ -102,10 +127,12 @@ nodeQueryTimeoutMs: 30_000
 installCanalGlobal(client, config)
 // Grupo alugado: troca nome, criador e site da casa pela marca do cliente.
 installMarcaAluguel(client)
+registrarEnvios(client)
 
 let pairingRequested = false
 let pairingShown = false
 let avisouSemNumero = false
+let semNumero = false
 
 const showPairingCode = (code) => {
 if (!code || pairingShown) return
@@ -137,6 +164,16 @@ pairingRequested = false
 if (!avisouSemNumero) {
 avisouSemNumero = true
 console.error(chalk.redBright('[ ERRO ] O WhatsApp deste bot está desconectado e falta o número dele para gerar o código de conexão. Defina AURORA_CONNECTION_NUMBER (ou connection.number em sistema/dados/config.user.json).'))
+}
+// Sem sessão e sem número não há o que tentar: o Zapo ficaria abrindo o
+// socket a cada ~3 min só para cair ("websocket runtime error"). O bot da
+// casa fica parado (os das clientes seguem) até ter o número.
+if (!modoCliente && !semNumero) {
+semNumero = true
+console.warn('[ AURORA ] Bot principal parado até ter o número; os bots das clientes continuam.')
+// Espera o connect() inicial terminar (prazo de 15 s): desconectar no meio
+// dele faria o index.js reiniciar o bot em loop.
+setTimeout(() => { client.disconnect?.().catch(() => {}) }, 20_000).unref?.()
 }
 return
 }
@@ -208,7 +245,7 @@ connectionOpen = false
 aluguelWorker.stop()
 const reason = String(event?.reason || event?.code || event?.error?.message || '')
 // Desligamento pedido pelo próprio bot (SIGTERM): não reconecta.
-if (reason === 'client_disconnected' && desligando) return
+if (reason === 'client_disconnected' && (desligando || semNumero)) return
 if (reconnectTimer || restartTimer) return
 quedas++
 console.warn('[ AURORA CONEXÃO ] WhatsApp fechou a conexão:', reason || 'sem motivo', MOTIVOS[reason] ? `— ${MOTIVOS[reason]}` : '')
