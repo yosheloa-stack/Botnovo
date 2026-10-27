@@ -64,6 +64,12 @@ test('respostas de comando e da API do site', () => {
   assert.equal(traduzirTexto(msgs.playUsage('/'), 'en'), '⏤͟͟͞͞𝐇𝐨𝐰 𝐭𝐨 𝐮𝐬𝐞 𝐏𝐥𝐚𝐲! 𖤐⃝🎧\n•\n> *[🎵]* • Use: */play song name*')
   const like = traduzirTexto(msgs.ffLike({ nick: 'Neo', likes_enviados: 100, likes_antes: 1, likes_depois: 101 }, '123'), 'en')
   assert.ok(like.includes('Player: Neo') && like.includes('Sent: 100') && like.includes('Now: 101'), like)
+  assert.ok(!like.includes('𝙽𝙴𝙽𝙷𝚄𝙼') && !like.includes('Nothing was charged'), like)
+  const zero = msgs.ffLike({ nick: 'Neo', likes_enviados: 0, likes_antes: 8063, likes_depois: 8063 }, '123', 'conta sem likes hoje')
+  assert.ok(zero.includes('𝙽𝙴𝙽𝙷𝚄𝙼 𝙻𝙸𝙺𝙴 𝙴𝙽𝚃𝚁𝙾𝚄') && !zero.includes('𝙻𝙸𝙺𝙴𝚂 𝙴𝙽𝚅𝙸𝙰𝙳𝙾𝚂'), zero)
+  assert.ok(zero.includes('Nada foi descontado') && zero.includes('Motivo: conta sem likes hoje'), zero)
+  const zeroEn = traduzirTexto(msgs.ffLike({ likes_enviados: 0 }, '123'), 'en')
+  assert.ok(zeroEn.includes("The likes didn't go in this time. Nothing was charged") && !zeroEn.includes('Reason:'), zeroEn)
 })
 
 test('link, menção e tag #nome# ficam intactos', () => {

@@ -794,6 +794,8 @@ export const FRASES = [
 
   // ===== Free Fire e respostas da API do site =====
   ['Não foi possível consultar o jogador.', 'No fue posible consultar al jugador.', "Couldn't look up the player."],
+  ['Os likes não entraram desta vez. Nada foi descontado; tente de novo mais tarde.', 'Los likes no entraron esta vez. No se descontó nada; inténtalo de nuevo más tarde.', "The likes didn't go in this time. Nothing was charged; try again later."],
+  ['Motivo:', 'Motivo:', 'Reason:'],
   ['Não foi possível enviar os likes.', 'No fue posible enviar los likes.', "Couldn't send the likes."],
   ['Não foi possível ativar o autolike.', 'No fue posible activar el autolike.', "Couldn't turn on autolike."],
   ['Não foi possível listar os autolikes.', 'No fue posible listar los autolikes.', "Couldn't list the autolikes."],
