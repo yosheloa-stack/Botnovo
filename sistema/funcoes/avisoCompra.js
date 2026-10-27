@@ -7,6 +7,9 @@
 // fila do site e é tentado de novo na próxima volta.
 
 const clean = (value = '') => String(value ?? '').trim()
+const digits = (value = '') => String(value ?? '').replace(/\D/g, '')
+// Mesmo número com ou sem o nono dígito do Brasil.
+const semNono = (n) => digits(n).replace(/^55(\d{2})9(\d{8})$/, '55$1$2')
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 // Números do Brasil podem estar no WhatsApp com ou sem o nono dígito; a
@@ -34,11 +37,15 @@ export async function destino(client, numero) {
 
 export function createAvisoCompra({ client, config, api }) {
   let pausaAte = 0, ultimoErro = ''
+  let avisouOutro = false
+  const meuNumero = () => digits(String(client.getCredentials?.()?.meJid || '').split(/[:@]/)[0]) || digits(config?.connection?.number)
   return async function avisosDeCompra() {
     if (Date.now() < pausaAte) return
     let data
     try {
-      data = await api(config, '/api/bot/avisos-compra/pendentes')
+      // Só o bot da casa no número fixo manda os avisos: o site confere este
+      // número e não entrega a fila para outro.
+      data = await api(config, '/api/bot/avisos-compra/pendentes?bot=' + encodeURIComponent(meuNumero()))
     } catch (err) {
       const message = clean(err?.message || err)
       // Site ainda sem esta porta (404) ou token recusado: espera um pouco
@@ -49,6 +56,13 @@ export function createAvisoCompra({ client, config, api }) {
       return
     }
     ultimoErro = ''
+    const remetente = digits(data?.remetente)
+    if (remetente && semNono(remetente) !== semNono(meuNumero())) {
+      if (!avisouOutro) console.warn('[ AURORA AVISO DE COMPRA ] Os avisos de venda saem só do número', remetente, '— este bot está no', meuNumero() || 'número desconhecido')
+      avisouOutro = true
+      return
+    }
+    avisouOutro = false
     const numero = clean(data?.numero).replace(/\D/g, '')
     const avisos = Array.isArray(data?.avisos) ? data.avisos : []
     if (!numero || !avisos.length) return

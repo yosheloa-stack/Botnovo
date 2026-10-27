@@ -15,6 +15,7 @@ const merge = (base, extra) => {
 }
 
 const clean = (value = '') => String(value ?? '').replace(/[\r\n]+/g, ' ').trim()
+export const NUMERO_BOT_DA_CASA = '5567981517686'
 
 function normalizeChannelLink(value = '') {
 const raw = clean(value)
@@ -93,6 +94,10 @@ config.connection = { ...(config.connection || {}) }
 config.autoSystem = { ...(config.autoSystem || {}) }
 if (process.env.AURORA_OWNER_NUMBER) config.owner.number = clean(process.env.AURORA_OWNER_NUMBER)
 if (process.env.AURORA_CONNECTION_NUMBER) config.connection.number = clean(process.env.AURORA_CONNECTION_NUMBER)
+// O BOT DA CASA TEM NÚMERO FIXO (pedido do dono, 27/10): é ele que manda os
+// avisos de venda do site. Os bots das clientes (AURORA_CLIENTE=1) usam o
+// número de cada uma e não passam por aqui.
+if (process.env.AURORA_CLIENTE !== '1') config.connection.number = NUMERO_BOT_DA_CASA
 if (process.env.AUTOSYSTEM_URL || process.env.KASANE_URL) {
 config.autoSystem.url = clean(process.env.AUTOSYSTEM_URL || process.env.KASANE_URL)
 }
