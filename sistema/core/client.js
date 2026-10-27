@@ -58,6 +58,31 @@ if (!digits(numero)) return
 try { await fs.writeFile(ARQUIVO_NUMERO, digits(numero) + '\n', 'utf8') } catch {}
 }
 
+// Registro de cada resposta: quando o grupo diz que o bot não respondeu, o
+// log mostra se o WhatsApp aceitou, recusou (ack com erro) ou travou o envio.
+function registrarEnvios(client) {
+const box = client?.message
+if (!box || typeof box.send !== 'function') return
+const original = box.send.bind(box)
+box.send = async (jid, content, options) => {
+const tipo = typeof content === 'string' ? 'text' : String(content?.type || Object.keys(content || {})[0] || '?')
+if (tipo === 'reaction' || tipo === 'revoke' || jid === 'status@broadcast') return original(jid, content, options)
+const inicio = Date.now()
+const lento = setTimeout(() => console.warn('[ AURORA ENVIO ] WhatsApp ainda não confirmou', tipo, 'para', jid, 'depois de 30 s'), 30_000)
+try {
+const r = await original(jid, content, options)
+const erro = r?.ack?.error
+console[erro ? 'warn' : 'log']('[ AURORA ENVIO ]', tipo, 'para', jid, erro ? `RECUSADO pelo WhatsApp (erro ${erro})` : 'ok', 'em', Date.now() - inicio, 'ms', r?.attempts > 1 ? `(${r.attempts} tentativas)` : '')
+return r
+} catch (err) {
+console.error('[ AURORA ENVIO ] Falhou', tipo, 'para', jid, 'depois de', Date.now() - inicio, 'ms:', err?.message || err)
+throw err
+} finally {
+clearTimeout(lento)
+}
+}
+}
+
 export async function startAurora() {
 const config = await loadConfig()
 const flags = await loadNecessarios()
@@ -102,6 +127,7 @@ nodeQueryTimeoutMs: 30_000
 installCanalGlobal(client, config)
 // Grupo alugado: troca nome, criador e site da casa pela marca do cliente.
 installMarcaAluguel(client)
+registrarEnvios(client)
 
 let pairingRequested = false
 let pairingShown = false
