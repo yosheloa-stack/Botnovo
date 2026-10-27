@@ -145,7 +145,9 @@ console.error(chalk.redBright('[ ERRO ] O WhatsApp deste bot está desconectado 
 if (!modoCliente && !semNumero) {
 semNumero = true
 console.warn('[ AURORA ] Bot principal parado até ter o número; os bots das clientes continuam.')
-client.disconnect?.().catch(() => {})
+// Espera o connect() inicial terminar (prazo de 15 s): desconectar no meio
+// dele faria o index.js reiniciar o bot em loop.
+setTimeout(() => { client.disconnect?.().catch(() => {}) }, 20_000).unref?.()
 }
 return
 }
