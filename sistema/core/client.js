@@ -46,6 +46,18 @@ child: (bindings, options) => semEnxurrada(base.child(bindings, options), vistos
 const sessionId = 'aurora'
 const digits = (value = '') => String(value).replace(/\D/g, '')
 
+// Número do WhatsApp deste bot, guardado junto da sessão a cada conexão. Se a
+// sessão cair e o config não tiver connection.number (o config.json do Git só
+// tem o modelo), o código de pareamento sai com este número.
+const ARQUIVO_NUMERO = 'sistema/dados/sessao/numero-conectado.txt'
+async function numeroSalvo() {
+try { return digits(await fs.readFile(ARQUIVO_NUMERO, 'utf8')) } catch { return '' }
+}
+async function salvarNumero(numero) {
+if (!digits(numero)) return
+try { await fs.writeFile(ARQUIVO_NUMERO, digits(numero) + '\n', 'utf8') } catch {}
+}
+
 export async function startAurora() {
 const config = await loadConfig()
 const flags = await loadNecessarios()
@@ -93,6 +105,7 @@ installMarcaAluguel(client)
 
 let pairingRequested = false
 let pairingShown = false
+let avisouSemNumero = false
 
 const showPairingCode = (code) => {
 if (!code || pairingShown) return
@@ -116,9 +129,15 @@ const requestCode = async () => {
 if (pairingRequested) return
 pairingRequested = true
 const number = digits(config.connection?.number)
+|| digits(String(client.getCredentials?.()?.meJid || '').split(/[:@]/)[0])
+|| await numeroSalvo()
 if (!number) {
 pairingRequested = false
-console.error(chalk.redBright('[ ERRO ] Configure connection.number no config.json.'))
+// Uma vez só: o Zapo pede o código de novo a cada tentativa de conexão.
+if (!avisouSemNumero) {
+avisouSemNumero = true
+console.error(chalk.redBright('[ ERRO ] O WhatsApp deste bot está desconectado e falta o número dele para gerar o código de conexão. Defina AURORA_CONNECTION_NUMBER (ou connection.number em sistema/dados/config.user.json).'))
+}
 return
 }
 try {
@@ -167,8 +186,9 @@ console.log('[ AURORA CONEXÃO ] WhatsApp conectado', new Date().toISOString(), 
 connectionOpen = true
 quedas = 0
 limparTimers()
-if (modoCliente) {
 const eu = String(client.getCredentials?.()?.meJid || '').split(/[:@]/)[0]
+void salvarNumero(eu)
+if (modoCliente) {
 avisarGerente({ tipo: 'conectado', numero: eu })
 void enviarBoasVindas()
 }
