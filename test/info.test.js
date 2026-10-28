@@ -15,10 +15,21 @@ test('o /info sai sem traço nenhum e sem campo vazio', () => {
   assert.doesNotMatch(global.ffInfo({ nick: 'X' }), /UID|Likes|-/)
 })
 
+test('o /info é completo: conta, rank, perfil, pet, guilda e líder', () => {
+  const t = global.ffInfo({ ...perfil, rank: { br: 'Prata III', br_pontos: 1570, cs: '301', cs_pontos: 89 },
+    pet: { nome: 'VITIN', nivel: 6 }, clan: { nome: 'FLUXO W7M', membros: 24, capacidade: 55 },
+    capitao: { nick: 'LiderX', uid: '552274275' }, emblemas: 12 })
+  for (const parte of ['CONTA', 'RANK', 'PERFIL', 'PET', 'GUILDA', 'LÍDER DA GUILDA', 'VITIN', '24/55', 'LiderX', '1.570 pts', 'Emblemas'])
+    assert.match(t, new RegExp(parte))
+  assert.doesNotMatch(t, /Rank CS:\* 301/, 'o código cru do rank apareceu')
+  assert.doesNotMatch(global.ffInfo({ nick: 'X' }), /PET|GUILDA|RANK/, 'bloco vazio apareceu')
+  assert.match(traduzir(t, 'es'), /MASCOTA[\s\S]*GREMIO[\s\S]*LÍDER DEL GREMIO/)
+})
+
 test('a legenda do cartão sai no idioma do grupo, e a imagem passa intacta', () => {
   const imagem = new Uint8Array([1, 2, 3])
   const msg = traduzir({ type: 'image', media: imagem, mimetype: 'image/png', caption: global.ffInfo(perfil) }, 'es')
   assert.equal(msg.media, imagem)
   assert.match(msg.caption, /Región:/)
-  assert.match(msg.caption, /Gremio:/)
+  assert.match(msg.caption, /GREMIO/)
 })
