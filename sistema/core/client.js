@@ -209,6 +209,21 @@ if (reconnectTimer) clearTimeout(reconnectTimer)
 if (restartTimer) clearTimeout(restartTimer)
 reconnectTimer = restartTimer = null
 }
+// AVISOS DE VENDA: quem busca a fila no site é o launcher; ele pede pelo canal
+// interno (IPC) que o bot conectado no número fixo mande cada aviso. Vale pro
+// bot da casa e pro bot de cliente (o dono pode ter alugado um pro número fixo).
+const avisarLauncher = (msg) => { if (typeof process.send === 'function') try { process.send(msg) } catch {} }
+if (typeof process.send === 'function') {
+process.on('message', async (msg) => {
+if (msg?.tipo !== 'aviso_venda') return
+const responder = (r) => avisarLauncher({ tipo: 'aviso_venda_ok', id: msg.id, ...r })
+if (!connectionOpen) return responder({ ok: false, erro: 'WhatsApp desconectado' })
+try {
+await client.message.send(await destino(client, String(msg.para || '').replace(/\D/g, '')), { type: 'text', text: String(msg.texto || '') }, { semMarca: true })
+responder({ ok: true })
+} catch (err) { responder({ ok: false, erro: String(err?.message || err) }) }
+})
+}
 const MOTIVOS = {
 stream_error_replaced: 'outra conexão abriu com esta mesma sessão (o bot está rodando em dois lugares?)',
 failure_banned: 'o WhatsApp bloqueou este número',
@@ -228,7 +243,7 @@ void salvarNumero(eu)
 if (modoCliente) {
 avisarGerente({ tipo: 'conectado', numero: eu })
 void enviarBoasVindas()
-}
+} else avisarLauncher({ tipo: 'conectado', numero: eu })
 showConnected()
 aluguelWorker.start()
 return
@@ -236,6 +251,7 @@ return
 if (event?.isLogout) {
 console.error('[ AURORA ] WhatsApp encerrou a sessão (logout). Verifique o pareamento.')
 avisarGerente({ tipo: 'desconectado' })
+if (!modoCliente) avisarLauncher({ tipo: 'desconectado' })
 aluguelWorker.stop()
 setTimeout(() => process.exit(0), 500)
 return

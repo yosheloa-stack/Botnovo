@@ -119,13 +119,14 @@ export function criarGerente({
     filho.on('message', (msg) => {
       const tipo = msg?.tipo
       if (tipo === 'codigo') void contar(c.pedido, { codigo: limpo(msg.codigo).slice(0, 16) })
-      else if (tipo === 'conectado') { estado.conectado = true; estado.falhas = 0; void contar(c.pedido, { ok: true, numero: limpo(msg.numero) }) }
-      else if (tipo === 'desconectado') { estado.motivo = 'desconectado'; void contar(c.pedido, { ok: false, erro: 'desconectado' }) }
+      else if (tipo === 'conectado') { estado.conectado = true; estado.numero = limpo(msg.numero).replace(/\D/g, ''); estado.falhas = 0; void contar(c.pedido, { ok: true, numero: limpo(msg.numero) }) }
+      else if (tipo === 'desconectado') { estado.conectado = false; estado.motivo = 'desconectado'; void contar(c.pedido, { ok: false, erro: 'desconectado' }) }
       else if (tipo === 'codigo_expirou') { estado.motivo = 'codigo_expirou'; void contar(c.pedido, { ok: false, erro: 'codigo_expirou' }) }
       else if (tipo === 'vencido') estado.motivo = 'vencido'
     })
     filho.on('exit', (code) => {
       estado.filho = null
+      estado.conectado = false
       if (estado.parando || parado) return
       if (code === 0) {
         // Saída limpa: desconectado pelo celular, código não usado ou aluguel
@@ -226,6 +227,10 @@ export function criarGerente({
   return {
     bots,
     sincronizar,
+    // Bots de cliente conectados agora, com o número de cada um (os avisos de
+    // venda saem pelo que estiver no número fixo da casa, ver avisosVenda.js).
+    canais: () => [...bots.values()].filter((e) => e.conectado && e.filho?.connected)
+      .map((e) => ({ numero: e.numero || limpo(e.conf.bot_numero), filho: e.filho })),
     iniciar() {
       if (timer) return
       void sincronizar()

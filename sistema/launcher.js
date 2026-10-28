@@ -11,12 +11,15 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 let child = null
 let stopping = false
 let gerente = null
+// Bot da casa conectado ({ numero, filho }): ele avisa pelo canal interno.
+let casa = null
 for (const signal of ['SIGTERM', 'SIGINT']) {
 process.once(signal, () => {
 // Repassa a parada ao bot: sem isso o processo do bot podia ficar vivo
 // sozinho e brigar pela mesma sessão do WhatsApp com o próximo.
 stopping = true
 gerente?.parar()
+gerente?.avisos?.parar()
 if (child && child.exitCode === null) child.kill(signal)
 else process.exit(0)
 })
@@ -24,16 +27,25 @@ else process.exit(0)
 
 async function boot() {
 // Bots das clientes (cada uma no número dela) rodam ao lado do bot da casa.
-try { gerente = await iniciarGerenteClientes() } catch (err) {
+try { gerente = await iniciarGerenteClientes({ canalDaCasa: () => casa }) } catch (err) {
 console.error('[ AURORA CLIENTES ] Gerente não ligou:', err?.message || err)
 }
 let failures = 0
 while (true) {
 const started = Date.now()
+// Com o gerente ligado, os avisos de venda saem daqui (avisosVenda.js) e o
+// bot da casa só manda quando pedem pelo canal interno.
 child = spawn(process.execPath, ['index.js'], {
-stdio: 'inherit',
-env: process.env
+stdio: gerente ? ['inherit', 'inherit', 'inherit', 'ipc'] : 'inherit',
+env: gerente ? { ...process.env, AURORA_AVISOS_PELO_LAUNCHER: '1' } : process.env
 })
+const filho = child
+casa = null
+filho.on?.('message', (msg) => {
+if (msg?.tipo === 'conectado' && msg.numero) casa = { numero: String(msg.numero).replace(/\D/g, ''), filho }
+else if (msg?.tipo === 'desconectado' && casa?.filho === filho) casa = null
+})
+filho.once?.('exit', () => { if (casa?.filho === filho) casa = null })
 
 const code = await new Promise((resolve) => child.once('exit', (exitCode, signal) => resolve(exitCode ?? (signal ? 1 : 0))))
 if (stopping) process.exit(0)
