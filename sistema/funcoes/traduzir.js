@@ -9,7 +9,7 @@
 // Não traduz: nome de comando (o que vem colado no prefixo), link, menção,
 // tag #nome#. Português passa direto, sem custo.
 
-import { letraComum, naFonte } from './fontes.js'
+import { letraComum, naFonte, textoComum } from './fontes.js'
 import { FRASES, ARGUMENTOS } from './traducoes.js'
 
 const POSICAO = { es: 1, en: 2 }
@@ -218,4 +218,40 @@ export function traduzir(valor, idioma, nivel = 0) {
     } else out[k] = traduzir(v, idioma, nivel + 1)
   }
   return out
+}
+
+// PALAVRAS QUE SÓ EXISTEM EM PORTUGUÊS: o que sobrou delas num texto já
+// traduzido é frase que o dicionário ainda não conhece. Serve pros testes e
+// pro erro da API: em vez de mandar português pro grupo em espanhol/inglês,
+// vai a mensagem padrão do comando.
+const SO_PORTUGUES = new Set(('não nao você voce vocês isso isto esse essa esses essas já só agora ainda muito muita muitos muitas então até também pelo pela pelos pelas ' +
+  'foi foram ou um uma uns umas com sem da das na nas em ao aos à às nenhum nenhuma tente espere aguarde mande envie confira consegui conseguiu ' +
+  'deve precisa tem têm ele ela eles elas dele dela mais depois aqui onde seu sua seus suas meu minha vc obrigado obrigada desta deste nesta neste ' +
+  'usuário mensagem mensagens figurinha figurinhas vídeo áudio música imagem dono membro membros saída ligação nível região versão').split(' '))
+// Estas existem em espanhol, mas não em inglês.
+const SO_PORTUGUES_EN = new Set('de que os para por como mas está este esta todos todo dia dias hora horas grupo grupos comando comandos foto nome texto lista sim e é o usuario título entrada'.split(' '))
+// E estas existem em inglês, mas não em espanhol.
+const SO_PORTUGUES_ES = new Set(['do'])
+export function restoPortugues(texto, idioma) {
+  if (!POSICAO[idioma] || typeof texto !== 'string') return []
+  const limpo = textoComum(texto)
+    .replace(LINK, ' ')
+    .replace(/#[\p{L}\d_]+#/gu, ' ')
+    .replace(/(^|[\s*_(「])[#/!.$%&+=?][a-z][\w]*/gimu, ' ')
+  const palavras = limpo.toLowerCase().match(/\p{L}+/gu) || []
+  const achadas = palavras.filter((w) => SO_PORTUGUES.has(w) || /[ãõçêô]/.test(w) || (idioma === 'en' ? SO_PORTUGUES_EN : SO_PORTUGUES_ES).has(w))
+  // "o" e "e" sozinhos não provam nada (nome, sigla): só contam junto
+  // com outra palavra portuguesa.
+  const fortes = achadas.filter((w) => w.length > 1 || !['o', 'e'].includes(w))
+  return fortes.length ? [...new Set(achadas)] : []
+}
+
+// ERRO DA API NO IDIOMA DO GRUPO. O site responde em português e o
+// dicionário traduz as frases que conhece. Frase que ele não conhece (texto
+// novo do site, erro de rede) não vai em português pro grupo em espanhol ou
+// inglês: vai a mensagem padrão do comando, que já tem tradução.
+export function erroNoIdioma(erro, padrao, idioma) {
+  const e = String(erro || '').trim()
+  if (!e || !POSICAO[idioma]) return e || padrao
+  return restoPortugues(traduzirTexto(e, idioma), idioma).length ? padrao : e
 }

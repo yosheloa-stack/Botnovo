@@ -1,5 +1,7 @@
 import { db, ensureGroupState, groupState, saveGroupState, saveState, userProfile, getDonoAluguel, aluguelOk } from '../funcoes/banco.js'
 import { erroParaCliente } from '../funcoes/marca.js'
+import { idiomaDoDestino } from '../funcoes/marcaAluguel.js'
+import { erroNoIdioma } from '../funcoes/traduzir.js'
 import { modoCliente } from '../funcoes/cliente.js'
 import {
 digits,
@@ -324,7 +326,10 @@ system.reply = (content, options = {}) => sendVisible(content, from, options)
 // No bot da cliente (modo cliente) vale sempre: a key da API é da casa.
 system.noAluguel = Boolean(modoCliente || (isGroup && !system.isOwner && aluguelOk(from)))
 // Erro da API: no grupo alugado não pode citar site nem hospedagem.
-system.erroApi = (erro, padrao) => modoCliente || (isGroup && aluguelOk(from)) ? erroParaCliente(erro, padrao) : (erro || padrao)
+system.erroApi = (erro, padrao) => {
+const e = modoCliente || (isGroup && aluguelOk(from)) ? erroParaCliente(erro, padrao) : (erro || padrao)
+return erroNoIdioma(e, padrao, idiomaDoDestino(from))
+}
 system.send = (content, jid = from, options = {}) => sendVisible(content, jid, options)
 system.revoke = () => client.message.send(from, { type: 'revoke', target: event })
 
