@@ -266,7 +266,8 @@ export function createAluguelWorker({ client, config }) {
     running = true
     // Vem antes do aluguel e com erro próprio: uma falha nos grupos não pode
     // atrasar o aviso de uma venda.
-    try { await avisosDeCompra() } catch (err) {
+    // AURORA_AVISOS_PELO_LAUNCHER: quem busca é o launcher (avisosVenda.js).
+    if (process.env.AURORA_AVISOS_PELO_LAUNCHER !== '1') try { await avisosDeCompra() } catch (err) {
       console.error('[ AURORA AVISO DE COMPRA ] Erro:', err?.message || err)
     }
     try {

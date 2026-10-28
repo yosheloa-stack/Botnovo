@@ -35,16 +35,20 @@ export async function destino(client, numero) {
   return `${numero}@s.whatsapp.net`
 }
 
-export function createAvisoCompra({ client, config, api }) {
+// `meuNumero` e `enviar` mudam conforme quem manda: o bot da casa usa o
+// próprio WhatsApp; o launcher (avisosVenda.js) usa o bot de cliente que
+// estiver conectado no número fixo. `enviar(numero, texto)` manda um aviso.
+export function createAvisoCompra({ client, config, api, meuNumero, enviar, aoSaberRemetente }) {
   let pausaAte = 0, ultimoErro = ''
   let avisouOutro = false
-  const meuNumero = () => digits(String(client.getCredentials?.()?.meJid || '').split(/[:@]/)[0]) || digits(config?.connection?.number)
+  meuNumero = meuNumero || (() => digits(String(client.getCredentials?.()?.meJid || '').split(/[:@]/)[0]) || digits(config?.connection?.number))
+  enviar = enviar || (async (numero, texto) => client.message.send(await destino(client, numero), { type: 'text', text: texto }))
   return async function avisosDeCompra() {
     if (Date.now() < pausaAte) return
     let data
     try {
-      // Só o bot da casa no número fixo manda os avisos: o site confere este
-      // número e não entrega a fila para outro.
+      // Só o bot no número fixo manda os avisos: o site confere este número e
+      // não entrega a fila para outro.
       data = await api(config, '/api/bot/avisos-compra/pendentes?bot=' + encodeURIComponent(meuNumero()))
     } catch (err) {
       const message = clean(err?.message || err)
@@ -57,6 +61,7 @@ export function createAvisoCompra({ client, config, api }) {
     }
     ultimoErro = ''
     const remetente = digits(data?.remetente)
+    if (remetente) aoSaberRemetente?.(remetente)
     if (remetente && semNono(remetente) !== semNono(meuNumero())) {
       if (!avisouOutro) console.warn('[ AURORA AVISO DE COMPRA ] Os avisos de venda saem só do número', remetente, '— este bot está no', meuNumero() || 'número desconhecido')
       avisouOutro = true
@@ -66,13 +71,12 @@ export function createAvisoCompra({ client, config, api }) {
     const numero = clean(data?.numero).replace(/\D/g, '')
     const avisos = Array.isArray(data?.avisos) ? data.avisos : []
     if (!numero || !avisos.length) return
-    const jid = await destino(client, numero)
     const entregues = []
     for (const aviso of avisos) {
       const id = clean(aviso?.id), texto = clean(aviso?.texto)
       if (!id || !texto) continue
       try {
-        await client.message.send(jid, { type: 'text', text: texto })
+        await enviar(numero, texto)
         entregues.push(id)
         console.log('[ AURORA AVISO DE COMPRA ] Enviado:', id)
       } catch (err) {
@@ -91,3 +95,4 @@ export function createAvisoCompra({ client, config, api }) {
     }
   }
 }
+export { semNono }
