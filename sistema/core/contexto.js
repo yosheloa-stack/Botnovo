@@ -132,7 +132,11 @@ export async function makeSystem({ client, event, config, registry, necessarios 
 bindCanalConfig(config)
 const from = [event?.key?.remoteJid, event?.key?.remoteJidAlt].find(isGroupJid) || event?.key?.remoteJid || event?.key?.remoteJidAlt || ''
 const sender = event?.key?.participant || event?.key?.participantAlt || event?.participant || event?.participantAlt || from
-const senderAlt = event?.key?.participantAlt || event?.participantAlt || event?.key?.participant || ''
+// No privado não tem participant: quem mandou é a própria conversa. Quando ela
+// vem pelo @lid (id interno, não é o telefone), o número fica no remoteJidAlt.
+// Sem ele, a dona do bot aparecia como membro no menu.
+const pvAlt = isGroupJid(from) ? '' : [event?.key?.remoteJidAlt, event?.key?.remoteJid].find((jid) => jid && jid !== from) || ''
+const senderAlt = event?.key?.participantAlt || event?.participantAlt || event?.key?.participant || pvAlt
 const text = extractText(event?.message)
 const prefix = String(config.prefix || '!')
 // Aceita o prefixo escolhido pelo dono e o padrão / usado pelos clientes.
