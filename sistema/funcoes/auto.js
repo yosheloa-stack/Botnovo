@@ -40,8 +40,25 @@ if (!response.ok && !data?.erro) data.erro = `HTTP ${response.status}`
 return data
 }
 
+// O CARTÃO DO JOGADOR (/v1/banner): a imagem em bytes, ou null. Falhar aqui
+// nunca derruba o /info — sem imagem, ele vai só em texto.
+async function banner(config, uid) {
+try {
+const url = new URL(`${base(config)}/v1/banner`)
+url.searchParams.set('uid', String(uid))
+const response = await pedirAoSite(url, { headers: { 'X-Api-Key': key(config), Accept: 'image/png' }, timeoutMs: 40_000 })
+if (!response.ok || !/^image\//.test(response.headers?.get?.('content-type') || '')) return null
+const bytes = new Uint8Array(await response.arrayBuffer())
+return bytes.length ? bytes : null
+} catch (err) {
+console.warn('[ AURORA API ] /v1/banner não veio:', motivoDaFalha(err))
+return null
+}
+}
+
 export const autoSystem = {
 info: (config, uid) => request(config, '/v1/info', { uid }),
+banner,
 like: (config, uid, qtd) => request(config, '/v1/like', { uid, qtd }),
 add: (config, uid, options = {}) => request(config, '/v1/autolike/add', { uid, ...options }),
 list: (config) => request(config, '/v1/autolike/list'),

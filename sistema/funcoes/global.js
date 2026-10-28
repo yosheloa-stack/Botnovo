@@ -499,7 +499,7 @@ return `⏤͟͟͞͞𝐕𝐢́𝐝𝐞𝐨 𝐝𝐨 𝐓𝐢𝐤𝐓𝐨𝐤 𝐞
 }
 
 exports.ffInfoUsage = p => {
-return `- 🎮 Use: *${p}info uid*`
+return `🎮 Use: *${p}info uid*`
 }
 
 exports.ffLikeUsage = p => {
@@ -538,8 +538,51 @@ exports.apiError = text => {
 return `- ❌ ${text || 'Não foi possível concluir a solicitação.'}`
 }
 
+// O /info: sem traço nenhum (nem "- " no começo, nem "-" no lugar do que
+// falta). Campo que a API não mandou simplesmente não aparece. Vai como
+// legenda do cartão do jogador (/v1/banner do site). Mesmo desenho do bot do
+// Telegram (Bot-aluguel-tg, src/mensagens.js).
+const infoVazio = v => v == null || v === '' || v === '-' || v === '—'
+const infoNumero = v => {
+const n = Number(String(v).replace(/[^\d]/g, ''))
+return /^\s*[\d.,]+\s*$/.test(String(v)) && Number.isFinite(n) ? n.toLocaleString('pt-BR') : String(v)
+}
+// Data que chega como segundos desde 1970, "2023-08-11 23:20:33 UTC" ou já
+// escrita: sai só o dia.
+exports.ffDataCurta = v => {
+if (infoVazio(v)) return null
+const s = String(v).trim()
+let d = null
+if (/^\d{9,13}$/.test(s)) d = new Date(Number(s) * (s.length > 11 ? 1 : 1000))
+else if (/^\d{4}-\d{2}-\d{2}/.test(s)) d = new Date(s.replace(' UTC', 'Z').replace(' ', 'T'))
+if (d && !Number.isNaN(d.getTime())) return d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+return s.replace(/\s*(às|as|at)\s*\d{1,2}:\d{2}(:\d{2})?\s*$/i, '')
+}
+
 exports.ffInfo = d => {
-return `- 🎮 \`𝙸𝙽𝙵𝙾 𝙵𝚁𝙴𝙴 𝙵𝙸𝚁𝙴\`\n\n- 👤 Nick: ${d.nick ?? '-'}\n- 🆔 UID: ${d.uid ?? '-'}\n- 🌎 Região: ${d.regiao ?? '-'}\n- 📊 Nível: ${d.nivel ?? '-'}\n- 💚 Likes: ${d.likes ?? '-'}\n- ⭐ Reputação: ${d.reputacao ?? '-'}`
+const linha = (emoji, rotulo, valor) => infoVazio(valor) ? null : `${emoji} *${rotulo}:* ${valor}`
+const bloco = (...linhas) => linhas.filter(Boolean).join('\n')
+const rank = d.rank || {}
+const assinatura = infoVazio(d.social?.assinatura) ? '' : String(d.social.assinatura).replace(/\s+/g, ' ').trim().slice(0, 140)
+return [
+'🎮 \`𝙸𝙽𝙵𝙾 𝙵𝚁𝙴𝙴 𝙵𝙸𝚁𝙴\`',
+bloco(
+linha('👤', 'Nick', d.nick),
+linha('🆔', 'UID', d.uid),
+linha('🌎', 'Região', d.regiao),
+linha('📊', 'Nível', d.nivel),
+linha('💚', 'Likes', infoVazio(d.likes) ? null : infoNumero(d.likes))
+),
+bloco(
+linha('🏆', 'Rank BR', rank.br),
+linha('⚔️', 'Rank CS', rank.cs),
+linha('🛡️', 'Guilda', d.clan?.nome),
+linha('⭐', 'Reputação', d.credito?.pontuacao ?? d.reputacao),
+linha('📅', 'Conta criada', exports.ffDataCurta(d.conta_criada)),
+linha('🕒', 'Último login', exports.ffDataCurta(d.ultimo_acesso))
+),
+assinatura ? `💬 _${assinatura}_` : ''
+].filter(Boolean).join('\n\n')
 }
 
 // Enviados 0 (o site mediu e nada entrou): o título "LIKES ENVIADOS" fazia o
