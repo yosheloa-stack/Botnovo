@@ -559,27 +559,100 @@ if (d && !Number.isNaN(d.getTime())) return d.toLocaleDateString('pt-BR', { time
 return s.replace(/\s*(às|as|at)\s*\d{1,2}:\d{2}(:\d{2})?\s*$/i, '')
 }
 
+// Data com hora (último login): "30/09/2026 01:00".
+exports.ffDataHora = v => {
+if (infoVazio(v)) return null
+const s = String(v).trim()
+let d = null
+if (/^\d{9,13}$/.test(s)) d = new Date(Number(s) * (s.length > 11 ? 1 : 1000))
+else if (/^\d{4}-\d{2}-\d{2}/.test(s)) d = new Date(s.replace(' UTC', 'Z').replace(' ', 'T'))
+if (!d || Number.isNaN(d.getTime())) return exports.ffDataCurta(v)
+return d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(',', '')
+}
+// "Language_PT", "LANGUAGE_PORTUGUESE", "pt" → nome do idioma.
+const INFO_IDIOMAS = [[/portugu|^pt\b|_pt$/i, 'Português'], [/spanish|espa|^es\b|_es$/i, 'Español'], [/english|^en\b|_en$/i, 'English'],
+[/indones|^id\b|_id$/i, 'Bahasa Indonesia'], [/thai|^th\b|_th$/i, 'ไทย'], [/vietnam|^vi\b|_vi$/i, 'Tiếng Việt'], [/russian|^ru\b|_ru$/i, 'Русский'], [/arab|^ar\b|_ar$/i, 'العربية']]
+const infoIdioma = v => {
+if (infoVazio(v)) return null
+const achado = INFO_IDIOMAS.find(([re]) => re.test(String(v)))
+return achado ? achado[1] : String(v).replace(/^language[_ ]*/i, '').replace(/_/g, ' ')
+}
+// Rank como número cru (código do jogo) não diz nada pra quem lê: aí vão só
+// os pontos.
+const infoCodigo = v => /^\s*\d+\s*$/.test(String(v ?? ''))
+const infoRank = (nome, pontos) => {
+const n = infoVazio(nome) || infoCodigo(nome) ? null : String(nome)
+const p = infoVazio(pontos) ? null : `${infoNumero(pontos)} pts`
+return [n, p].filter(Boolean).join(' • ') || null
+}
+
+// O /info COMPLETO: tudo que a /v1/info traz, em blocos (conta, rank, perfil,
+// pet, guilda e líder). Campo que a API não mandou não aparece, e bloco sem
+// nenhum campo some inteiro.
 exports.ffInfo = d => {
 const linha = (emoji, rotulo, valor) => infoVazio(valor) ? null : `${emoji} *${rotulo}:* ${valor}`
-const bloco = (...linhas) => linhas.filter(Boolean).join('\n')
+const bloco = (titulo, ...linhas) => {
+const ok = linhas.filter(Boolean)
+return ok.length ? [titulo, ...ok].join('\n') : ''
+}
+const num = v => infoVazio(v) ? null : infoNumero(v)
 const rank = d.rank || {}
+const nomes = d.nomes || {}
+const pet = d.pet || {}
+const clan = d.clan || {}
+const cap = d.capitao || {}
+const capRank = cap.rank || {}
 const assinatura = infoVazio(d.social?.assinatura) ? '' : String(d.social.assinatura).replace(/\s+/g, ' ').trim().slice(0, 140)
+const membros = infoVazio(clan.membros) ? null : (infoVazio(clan.capacidade) ? num(clan.membros) : `${num(clan.membros)}/${num(clan.capacidade)}`)
 return [
 '🎮 \`𝙸𝙽𝙵𝙾 𝙵𝚁𝙴𝙴 𝙵𝙸𝚁𝙴\`',
-bloco(
-linha('👤', 'Nick', d.nick),
+bloco('👤 *CONTA*',
+linha('🏷️', 'Nick', d.nick),
 linha('🆔', 'UID', d.uid),
 linha('🌎', 'Região', d.regiao),
+linha('🗣️', 'Idioma', infoIdioma(d.linguagem)),
 linha('📊', 'Nível', d.nivel),
-linha('💚', 'Likes', infoVazio(d.likes) ? null : infoNumero(d.likes))
-),
-bloco(
-linha('🏆', 'Rank BR', rank.br),
-linha('⚔️', 'Rank CS', rank.cs),
-linha('🛡️', 'Guilda', d.clan?.nome),
-linha('⭐', 'Reputação', d.credito?.pontuacao ?? d.reputacao),
+linha('✨', 'XP', num(d.exp)),
+linha('💚', 'Likes', num(d.likes)),
+linha('📱', 'Versão', d.versao),
 linha('📅', 'Conta criada', exports.ffDataCurta(d.conta_criada)),
-linha('🕒', 'Último login', exports.ffDataCurta(d.ultimo_acesso))
+linha('🕒', 'Último login', exports.ffDataHora(d.ultimo_acesso))
+),
+bloco('🏆 *RANK*',
+linha('🥇', 'Rank BR', infoRank(rank.br, rank.br_pontos)),
+linha('🔝', 'Maior rank BR', infoCodigo(rank.br_maximo) ? null : rank.br_maximo),
+linha('⚔️', 'Rank CS', infoRank(rank.cs, rank.cs_pontos)),
+linha('🔝', 'Maior rank CS', infoCodigo(rank.cs_maximo) ? null : rank.cs_maximo),
+linha('🗓️', 'Temporada', rank.temporada)
+),
+bloco('🎖️ *PERFIL*',
+linha('⭐', 'Pontuação de honra', d.credito?.pontuacao ?? d.reputacao),
+linha('🏅', 'Emblemas', num(d.emblemas)),
+linha('💎', 'Diamantes gastos', num(d.diamantes_gastos)),
+linha('👑', 'Título', nomes.titulo),
+linha('🖼️', 'Banner', nomes.banner),
+linha('🧑', 'Avatar', nomes.avatar),
+linha('📌', 'Pin', nomes.pin),
+linha('🎒', 'Mochila', nomes.mochila)
+),
+bloco('🐾 *PET*',
+linha('🏷️', 'Nome', pet.nome),
+linha('📊', 'Nível', pet.nivel),
+linha('✨', 'XP', num(pet.exp))
+),
+bloco('🛡️ *GUILDA*',
+linha('🏷️', 'Nome', clan.nome),
+linha('🆔', 'ID', clan.id),
+linha('📊', 'Nível', clan.nivel),
+linha('👥', 'Membros', membros)
+),
+bloco('👑 *LÍDER DA GUILDA*',
+linha('🏷️', 'Nick', cap.nick),
+linha('🆔', 'UID', cap.uid ?? clan.capitao_uid),
+linha('📊', 'Nível', cap.nivel),
+linha('💚', 'Likes', num(cap.likes)),
+linha('🥇', 'Rank BR', infoRank(capRank.br, capRank.br_pontos)),
+linha('🕒', 'Último login', exports.ffDataHora(cap.ultimo_acesso))
 ),
 assinatura ? `💬 _${assinatura}_` : ''
 ].filter(Boolean).join('\n\n')
