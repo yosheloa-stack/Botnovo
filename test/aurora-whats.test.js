@@ -160,7 +160,7 @@ test('#auroramulher: só o criador escolhe, e ela passa a ser tratada como a mul
   comandos.set('auroramulher', cmd)
   banco.auroraCriador('5544900001111')
   assert.match((await respostaDe(mensagem('#auroramulher 5544911112222')))[0].conteudo.text, /Só o criador/)
-  assert.equal(banco.auroraEsposa(), '')
+  assert.equal(banco.auroraEsposa(), '5568984111797', 'já vem fixo')
   banco.auroraCriador('5544911112222')
   assert.match((await respostaDe(mensagem('#auroramulher 5568 98411-0000')))[0].conteudo.text, /556898411000/)
   banco.auroraEsposa('5544911112222')

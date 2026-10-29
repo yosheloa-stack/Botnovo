@@ -504,7 +504,9 @@ export function auroraCriador(value) {
 // Aurora trata ela com respeito e carinho. Não ganha o acesso do criador.
 export function auroraEsposa(value) {
   if (value !== undefined) setCfg('aurora_esposa', String(value || '').replace(/\D/g, ''))
-  return String(getCfg('aurora_esposa', '') || '').replace(/\D/g, '')
+  // Fixo a pedido do criador; #auroramulher troca (0 tira).
+  const v = getCfg('aurora_esposa', null)
+  return String(v === null ? '5568984111797' : v || '').replace(/\D/g, '')
 }
 export function auroraNoGrupo(gp, value) {
   const k = 'aurora:grupo:' + txt(gp)
