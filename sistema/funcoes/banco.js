@@ -490,6 +490,30 @@ if (modoCliente && getCfg('aluguel', null) === null) setCfg('aluguel', true)
 // AURORA COM IA (sistema/funcoes/aurora): liga/desliga no bot inteiro
 // (#auroraia, padrão ligada) e por grupo (#aurora 1/0). Grupo sem escolha
 // devolve null e quem decide é a Aurora (ver ligadaNoGrupo).
+// LID → NÚMERO. O WhatsApp troca o número da pessoa por um código interno
+// (LID, @lid) em grupo e no privado. Toda vez que os dois aparecem juntos
+// (lista do grupo, número alternativo da mensagem, consulta ao WhatsApp) o
+// par fica guardado: dono, criador e marcação continuam funcionando quando
+// só vem o LID.
+const lidsEmMemoria = new Map()
+const soDigitos = (v) => String(v || '').split('@')[0].split(':')[0].replace(/\D/g, '')
+export function lembrarLid(lid, numero) {
+  const l = soDigitos(lid), n = soDigitos(numero)
+  if (!l || !n || l === n || lidsEmMemoria.get(l) === n) return
+  lidsEmMemoria.set(l, n)
+  if (lidsEmMemoria.size > 20000) lidsEmMemoria.delete(lidsEmMemoria.keys().next().value)
+  try { setKv('lid:' + l, n) } catch {}
+}
+export function numeroDoLid(lid) {
+  const l = soDigitos(lid)
+  if (!l) return ''
+  if (lidsEmMemoria.has(l)) return lidsEmMemoria.get(l)
+  let n = ''
+  try { n = String(getKv('lid:' + l, '') || '') } catch {}
+  if (n) lidsEmMemoria.set(l, n)
+  return n
+}
+
 export function auroraIaLigada(value) {
   if (value !== undefined) setCfg('aurora_ia', value ? 1 : 0)
   return Number(getCfg('aurora_ia', 1)) === 1

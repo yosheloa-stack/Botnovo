@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   createAurora, deveResponder, chamouAurora, acharId, pediuLike, blocoConsulta, textoPrecos,
-  montarSystem, limparResposta, blocoMembros, acharMarcacoes, blocoErro, motivoLimpo, pediuClima, acharCidade, textoClima, CLIMA_SEM_CIDADE, pediuPainel, textoPainel, PAINEL_FALHOU, FRASES, LIMITES, SEM_PRECOS
+  montarSystem, limparResposta, blocoMembros, acharMarcacoes, blocoErro, motivoLimpo, pediuClima, acharCidade, textoClima, CLIMA_SEM_CIDADE, pediuPainel, textoPainel, PAINEL_FALHOU, trocarMarcacoes, FRASES, LIMITES, SEM_PRECOS
 } from '../sistema/funcoes/aurora/ia.js'
 
 const ok = (content, extra = {}) => ({ status: 200, data: { choices: [{ finish_reason: 'stop', message: { content }, ...extra }] } })
@@ -317,4 +317,17 @@ test('painel do site: só o criador, só quando fala do site, com dados reais', 
   const { a: b, chamadas: c2 } = aurora({ deps: { buscarPainel: async () => null } })
   await b.responder(fala('aurora tem erro no site?', { ehCriador: true }))
   assert.ok(c2[0][0].content.includes(PAINEL_FALHOU))
+})
+
+test('marcação de pessoa nunca vira ID do jogo; vira o nome', () => {
+  assert.equal(acharId('@89326880849984 testa aí'), '')
+  assert.equal(acharId('@554499887766 oi'), '')
+  assert.equal(trocarMarcacoes('@89326880849984 testa aí', [{ tag: '89326880849984', nome: 'Dylana' }]), '@Dylana (pessoa marcada) testa aí')
+  assert.equal(trocarMarcacoes('@123 oi', [{ tag: '123', nome: '', numero: '5568984111797' }]), '@5568984111797 (pessoa marcada) oi')
+})
+
+test('resposta não fala dos blocos nem grita CRIADOR', () => {
+  assert.equal(limparResposta('Aurora aqui, CRIADOR! tudo bem?'), 'Aurora aqui, criador! tudo bem?')
+  assert.equal(limparResposta('mano, esse ID não veio no bloco de "CONSULTA DO ID" 😕 manda o /info 123 que eu te mostro'), 'mano, esse ID não veio no bloco de "CONSULTA DO ID" 😕 manda o /info 123 que eu te mostro', 'uma frase só: fica')
+  assert.equal(limparResposta('oi! Não veio no bloco de CONSULTA DO ID. Manda o /info 123'), 'oi! Manda o /info 123')
 })

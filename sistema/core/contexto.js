@@ -1,4 +1,4 @@
-import { db, ensureGroupState, groupState, saveGroupState, saveState, userProfile, getDonoAluguel, aluguelOk } from '../funcoes/banco.js'
+import { db, ensureGroupState, groupState, saveGroupState, saveState, userProfile, getDonoAluguel, aluguelOk, lembrarLid, numeroDoLid } from '../funcoes/banco.js'
 import { erroParaCliente } from '../funcoes/marca.js'
 import { modoCliente } from '../funcoes/cliente.js'
 import {
@@ -7,6 +7,8 @@ variantesNumero,
 mesmoNumero,
 findParticipant,
 isGroupJid,
+participantLidJid,
+participantPnJid,
 resolveIdentity,
 resolveIdentityPair,
 targetIdentityFromMessage,
@@ -112,6 +114,10 @@ async function cachedGroupMetadata(client, jid) {
       new Promise((_, reject) => setTimeout(() => reject(new Error('group metadata timeout 5s')), 5_000))
     ])
     groupMetadataCache.set(jid, { data, expires: Date.now() + GROUP_METADATA_TTL })
+    for (const p of data?.participants || []) {
+      const lid = participantLidJid(p), pn = participantPnJid(p)
+      if (lid && pn && !String(pn).endsWith('@lid')) lembrarLid(lid, pn)
+    }
     if (groupMetadataCache.size > 1000) {
       for (const [key, value] of groupMetadataCache) {
         if (value.expires < Date.now()) groupMetadataCache.delete(key)
@@ -125,6 +131,20 @@ async function cachedGroupMetadata(client, jid) {
   }
 }
 
+
+let lidsDosDonosAte = 0
+async function conhecerLidsDosDonos(client, numeros) {
+  if (Date.now() < lidsDosDonosAte || typeof client?.profile?.getLidsByPhoneNumbers !== 'function') return
+  lidsDosDonosAte = Date.now() + 60 * 60_000
+  const lista = [...new Set(numeros.filter(Boolean))].slice(0, 20)
+  try {
+    const r = await Promise.race([
+      client.profile.getLidsByPhoneNumbers(lista),
+      new Promise((_, nao) => setTimeout(() => nao(new Error('demorou')), 5_000))
+    ])
+    for (const x of r || []) if (x?.exists && x.lidJid) lembrarLid(x.lidJid, x.phoneJid || x.queriedJid)
+  } catch {}
+}
 
 export async function makeSystem({ client, event, config, registry, necessarios = liveNecessarios() }) {
 // Re-sincroniza o canal em TODA mensagem. Isso elimina o mesmo tipo de
@@ -159,7 +179,15 @@ metadata = await cachedGroupMetadata(client, from)
 }
 
 const participants = metadata?.participants ?? []
-const senderInfo = resolveIdentityPair(sender, senderAlt, participants)
+let senderInfo = resolveIdentityPair(sender, senderAlt, participants)
+if (senderInfo.lidJid && senderInfo.number) lembrarLid(senderInfo.lidJid, senderInfo.number)
+if (!senderInfo.number && senderInfo.lidJid) {
+  // Só veio o LID: usa o número já guardado. Sem ele, pergunta ao WhatsApp
+  // o LID dos donos (uma vez por hora) — senão o dono vira "não é dono".
+  if (!numeroDoLid(senderInfo.lidJid)) await conhecerLidsDosDonos(client, ownerNumbers)
+  const n = numeroDoLid(senderInfo.lidJid)
+  if (n) senderInfo = { ...senderInfo, number: n, pnJid: `${n}@s.whatsapp.net`, displayJid: `${n}@s.whatsapp.net`, display: `@${n}` }
+}
 const senderNumber = senderInfo.number
 const senderKey = senderNumber || senderInfo.lidJid || senderInfo.jid
 

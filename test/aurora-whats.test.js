@@ -46,7 +46,8 @@ const client = {
   group: { queryGroupMetadata: async () => ({ subject: 'Teste', participants: [
     { jid: `${BOT}@s.whatsapp.net`, isAdmin: true },
     { jid: '5544911112222@s.whatsapp.net' },
-    { jid: '77665544332211@lid', displayName: 'TROPA DE ELITE' }
+    { jid: '77665544332211@lid', displayName: 'TROPA DE ELITE' },
+    { jid: '11112222333344@lid', phoneNumber: '5544933334444@s.whatsapp.net' }
   ] }) },
   message: { send: async (jid, conteudo, opcoes) => { enviados.push({ jid, conteudo, opcoes }) } },
   presence: { sendChatstate: async (jid, { state }) => { estados.push(state) } },
@@ -144,7 +145,7 @@ test('ela vê os membros do grupo pelo nome e marca de verdade', async () => {
   respostaIa = 'olha o @5544911112222 aí 😏'
   const saiu = await respostaDe(mensagem('aurora quem tá no grupo?'))
   respostaIa = 'oi, tô aqui 😌'
-  assert.match(pedidosIa.at(-1).messages[0].content, /MEMBROS DESTE GRUPO \(fora você: 2[\s\S]*- Yosh: @5544911112222\n- TROPA DE ELITE: @77665544332211/)
+  assert.match(pedidosIa.at(-1).messages[0].content, /MEMBROS DESTE GRUPO \(fora você: 3[\s\S]*- Yosh: @5544911112222\n- TROPA DE ELITE: @77665544332211/)
   assert.deepEqual(saiu[0].opcoes.mentions, ['5544911112222@s.whatsapp.net'])
 })
 
@@ -193,4 +194,18 @@ test('a mulher do criador sem nome no zap vira Hemi', async () => {
   assert.match(pedidosIa.at(-1).messages.at(-1).content, /^\[Hemi, ESPOSA DO CRIADOR\] oi aurora/)
   await respostaDe(privado('oi de novo', { remoteJid: '5544911112222@s.whatsapp.net' }))
   assert.match(pedidosIa.at(-1).messages.at(-1).content, /^\[Yosh, ESPOSA DO CRIADOR\]/, 'com nome no zap, usa o nome dela')
+})
+
+test('marcou alguém pelo código (LID): a Aurora recebe o nome, não um "ID"', async () => {
+  banco.auroraCriador('5544911112222')
+  await respostaDe(mensagem('@77665544332211 testa aí', { ...citandoBot(`${BOT}@s.whatsapp.net`), mentionedJid: ['77665544332211@lid'] }))
+  assert.match(pedidosIa.at(-1).messages.at(-1).content, /@TROPA DE ELITE \(pessoa marcada\) testa aí/)
+  assert.doesNotMatch(pedidosIa.at(-1).messages[0].content, /CONSULTA DO ID( \(|:)/)
+})
+
+test('LID visto no grupo com o número: no privado só com o LID, ela sabe quem é', async () => {
+  assert.equal(banco.numeroDoLid('11112222333344@lid'), '5544933334444')
+  banco.auroraCriador('5544933334444')
+  await respostaDe(privado('oi aurora', { remoteJid: '11112222333344@lid' }))
+  assert.match(pedidosIa.at(-1).messages.at(-1).content, /^\[Yosh, CRIADOR\] oi aurora/)
 })

@@ -9,12 +9,12 @@
 // mesma do suporte com IA do site. Vem SÓ do ambiente: SQUARECLOUD_API_KEY
 // (ou SQUARECLOUD_AI_KEY). Nunca no config.json.
 
-import { createAurora, deveResponder, chamouAurora, textoPrecos, textoClima, pediuLike, acharId, FRASES_LIKE, blocoMembros, acharMarcacoes, SEM_MEMBROS, LIMITES } from './ia.js'
+import { createAurora, deveResponder, chamouAurora, trocarMarcacoes, textoPrecos, textoClima, pediuLike, acharId, FRASES_LIKE, blocoMembros, acharMarcacoes, SEM_MEMBROS, LIMITES } from './ia.js'
 import { extractText } from '../../core/contexto.js'
 import { contextInfoFromMessage, quotedInfo, quotedTarget } from '../mensagem.js'
 import { autoSystem } from '../auto.js'
 import { pedirAoSite } from '../rede.js'
-import { auroraIaLigada, auroraNoGrupo, auroraCriador, auroraEsposa, tokenAluguelSalvo, aluguelOk, getDonoAluguel, hasCmd, hasGcmd } from '../banco.js'
+import { auroraIaLigada, auroraNoGrupo, auroraCriador, auroraEsposa, tokenAluguelSalvo, numeroDoLid, aluguelOk, getDonoAluguel, hasCmd, hasGcmd } from '../banco.js'
 import likeCmd from '../../comandos/ff/like.js'
 import { modoCliente } from '../cliente.js'
 import { digits, mesmoNumero, jidNumber, participantIdentity, variantesNumero } from '../jid.js'
@@ -158,12 +158,14 @@ export async function membrosDoGrupo(system) {
   const lista = []
   for (const p of participantes) {
     const id = participantIdentity(p)
+    const doLid = !id.number && id.lidJid ? numeroDoLid(id.lidJid) : ''
+    if (doLid) Object.assign(id, { number: doLid, pnJid: `${doLid}@s.whatsapp.net` })
     const tag = id.number || jidNumber(id.lidJid || id.jid)
     if (!tag || meus.includes(tag)) continue
     const perfil = perfis[id.number] || perfis[id.lidJid] || perfis[id.jid]
     const visto = String(perfil?.name || '').trim()
     const nome = (visto && visto !== 'Usuário' ? visto : String(p?.displayName || p?.username || '').trim())
-    lista.push({ tag, jid: id.pnJid || id.jid, nome, admin: Boolean(p?.isAdmin || p?.isSuperAdmin || p?.admin === 'admin' || p?.admin === 'superadmin') })
+    lista.push({ tag, lid: base(id.lidJid), jid: id.pnJid || id.jid, nome, admin: Boolean(p?.isAdmin || p?.isSuperAdmin || p?.admin === 'admin' || p?.admin === 'superadmin') })
   }
   return lista
 }
@@ -257,10 +259,26 @@ function nomeDe(system) {
   return (vazio ? 'alguém' : nome).slice(0, 40)
 }
 
+// Quem foi marcado na mensagem, com nome (ou número) no lugar do código.
+function marcadosNa(system, membros) {
+  const meus = idsDoBot(system)
+  const perfis = system.db?.profiles || {}
+  return (contextInfoFromMessage(system.msg)?.mentionedJid || []).map((jid) => {
+    const tag = base(jid)
+    if (meus.includes(tag)) return { tag, nome: 'Aurora (você)' }
+    const m = membros.find((x) => x.tag === tag || x.lid === tag)
+    const numero = m?.jid?.endsWith('@s.whatsapp.net') ? base(m.jid) : String(jid).endsWith('@lid') ? numeroDoLid(jid) : tag
+    const perfil = perfis[numero] || perfis[jid]
+    const nome = m?.nome || (perfil?.name && perfil.name !== 'Usuário' ? perfil.name : '')
+    return { tag, nome: String(nome).slice(0, 30), numero }
+  })
+}
+
 async function conversar(system, texto) {
   const conversa = `${system.from}:${system.senderKey}`
   const citado = textoCitado(system)
   const membros = system.isGroup ? await membrosDoGrupo(system) : []
+  texto = trocarMarcacoes(texto, marcadosNa(system, membros))
   if (system.isGroup) console.log('[ AURORA IA ] membros que ela vê:', membros.length, `(${membros.filter((m) => m.nome).length} com nome) |`, system.from)
   await digitando(system, 'composing')
   // O "digitando…" some sozinho depois de uns segundos: renova enquanto espera a fila.

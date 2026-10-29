@@ -64,7 +64,8 @@ export function deveResponder({ texto = '', isGroup, fromMe, ehComando, menciono
 // ── o ID do Free Fire na mensagem ───────────────────────────────────────────
 // 8 a 12 dígitos, sem "+" na frente (número de telefone não é ID).
 export function acharId(texto = '') {
-  const m = String(texto).match(/(?<![\d+])(\d{8,12})(?!\d)/)
+  // "@89326880849984" é marcação de pessoa (número ou LID), nunca ID do jogo.
+  const m = String(texto).match(/(?<![\d+@])(\d{8,12})(?!\d)/)
   return m ? m[1] : ''
 }
 
@@ -150,6 +151,18 @@ ${linhas.join('\n')}${resto}
 - Marque só quando fizer sentido (perguntaram de alguém, mandaram chamar, zoar ou responder alguém). Nunca marque todo mundo nem invente quem não está na lista.`
 }
 export const SEM_MEMBROS = 'MEMBROS DESTE GRUPO: você não conseguiu ver a lista agora. Não diga quem nem quantos estão no grupo; se pedirem pra marcar alguém, diga do seu jeito que não deu agora e pra tentar daqui a pouco.'
+// "@89326880849984 testa aí" → "@Dylana (pessoa marcada) testa aí".
+// marcados: [{ tag, nome, numero }] — tag é o que veio depois do @ no texto.
+export function trocarMarcacoes(texto = '', marcados = []) {
+  let t = String(texto)
+  for (const m of marcados) {
+    if (!m?.tag) continue
+    const quem = m.nome ? `@${m.nome}` : `@${m.numero || m.tag}`
+    t = t.split('@' + m.tag).join(`${quem} (pessoa marcada)`)
+  }
+  return t
+}
+
 // Os @ da resposta que são de membros de verdade viram marcação no WhatsApp.
 export function acharMarcacoes(texto = '', membros = []) {
   const tags = new Set([...String(texto).matchAll(/@(\d{6,20})/g)].map((m) => m[1]))
@@ -258,6 +271,7 @@ export function montarSystem({ prefixo = '#', agora = Date.now(), texto = '', pr
 
 // ── a resposta, do jeito do WhatsApp ────────────────────────────────────────
 const linkBom = /(autolikesystem\.com\.br|cvv\.org\.br)/i
+const BLOCO = /\bbloco\b|consulta do id|painel do site|membros deste grupo|ultimo erro de comando|dados reais/
 const NOTA = /^\(?\s*(note|nota|obs|observacao|p\.?\s?s|ps|disclaimer|aviso interno)\b\.?\s*:?/i
 const NOTA_DENTRO = /^\s*(note|nota|obs|observacao|p\.?\s?s)\b|criador|marcad|marked|treating|bloco|block|system|prompt|instruc|regra|consulta do id|membros deste grupo/i
 const ESPERA = /\b(to|estou|tou) (vendo|olhando|verificando|checando|procurando)\b|\bso um (momento|minuto|instante|segundo)\b|\bum instante\b|\bdeixa eu (ver|olhar|procurar|checar)\b|\bvou (ver|olhar|procurar|checar|verificar)\b|\bja volto\b|\baguard[ae]\b/
@@ -271,6 +285,11 @@ export function limparResposta(texto = '', max = LIMITES.respostaMax) {
   // "tô vendo isso pra você… só um momento": ela não faz nada depois, então sai.
   const partes = t.split(/\n\s*\n/).filter((p) => !NOTA.test(semAcento(p.trim())) && !(p.length < 140 && ESPERA.test(semAcento(p))))
   if (partes.length) t = partes.join('\n\n')
+  t = t.replace(/\bESPOSA DO CRIADOR\b/g, 'patroa').replace(/\bCRIADOR\b/g, 'criador')
+  // Frase que fala dos blocos que ela recebe ("não veio no bloco de CONSULTA DO ID") sai.
+  const frases = t.split(/(?<=[.!?…])\s+|\n/)
+  const semBloco = frases.filter((f) => !BLOCO.test(semAcento(f)))
+  if (semBloco.length && semBloco.length < frases.length) t = semBloco.join(' ')
   t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, (_, rotulo, url) => linkBom.test(url) ? `${rotulo} (${url})` : rotulo)
   t = t.replace(/https?:\/\/[^\s)]+/g, (url) => linkBom.test(url) ? url : '')
   t = t.replace(/【[^】]*】|\[\d+\]/g, '')
