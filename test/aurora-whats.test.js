@@ -15,11 +15,16 @@ process.env.SQUARECLOUD_API_KEY = 'chave-de-teste'
 
 const pedidosIa = []
 const pedidosLike = []
+const pedidosInfo = []
 let respostaIa = 'oi, tô aqui 😌'
 globalThis.fetch = async (url, opcoes = {}) => {
   if (String(url).includes('/v2/ai/chat/completions')) {
     pedidosIa.push(JSON.parse(opcoes.body))
     return new Response(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: respostaIa } }] }), { status: 200 })
+  }
+  if (String(url).includes('/v1/info')) {
+    pedidosInfo.push(new URL(String(url)).searchParams.get('uid'))
+    return new Response(JSON.stringify({ sucesso: true, uid: '10524352928', nick: 'BR_teste', nivel: 60, likes: 1000 }), { status: 200 })
   }
   if (String(url).includes('/v1/like')) {
     pedidosLike.push(new URL(String(url)).searchParams.get('uid'))
@@ -208,4 +213,29 @@ test('LID visto no grupo com o número: no privado só com o LID, ela sabe quem 
   banco.auroraCriador('5544933334444')
   await respostaDe(privado('oi aurora', { remoteJid: '11112222333344@lid' }))
   assert.match(pedidosIa.at(-1).messages.at(-1).content, /^\[Yosh, CRIADOR\] oi aurora/)
+})
+
+test('ela sugeriu /info e o criador disse "faz aí": o bot roda o /info de verdade', async () => {
+  banco.auroraCriador('5544911112222')
+  pedidosInfo.length = 0
+  const antes = pedidosIa.length
+  const inicio = enviados.length
+  await handler(mensagem('Faz aí', { stanzaId: 'BOTMSG2', participant: `${BOT}@s.whatsapp.net`, quotedMessage: { conversation: 'entendi! manda o comando /info 10524352928 que eu puxo os dados' } }))
+  const fim = Date.now() + 6000
+  while (enviados.length < inicio + 2 && Date.now() < fim) await new Promise((r) => setTimeout(r, 50))
+  assert.deepEqual(pedidosInfo, ['10524352928'])
+  assert.match(enviados[inicio].conteudo.text, /10524352928/)
+  assert.equal(pedidosIa.length, antes, 'não gastou a IA')
+})
+
+test('"marca o tropa aí": ela acha pelo nome e a marcação sai de verdade', async () => {
+  respostaIa = 'pronto, tá marcado! 👋'
+  const saiu = await respostaDe(mensagem('aurora marca o tropa aí'))
+  assert.match(pedidosIa.at(-1).messages[0].content, /AGORA pediram pra marcar "tropa": é TROPA DE ELITE\. Marque escrevendo @77665544332211/)
+  assert.match(saiu[0].conteudo.text, /^@77665544332211 pronto/)
+  assert.deepEqual(saiu[0].opcoes.mentions, ['77665544332211@lid'])
+  const nada = await respostaDe(mensagem('aurora marca o dylan aí'))
+  respostaIa = 'oi, tô aqui 😌'
+  assert.match(pedidosIa.at(-1).messages[0].content, /pediram pra marcar "dylan", mas ninguém com esse nome/)
+  assert.equal(nada[0].opcoes?.mentions, undefined)
 })

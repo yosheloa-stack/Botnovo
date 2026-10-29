@@ -9,13 +9,14 @@
 // mesma do suporte com IA do site. Vem SÓ do ambiente: SQUARECLOUD_API_KEY
 // (ou SQUARECLOUD_AI_KEY). Nunca no config.json.
 
-import { createAurora, deveResponder, chamouAurora, trocarMarcacoes, textoPrecos, textoClima, pediuLike, acharId, FRASES_LIKE, blocoMembros, acharMarcacoes, SEM_MEMBROS, LIMITES } from './ia.js'
+import { createAurora, deveResponder, chamouAurora, trocarMarcacoes, textoPrecos, textoClima, acaoDoCriador, acharId, FRASES_LIKE, FRASES_INFO, blocoMembros, acharMarcacoes, SEM_MEMBROS, pediuMarcar, acharMembro, garantirMarcacao, LIMITES } from './ia.js'
 import { extractText } from '../../core/contexto.js'
 import { contextInfoFromMessage, quotedInfo, quotedTarget } from '../mensagem.js'
 import { autoSystem } from '../auto.js'
 import { pedirAoSite } from '../rede.js'
 import { auroraIaLigada, auroraNoGrupo, auroraCriador, auroraEsposa, tokenAluguelSalvo, numeroDoLid, aluguelOk, getDonoAluguel, hasCmd, hasGcmd } from '../banco.js'
 import likeCmd from '../../comandos/ff/like.js'
+import infoCmd from '../../comandos/ff/info.js'
 import { modoCliente } from '../cliente.js'
 import { digits, mesmoNumero, jidNumber, participantIdentity, variantesNumero } from '../jid.js'
 
@@ -240,15 +241,19 @@ const textoCitado = (system) => { const q = quotedInfo(system.event); return q ?
 
 // Pediram like: ela responde no jeito dela e o bot roda o mesmo #like ID
 // (mesmos limites e mensagens do comando). Não gasta chamada da IA.
-async function mandarLike(system, texto, uid) {
+// O criador mandou ela fazer (like ou info): ela responde no jeito dela e o
+// bot roda o mesmo comando, com as mesmas mensagens. Não gasta chamada da IA.
+const ACOES = { like: { cmd: likeCmd, frases: FRASES_LIKE }, info: { cmd: infoCmd, frases: FRASES_INFO } }
+async function executar(system, texto, comando, uid) {
+  const { cmd, frases } = ACOES[comando]
   const conversa = `${system.from}:${system.senderKey}`
-  const frase = FRASES_LIKE[Math.floor(Math.random() * FRASES_LIKE.length)](uid)
+  const frase = frases[Math.floor(Math.random() * frases.length)](uid)
   await system.reply(frase, modoCliente ? { semMarca: true } : {})
-  aurora.anotar(conversa, `[${nomeDe(system)}] ${texto.slice(0, 800)}`, frase)
-  system.command = 'like'
+  aurora.anotar(conversa, `[${nomeDe(system)}] ${texto.slice(0, 800)}`, frase + ` (o bot rodou ${system.prefix}${comando} ${uid})`)
+  system.command = comando
   system.args = [uid]
   system.q = uid
-  await likeCmd.run(system)
+  await cmd.run(system)
 }
 
 // O nome do zap; a mulher do criador sem nome no zap é a Hemi.
@@ -274,10 +279,20 @@ function marcadosNa(system, membros) {
   })
 }
 
+function pedidoDeMarcar(pedido, alvo) {
+  if (!pedido) return ''
+  return alvo
+    ? `\n- AGORA pediram pra marcar "${pedido}": é ${String(alvo.nome).slice(0, 30)}. Marque escrevendo @${alvo.tag} na resposta.`
+    : `\n- AGORA pediram pra marcar "${pedido}", mas ninguém com esse nome aparece na lista. Diga que não achou e peça pra marcarem a pessoa (ou mandarem o número). Não diga que marcou.`
+}
+
 async function conversar(system, texto) {
   const conversa = `${system.from}:${system.senderKey}`
   const citado = textoCitado(system)
   const membros = system.isGroup ? await membrosDoGrupo(system) : []
+  // "marca o dylan aí": acha o membro pelo nome e a marcação sai de verdade.
+  const pedido = system.isGroup ? pediuMarcar(texto) : ''
+  const alvo = pedido ? acharMembro(pedido, membros) : null
   texto = trocarMarcacoes(texto, marcadosNa(system, membros))
   if (system.isGroup) console.log('[ AURORA IA ] membros que ela vê:', membros.length, `(${membros.filter((m) => m.nome).length} com nome) |`, system.from)
   await digitando(system, 'composing')
@@ -297,7 +312,7 @@ async function conversar(system, texto) {
       citado,
       citadoDela: Boolean(citado) && citouBot(system),
       prefixo: system.prefix,
-      membros: system.isGroup ? blocoMembros(membros) || SEM_MEMBROS : '',
+      membros: system.isGroup ? (blocoMembros(membros) ? blocoMembros(membros) + pedidoDeMarcar(pedido, alvo) : SEM_MEMBROS) : '',
       erro: errosRecentes.get(system.from) || null
     })
     if (resposta) {
@@ -312,6 +327,7 @@ async function conversar(system, texto) {
   // senão "Aurora" vira o nome do bot e o endereço do site some da resposta.
   if (!resposta) return
   const opcoes = modoCliente ? { semMarca: true } : {}
+  resposta = garantirMarcacao(resposta, alvo)
   const mentions = acharMarcacoes(resposta, membros)
   await system.reply(resposta, mentions.length ? { ...opcoes, mentions } : opcoes)
 }
@@ -344,13 +360,12 @@ export function handleAurora(system, { forcado = false, texto } = {}) {
     if (decisao.motivo) console.log('[ AURORA IA ] ignorou:', decisao.motivo, '|', system.from)
     return false
   }
-  const likeBloqueado = hasGcmd('like') || (system.isGroup && hasCmd(system.from, 'like'))
+  const bloqueado = (c) => hasGcmd(c) || (system.isGroup && hasCmd(system.from, c))
   const tarefa = (async () => {
     await conhecerPessoas(system)
-    const uid = !likeBloqueado && ehCriador(system) && pediuLike(t)
-      ? acharId(t) || acharId(textoCitado(system)) || aurora.ultimoId(`${system.from}:${system.senderKey}`)
-      : ''
-    return uid ? mandarLike(system, t, uid) : conversar(system, t)
+    const acao = ehCriador(system) ? acaoDoCriador(t, textoCitado(system)) : null
+    const uid = acao?.comando && !bloqueado(acao.comando) ? acao.uid || aurora.ultimoId(`${system.from}:${system.senderKey}`) : ''
+    return uid ? executar(system, t, acao.comando, uid) : conversar(system, t)
   })()
   void tarefa.catch((err) => console.error('[ AURORA IA ] falha ao responder:', err?.message || err))
   return true

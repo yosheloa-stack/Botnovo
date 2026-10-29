@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   createAurora, deveResponder, chamouAurora, acharId, pediuLike, blocoConsulta, textoPrecos,
-  montarSystem, limparResposta, blocoMembros, acharMarcacoes, blocoErro, motivoLimpo, pediuClima, acharCidade, textoClima, CLIMA_SEM_CIDADE, pediuPainel, textoPainel, PAINEL_FALHOU, trocarMarcacoes, FRASES, LIMITES, SEM_PRECOS
+  montarSystem, limparResposta, blocoMembros, acharMarcacoes, pediuMarcar, acharMembro, garantirMarcacao, blocoErro, motivoLimpo, pediuClima, acharCidade, textoClima, CLIMA_SEM_CIDADE, pediuPainel, textoPainel, PAINEL_FALHOU, trocarMarcacoes, acaoDoCriador, FRASES, LIMITES, SEM_PRECOS
 } from '../sistema/funcoes/aurora/ia.js'
 
 const ok = (content, extra = {}) => ({ status: 200, data: { choices: [{ finish_reason: 'stop', message: { content }, ...extra }] } })
@@ -330,4 +330,30 @@ test('resposta não fala dos blocos nem grita CRIADOR', () => {
   assert.equal(limparResposta('Aurora aqui, CRIADOR! tudo bem?'), 'Aurora aqui, criador! tudo bem?')
   assert.equal(limparResposta('mano, esse ID não veio no bloco de "CONSULTA DO ID" 😕 manda o /info 123 que eu te mostro'), 'mano, esse ID não veio no bloco de "CONSULTA DO ID" 😕 manda o /info 123 que eu te mostro', 'uma frase só: fica')
   assert.equal(limparResposta('oi! Não veio no bloco de CONSULTA DO ID. Manda o /info 123'), 'oi! Manda o /info 123')
+})
+
+test('o que o criador manda ela fazer: like ou info, com o ID de onde vier', () => {
+  assert.deepEqual(acaoDoCriador('Faz aí', 'entendi! manda o comando /info 10524352928 que eu puxo os dados'), { comando: 'info', uid: '10524352928' })
+  assert.deepEqual(acaoDoCriador('puxa o info do 8123124352'), { comando: 'info', uid: '8123124352' })
+  assert.deepEqual(acaoDoCriador('aurora manda like no 8123124352'), { comando: 'like', uid: '8123124352' })
+  assert.deepEqual(acaoDoCriador('pode fazer', 'manda /like 8123124352 aí'), { comando: 'like', uid: '8123124352' })
+  assert.deepEqual(acaoDoCriador('como uso o info?'), { comando: '', uid: '' })
+  assert.deepEqual(acaoDoCriador('aurora te amo'), { comando: '', uid: '' })
+  assert.equal(limparResposta('ja vou lá, Yosh! 🔍\n\nolha aí'), 'olha aí')
+})
+
+test('pediuMarcar / acharMembro / garantirMarcacao: "marca o dylan aí" marca de verdade', () => {
+  assert.equal(pediuMarcar('Marca o dylan aí'), 'dylan')
+  assert.equal(pediuMarcar('aurora chama a Hemi pra mim por favor'), 'hemi')
+  assert.equal(pediuMarcar('marca o dylan dev no grupo'), 'dylan dev')
+  assert.equal(pediuMarcar('marca @5544911112222'), '')
+  assert.equal(pediuMarcar('marca todos'), '')
+  assert.equal(pediuMarcar('bom dia'), '')
+  const membros = [{ tag: '1', nome: 'Dylan Dev' }, { tag: '2', nome: 'Hemi 💜' }, { tag: '3', nome: '' }]
+  assert.equal(acharMembro('dylan', membros).tag, '1')
+  assert.equal(acharMembro('hemi', membros).tag, '2')
+  assert.equal(acharMembro('zé', membros), null)
+  assert.equal(garantirMarcacao('pronto!', membros[0]), '@1 pronto!')
+  assert.equal(garantirMarcacao('olha o @1 aí', membros[0]), 'olha o @1 aí')
+  assert.equal(garantirMarcacao('pronto!', null), 'pronto!')
 })
