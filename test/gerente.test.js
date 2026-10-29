@@ -22,6 +22,7 @@ function cenario(lista) {
   const spawnImpl = (cmd, args, opcoes) => {
     const filho = new EventEmitter()
     filho.opcoes = opcoes
+    filho.args = args
     filho.exitCode = null
     filho.connected = true
     filho.enviadas = []
@@ -56,6 +57,8 @@ test('pediu código: liga o bot dela com o número e a marca dela, sem nada da c
   assert.equal(env.AURORA_RENTAL_TOKEN, undefined)
   assert.deepEqual(JSON.parse(env.AURORA_MARCA), { nome: 'Bot da Ana', dono: '5511888880000', donoNome: '', idioma: 'pt', foto: '', estilo: 'rosa', expira: '' })
   assert.equal(filhos[0].opcoes.cwd, path.join(pastaBase, 'p1'))
+  // Sem o aviso "SQLite is an experimental feature" em cada bot que liga.
+  assert.equal(filhos[0].args[0], '--disable-warning=ExperimentalWarning')
 })
 
 test('código e conexão do bot vão para o site', async () => {

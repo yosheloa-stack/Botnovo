@@ -38,7 +38,7 @@ while (true) {
 const started = Date.now()
 // Com o gerente ligado, os avisos de venda saem daqui (avisosVenda.js) e o
 // bot da casa só manda quando pedem pelo canal interno.
-child = spawn(process.execPath, ['index.js'], {
+child = spawn(process.execPath, ['--disable-warning=ExperimentalWarning', 'index.js'], {
 stdio: gerente ? ['inherit', 'inherit', 'inherit', 'ipc'] : 'inherit',
 env: gerente ? { ...process.env, AURORA_AVISOS_PELO_LAUNCHER: '1' } : process.env
 })
