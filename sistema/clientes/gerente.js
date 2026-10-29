@@ -103,7 +103,7 @@ export function criarGerente({
       ...(tokenDo(c) ? { AUTOSYSTEM_TOKEN: tokenDo(c) } : {})
     })
     const nome = limpo(c.nome_bot) || limpo(c.bot_numero)
-    const filho = spawnImpl(process.execPath, [INDEX], { cwd: pasta, env, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] })
+    const filho = spawnImpl(process.execPath, ['--disable-warning=ExperimentalWarning', INDEX], { cwd: pasta, env, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] })
     estado.filho = filho
     estado.inicio = Date.now()
     estado.conectado = false

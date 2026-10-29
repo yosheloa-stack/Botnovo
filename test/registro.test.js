@@ -122,3 +122,22 @@ test('instalarHorario põe data e hora só nas linhas com etiqueta [ ... ]', () 
   assert.equal(out.linhas[2].texto, '        ✓ Conectado com sucesso')
   assert.equal(out.linhas.length, 4)
 })
+
+test('bot de cliente não desenha o logo nem o banner: as linhas iam uma por uma pro terminal da casa', async () => {
+  const { showStart, showConnected, showPairing } = await import('../sistema/funcoes/terminal.js')
+  const out = saida()
+  showStart({ cliente: true, saida: out })
+  showConnected({ cliente: true, saida: out })
+  assert.equal(out.linhas.length, 0)
+  showPairing('ABCD1234', { cliente: true, saida: out })
+  assert.deepEqual(out.linhas.map((l) => l.texto), ['[ AURORA CONEXÃO ] Código de pareamento: ABCD-1234'])
+})
+
+test('bot da casa continua com o logo e o banner', async () => {
+  const { showStart, showConnected } = await import('../sistema/funcoes/terminal.js')
+  const out = saida()
+  showStart({ cliente: false, saida: out })
+  showConnected({ cliente: false, saida: out })
+  assert.ok(out.linhas.some((l) => l.texto.includes('S Y S T E M')))
+  assert.ok(out.linhas.some((l) => l.texto.includes('Conectado com sucesso')))
+})
