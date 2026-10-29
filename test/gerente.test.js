@@ -46,15 +46,18 @@ test('sem sessão e sem pedido de código: não liga nada', async () => {
 
 test('pediu código: liga o bot dela com o número e a marca dela, sem nada da casa', async () => {
   process.env.AURORA_RENTAL_TOKEN = 'segredo-da-casa'
+  process.env.SQUARECLOUD_API_KEY = 'chave-da-ia-da-casa'
   const { g, filhos, pastaBase } = cenario(() => [cliente({ codigo_pedido: 1 })])
   await g.sincronizar()
   delete process.env.AURORA_RENTAL_TOKEN
+  delete process.env.SQUARECLOUD_API_KEY
   assert.equal(filhos.length, 1)
   const env = filhos[0].opcoes.env
   assert.equal(env.AURORA_CLIENTE, '1')
   assert.equal(env.AURORA_CONNECTION_NUMBER, '5511999990000')
   assert.equal(env.AURORA_OWNER_NUMBER, '5511888880000')
   assert.equal(env.AURORA_RENTAL_TOKEN, undefined)
+  assert.equal(env.SQUARECLOUD_API_KEY, undefined, 'a chave da IA é só da casa')
   assert.deepEqual(JSON.parse(env.AURORA_MARCA), { nome: 'Bot da Ana', dono: '5511888880000', donoNome: '', idioma: 'pt', foto: '', estilo: 'rosa', expira: '' })
   assert.equal(filhos[0].opcoes.cwd, path.join(pastaBase, 'p1'))
   // Sem o aviso "SQLite is an experimental feature" em cada bot que liga.

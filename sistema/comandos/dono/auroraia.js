@@ -1,9 +1,11 @@
 import { parseToggle } from '../../funcoes/toggle.js'
 import { auroraIaLigada } from '../../funcoes/banco.js'
 import { estadoAurora } from '../../funcoes/aurora/index.js'
+import { modoCliente } from '../../funcoes/cliente.js'
 
 // Liga/desliga a Aurora com IA no bot inteiro. Sem argumento, mostra como ela está.
 export default {name: 'auroraia',aliases: [],category: 'dono',description: 'Liga/desliga a Aurora (IA) no bot inteiro',ownerOnly: true,async run(system){
+if (modoCliente) return system.reply('Comando indisponível neste bot.')
 const valor = parseToggle(system.args[0])
 if (valor !== null) {
 auroraIaLigada(valor)
