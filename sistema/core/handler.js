@@ -11,6 +11,7 @@ import { verifiedSendOptions } from '../funcoes/meta.js'
 import { necessarios as currentNecessarios } from '../funcoes/necessarios.js'
 import { handleSoli } from '../funcoes/soli.js'
 import { marcaCliente, modoCliente } from '../funcoes/cliente.js'
+import { handleAurora } from '../funcoes/aurora/index.js'
 
 const missingRentalLogs = new Map()
 const msgIdioma = (system, pt, es, en) => {
@@ -238,6 +239,9 @@ if (system.command === 'like2' && String(text || '').trim().startsWith('/like2')
     return system.reply('⚠️ Não foi possível verificar a autorização do /like2 agora. Nenhum saldo foi descontado.');
   }
 }
+// A Aurora com IA: conversa que não é comando (marcaram o bot, citaram ele,
+// falaram "aurora" ou mandaram no privado). Ver sistema/funcoes/aurora.
+if (!system.command && handleAurora(system)) return
 // makeSystem aceita tanto o prefixo configurado quanto '/'.
 // Antes o parser reconhecia /menu, mas este filtro descartava a mensagem silenciosamente.
 const prefixoConfigurado = String(config.prefix || '!')

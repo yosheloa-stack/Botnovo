@@ -486,3 +486,17 @@ export function marcarBoasVindas(dono) { setKv(CHAVE_BOAS_VINDAS, txt(dono)) }
 // Bot da cliente: o modo aluguel começa LIGADO, pra ninguém usar o bot dela
 // num grupo que ela não registrou (#rgaluguel). Ela pode mudar com #modoaluguel.
 if (modoCliente && getCfg('aluguel', null) === null) setCfg('aluguel', true)
+
+// AURORA COM IA (sistema/funcoes/aurora): liga/desliga no bot inteiro
+// (#auroraia, padrão ligada) e por grupo (#aurora 1/0). Grupo sem escolha
+// devolve null e quem decide é a Aurora (ver ligadaNoGrupo).
+export function auroraIaLigada(value) {
+  if (value !== undefined) setCfg('aurora_ia', value ? 1 : 0)
+  return Number(getCfg('aurora_ia', 1)) === 1
+}
+export function auroraNoGrupo(gp, value) {
+  const k = 'aurora:grupo:' + txt(gp)
+  if (value !== undefined) setKv(k, value ? 1 : 0)
+  const v = getKv(k, null)
+  return v === null ? null : Number(v) === 1
+}

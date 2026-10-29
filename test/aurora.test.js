@@ -1,0 +1,178 @@
+// node test/aurora.test.js
+// Aurora com IA: quando responde, memória, limites, fila, consulta de ID,
+// preços e o texto que sai pro WhatsApp. O gateway é falso: nada gasta chamada.
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import {
+  createAurora, deveResponder, chamouAurora, acharId, blocoConsulta, textoPrecos,
+  montarSystem, limparResposta, FRASES, LIMITES, SEM_PRECOS
+} from '../sistema/funcoes/aurora/ia.js'
+
+const ok = (content, extra = {}) => ({ status: 200, data: { choices: [{ finish_reason: 'stop', message: { content }, ...extra }] } })
+
+// Relógio de mentira: esperar só anda o relógio.
+function relogio() {
+  let t = Date.UTC(2026, 9, 29, 12, 0, 0)
+  return { agora: () => t, esperar: async (ms) => { t += ms }, andar: (ms) => { t += ms } }
+}
+function aurora(opcoes = {}) {
+  const r = relogio()
+  const chamadas = []
+  const responde = opcoes.responde || (() => ok('oi sumido 😏'))
+  const a = createAurora({
+    agora: r.agora, esperar: r.esperar, log: () => {},
+    chamar: async (messages) => { chamadas.push(messages); return responde(messages, chamadas.length) },
+    ...opcoes.deps
+  })
+  return { a, chamadas, r }
+}
+const fala = (texto, extra = {}) => ({ conversa: 'g@g.us:5544', grupo: 'g@g.us', texto, nome: 'Yosh', ...extra })
+
+test('responde no privado sempre; no grupo só quando chamam ela', () => {
+  const base = { isGroup: true, fromMe: false, ehComando: false, mencionouBot: false, citouBot: false }
+  assert.equal(deveResponder({ ...base, isGroup: false, texto: 'oi' }).sim, true)
+  assert.equal(deveResponder({ ...base, texto: 'bom dia grupo' }).sim, false)
+  assert.equal(deveResponder({ ...base, texto: 'Aqui id Aurora 123456789' }).sim, true, '"aurora" no meio da frase')
+  assert.equal(deveResponder({ ...base, texto: 'Quero sim Aurora' }).sim, true)
+  assert.equal(deveResponder({ ...base, texto: '123456789', citouBot: true }).sim, true, 'só número, citando ela')
+  assert.equal(deveResponder({ ...base, texto: 'ei', mencionouBot: true }).sim, true)
+  assert.equal(deveResponder({ ...base, texto: '#like 123', ehComando: true, citouBot: true }).sim, false, 'comando é do comando')
+  assert.equal(deveResponder({ ...base, texto: 'aurora', fromMe: true }).sim, false)
+  assert.equal(deveResponder({ ...base, texto: '', citouBot: true }).sim, false)
+  const off = deveResponder({ ...base, texto: 'aurora oi', ligadaNoGrupo: false })
+  assert.equal(off.sim, false); assert.match(off.motivo, /desligada neste grupo/)
+  assert.match(deveResponder({ ...base, texto: 'aurora oi', temChave: false }).motivo, /SQUARECLOUD_API_KEY/)
+  assert.equal(deveResponder({ ...base, texto: 'oi grupo' }).motivo, undefined, 'conversa normal não vira log')
+})
+
+test('"aurora" só como palavra, com ou sem acento e maiúscula', () => {
+  for (const t of ['aurora', 'AURORA,', 'oi Áurora!', 'ei @aurora tudo bem']) assert.equal(chamouAurora(t), true, t)
+  for (const t of ['auroras', 'aurorinha', 'bom dia']) assert.equal(chamouAurora(t), false, t)
+})
+
+test('acha o ID do Free Fire e não confunde com telefone', () => {
+  assert.equal(acharId('Aqui id Aurora 123456789'), '123456789')
+  assert.equal(acharId('meu id é 8123124352 tlgd'), '8123124352')
+  assert.equal(acharId('+5544991853469'), '')
+  assert.equal(acharId('1234567'), '')
+})
+
+test('uma mensagem = uma resposta, e a memória guarda no máximo 10', async () => {
+  const { a, chamadas } = aurora()
+  for (let i = 0; i < 6; i++) assert.equal(await a.responder(fala('aurora oi ' + i)), 'oi sumido 😏')
+  assert.equal(chamadas.length, 6)
+  assert.equal(a._memoria('g@g.us:5544').length, LIMITES.memoriaMsgs)
+  const ultima = chamadas.at(-1)
+  assert.equal(ultima[0].role, 'system')
+  assert.equal(ultima.at(-1).role, 'user')
+  assert.match(ultima.at(-1).content, /^\[Yosh\] aurora oi 5/)
+  a.esquecer('g@g.us:5544')
+  assert.equal(a._memoria('g@g.us:5544').length, 0)
+})
+
+test('texto do meio ("vou ver…", chamada de ferramenta) nunca vai pro grupo', async () => {
+  const { a } = aurora({ responde: () => ok('Vou ver a temperatura pra você', { finish_reason: 'tool_calls' }) })
+  assert.equal(await a.responder(fala('aurora quantos graus em maringá')), FRASES.bug)
+})
+
+test('consulta o ID de verdade e põe no system; ID que não existe vira aviso', async () => {
+  const pedidos = []
+  const { a, chamadas } = aurora({ deps: { consultarId: async (uid) => {
+    pedidos.push(uid)
+    return uid === '8123124352' ? { sucesso: true, uid, nick: 'BR_lizin', nivel: 56, likes: 44964, regiao: 'BR', rank: { br: 'Prata III' } } : { sucesso: false, erro: 'jogador não encontrado' }
+  } } })
+  await a.responder(fala('aurora olha esse 8123124352'))
+  assert.match(chamadas[0][0].content, /CONSULTA DO ID \(dados reais[\s\S]*BR_lizin[\s\S]*likes: 44964/)
+  await a.responder(fala('Aqui id Aurora 123456789'))
+  assert.match(chamadas[1][0].content, /CONSULTA DO ID: 123456789 não foi encontrado/)
+  await a.responder(fala('aurora e o 8123124352 de novo'))
+  assert.deepEqual(pedidos, ['8123124352', '123456789'], 'o mesmo ID vem do cache')
+})
+
+test('limite por pessoa: avisa uma vez e depois fica quieta', async () => {
+  const { a, chamadas } = aurora()
+  for (let i = 0; i < LIMITES.porPessoa; i++) await a.responder(fala('aurora ' + i))
+  assert.equal(await a.responder(fala('aurora de novo')), FRASES.pessoa)
+  assert.equal(await a.responder(fala('aurora de novo 2')), null)
+  assert.equal(chamadas.length, LIMITES.porPessoa)
+  assert.equal(await a.responder(fala('aurora oi', { conversa: 'g@g.us:5511' })), 'oi sumido 😏', 'outra pessoa segue')
+})
+
+test('teto do dia (AURORA_MAX_DIA): para de chamar e fala que tá cansada uma vez', async () => {
+  const { a, chamadas } = aurora({ deps: { maxDia: () => 2 } })
+  await a.responder(fala('aurora 1', { conversa: 'g:1' }))
+  await a.responder(fala('aurora 2', { conversa: 'g:2' }))
+  assert.equal(await a.responder(fala('aurora 3', { conversa: 'g:3' })), FRASES.cansada)
+  assert.equal(await a.responder(fala('aurora 4', { conversa: 'g:4' })), null)
+  assert.equal(chamadas.length, 2)
+})
+
+test('limite do plano na Square Cloud: tenta de novo uma vez; limite do dia pausa até a virada', async () => {
+  let n = 0
+  const { a, chamadas, r } = aurora({ responde: () => {
+    n++
+    if (n === 1) return { status: 429, data: { error: { code: 'concurrent_limit_reached' } } }
+    if (n === 3) return { status: 429, data: { error: { code: 'daily_request_limit_reached' } } }
+    return ok('voltei')
+  } })
+  assert.equal(await a.responder(fala('aurora a', { conversa: 'g:a' })), 'voltei')
+  assert.equal(chamadas.length, 2)
+  assert.equal(await a.responder(fala('aurora b', { conversa: 'g:b' })), FRASES.cansada)
+  assert.equal(await a.responder(fala('aurora c', { conversa: 'g:c' })), null)
+  assert.equal(chamadas.length, 3)
+  r.andar(24 * 3600_000)
+  assert.equal(await a.responder(fala('aurora d', { conversa: 'g:d' })), 'voltei')
+})
+
+test('chave recusada: desliga sem encher o grupo de erro', async () => {
+  const { a } = aurora({ responde: () => ({ status: 401, data: { error: { code: 'invalid_api_key' } } }) })
+  assert.equal(await a.responder(fala('aurora oi')), null)
+  assert.equal(a.estado().chaveRecusada, true)
+})
+
+test('fila: uma chamada por vez e 5 s entre elas', async () => {
+  const r = relogio()
+  let ativas = 0, max = 0
+  const inicios = []
+  const a = createAurora({
+    agora: r.agora, esperar: r.esperar, log: () => {},
+    chamar: async () => { ativas++; max = Math.max(max, ativas); inicios.push(r.agora()); await new Promise((x) => setTimeout(x, 5)); r.andar(1000); ativas--; return ok('oi') }
+  })
+  await Promise.all([1, 2, 3].map((i) => a.responder(fala('aurora ' + i, { conversa: 'g:' + i }))))
+  assert.equal(max, 1)
+  assert.ok(inicios[1] - inicios[0] >= 1000 + LIMITES.intervaloMs)
+  assert.ok(inicios[2] - inicios[1] >= 1000 + LIMITES.intervaloMs)
+})
+
+test('blocos extras só com o assunto; preço nunca inventado', async () => {
+  assert.doesNotMatch(montarSystem({ texto: 'aurora te amo' }), /API DO AUTO SYSTEM|ALUGAR O BOT|PREÇOS/)
+  assert.match(montarSystem({ texto: 'como uso a key da api' }), /API DO AUTO SYSTEM/)
+  assert.match(montarSystem({ texto: 'quero alugar um bot' }), /ALUGAR O BOT AURORA/)
+  assert.ok(montarSystem({ texto: 'quanto custa o plano' }).includes(SEM_PRECOS))
+  const s = montarSystem({ prefixo: '!', texto: 'oi' })
+  assert.match(s, /!like ID/); assert.doesNotMatch(s, /\{prefixo\}|\{agora\}/)
+
+  const { a, chamadas } = aurora({ deps: { buscarPrecos: async () => 'PREÇOS DE AGORA:\n- Planos do autolike: Mensal R$ 19,90' } })
+  await a.responder(fala('aurora quanto custa?'))
+  assert.match(chamadas[0][0].content, /Mensal R\$ 19,90/)
+})
+
+test('preços das páginas do site viram texto curto, sem produto sem preço', () => {
+  const t = textoPrecos({
+    planos: { planos: [{ nome: 'Mensal', preco_final_cent: 1990, dias: 30, max_alvos: 5 }, { nome: 'Grátis', preco_final_cent: 0 }] },
+    loja: { mega: 350, passe: null, aurora: 2500 },
+    whats: { planos: [{ nome: '30 dias', dias: 30, preco_final_cent: 2500 }] }
+  })
+  assert.match(t, /Mensal R\$ 19,90 30 dias até 5 IDs/)
+  assert.match(t, /Turbo Likes \(por envio\) R\$ 3,50 \| Bot Aurora R\$ 25,00/)
+  assert.match(t, /Aluguel do bot no WhatsApp: 30 dias R\$ 25,00/)
+  assert.doesNotMatch(t, /Grátis|Passe/)
+  assert.equal(textoPrecos({}), '')
+})
+
+test('texto pro WhatsApp: sem link de fora, negrito do zap, sem "Aurora:"', () => {
+  assert.equal(limparResposta('Aurora: **oi** veja [aqui](https://clima.com/x) 【3†fonte】'), '*oi* veja aqui')
+  assert.equal(limparResposta('entra em https://autolikesystem.com.br/planos'), 'entra em https://autolikesystem.com.br/planos')
+  assert.ok(limparResposta('a '.repeat(2000)).length <= LIMITES.respostaMax + 1)
+  assert.match(blocoConsulta('1', { sucesso: false }), /não foi encontrado/)
+})
