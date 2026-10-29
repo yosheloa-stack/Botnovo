@@ -234,3 +234,12 @@ test('o CRIADOR vem marcado pra ela; dono comum não', async () => {
   assert.match(chamadas[1].at(-1).content, /^\[TROPA, admin\] aurora oi$/)
   assert.match(chamadas[0][0].content, /YoshGGx/)
 })
+
+test('nota de bastidor e marcação de quem fala nunca vão pro grupo', () => {
+  assert.equal(limparResposta("ah, o Yosh chegou 😁 que honra!\n\n(Note: I'm treating this as the CRIADOR since the message is marked with [Yosh 7, admin, CRIADOR].)"), 'ah, o Yosh chegou 😁 que honra!')
+  assert.equal(limparResposta('oi criador (marcado como CRIADOR) tudo bem?'), 'oi criador tudo bem?')
+  assert.equal(limparResposta('[Yosh, CRIADOR] oi chefe'), 'oi chefe')
+  assert.equal(limparResposta('Obs.: segui as regras\n\nbora jogar'), 'bora jogar')
+  assert.equal(limparResposta('P.S.: te amo kkk\n\nfalou'), 'falou')
+  assert.equal(limparResposta('fica de boa (sério) kkk'), 'fica de boa (sério) kkk', 'parêntese normal fica')
+})

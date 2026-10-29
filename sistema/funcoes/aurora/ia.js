@@ -185,12 +185,18 @@ export function montarSystem({ prefixo = '#', agora = Date.now(), texto = '', pr
 
 // ── a resposta, do jeito do WhatsApp ────────────────────────────────────────
 const linkBom = /(autolikesystem\.com\.br|cvv\.org\.br)/i
+const NOTA = /^\(?\s*(note|nota|obs|observacao|p\.?\s?s|ps|disclaimer|aviso interno)\b\.?\s*:?/i
+const NOTA_DENTRO = /^\s*(note|nota|obs|observacao|p\.?\s?s)\b|criador|marcad|marked|treating|bloco|block|system|prompt|instruc|regra|consulta do id|membros deste grupo/i
 const ESPERA = /\b(to|estou|tou) (vendo|olhando|verificando|checando|procurando)\b|\bso um (momento|minuto|instante|segundo)\b|\bum instante\b|\bdeixa eu (ver|olhar|procurar|checar)\b|\bvou (ver|olhar|procurar|checar|verificar)\b|\bja volto\b|\baguard[ae]\b/
 export function limparResposta(texto = '', max = LIMITES.respostaMax) {
   let t = String(texto || '').trim()
   t = t.replace(/^\s*aurora\s*:\s*/i, '')
+  // Nota de bastidor ("(Note: I'm treating this as the CRIADOR…)", "Obs.:",
+  // "P.S.") e a marcação [nome, admin, CRIADOR] nunca vão pro grupo.
+  t = t.replace(/\[[^\]\n]*\b(CRIADOR|admin)\b[^\]\n]*\]/g, '')
+  t = t.replace(/\(([^()]*)\)/g, (todo, dentro) => NOTA_DENTRO.test(semAcento(dentro)) ? '' : todo)
   // "tô vendo isso pra você… só um momento": ela não faz nada depois, então sai.
-  const partes = t.split(/\n\s*\n/).filter((p) => !(p.length < 140 && ESPERA.test(semAcento(p))))
+  const partes = t.split(/\n\s*\n/).filter((p) => !NOTA.test(semAcento(p.trim())) && !(p.length < 140 && ESPERA.test(semAcento(p))))
   if (partes.length) t = partes.join('\n\n')
   t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, (_, rotulo, url) => linkBom.test(url) ? `${rotulo} (${url})` : rotulo)
   t = t.replace(/https?:\/\/[^\s)]+/g, (url) => linkBom.test(url) ? url : '')
