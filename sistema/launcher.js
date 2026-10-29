@@ -1,5 +1,8 @@
 import { spawn } from 'node:child_process'
 import { iniciarGerenteClientes } from './clientes/iniciar.js'
+import { instalarHorario } from './funcoes/registro.js'
+
+instalarHorario()
 
 const restartCode = 75
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))

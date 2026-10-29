@@ -1,4 +1,9 @@
 import { startAurora } from './sistema/core/client.js'
+import { instalarHorario } from './sistema/funcoes/registro.js'
+
+// Data e hora nas linhas do log. O bot de cliente não põe: as linhas dele
+// passam pelo launcher ("[ cliente Nome ] ..."), que já põe.
+if (process.env.AURORA_CLIENTE !== '1') instalarHorario()
 
 // Uma promessa rejeitada sem tratamento (ex.: envio que falhou num evento de
 // grupo) não pode derrubar o bot inteiro: fica registrada e o bot segue.
