@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  createAurora, deveResponder, chamouAurora, acharId, blocoConsulta, textoPrecos,
+  createAurora, deveResponder, chamouAurora, acharId, pediuLike, blocoConsulta, textoPrecos,
   montarSystem, limparResposta, FRASES, LIMITES, SEM_PRECOS
 } from '../sistema/funcoes/aurora/ia.js'
 
@@ -55,6 +55,19 @@ test('acha o ID do Free Fire e não confunde com telefone', () => {
   assert.equal(acharId('meu id é 8123124352 tlgd'), '8123124352')
   assert.equal(acharId('+5544991853469'), '')
   assert.equal(acharId('1234567'), '')
+})
+
+test('pedido de like: entende o jeito que a pessoa fala, pergunta não conta', () => {
+  for (const t of ['Faz o envio pra mim aí', 'aurora manda like no 123456789', 'envia uns likes aí', 'aurora da like pra mim', 'quero likes no meu id']) assert.equal(pediuLike(t), true, t)
+  for (const t of ['como mando like?', 'aurora não manda like', 'quando cai o envio?', 'aurora te amo', 'o like da aurora']) assert.equal(pediuLike(t), false, t)
+})
+
+test('lembra o último ID que a pessoa mandou na conversa', async () => {
+  const { a } = aurora()
+  await a.responder(fala('aurora olha meu id 8123124352'))
+  await a.responder(fala('aurora e aí'))
+  assert.equal(a.ultimoId('g@g.us:5544'), '8123124352')
+  assert.equal(a.ultimoId('g@g.us:5511'), '')
 })
 
 test('uma mensagem = uma resposta, e a memória guarda no máximo 10', async () => {

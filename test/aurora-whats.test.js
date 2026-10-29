@@ -14,10 +14,15 @@ process.env.AURORA_CLIENTE = ''
 process.env.SQUARECLOUD_API_KEY = 'chave-de-teste'
 
 const pedidosIa = []
+const pedidosLike = []
 globalThis.fetch = async (url, opcoes = {}) => {
   if (String(url).includes('/v2/ai/chat/completions')) {
     pedidosIa.push(JSON.parse(opcoes.body))
     return new Response(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: 'oi, tô aqui 😌' } }] }), { status: 200 })
+  }
+  if (String(url).includes('/v1/like')) {
+    pedidosLike.push(new URL(String(url)).searchParams.get('uid'))
+    return new Response(JSON.stringify({ sucesso: true, uid: '8123124352', nick: 'BR_lizin', likes_enviados: 220, likes_antes: 100, likes_depois: 320 }), { status: 200 })
   }
   return new Response('{}', { status: 404 })
 }
@@ -44,7 +49,7 @@ const client = {
   message: { send: async (jid, conteudo, opcoes) => { enviados.push({ jid, conteudo, opcoes }) } },
   presence: { sendChatstate: async (jid, { state }) => { estados.push(state) } }
 }
-const config = { prefix: '#', owner: { number: '5544900000000' }, connection: { number: BOT }, autoSystem: { url: 'https://autolikesystem.com.br' } }
+const config = { prefix: '#', owner: { number: '5544900000000' }, connection: { number: BOT }, autoSystem: { url: 'https://autolikesystem.com.br', token: 'token-de-teste' } }
 const handler = createHandler({ client, config, registry: { commands: new Map(), plugins: [] } })
 
 let n = 0
@@ -97,4 +102,26 @@ test('admin desligou no grupo: ela fica quieta', async () => {
   assert.equal((await respostaDe(mensagem('aurora oi'), 300)).length, 0)
   assert.equal(pedidosIa.length, antes)
   banco.auroraNoGrupo(GRUPO, 1)
+})
+
+test('pediu like: ela responde e o bot manda de verdade, sem gastar a IA', async () => {
+  const antes = pedidosIa.length
+  const inicio = enviados.length
+  await handler(mensagem('aurora faz o envio pro 8123124352'))
+  const fim = Date.now() + 6000
+  while (enviados.length < inicio + 2 && Date.now() < fim) await new Promise((r) => setTimeout(r, 50))
+  const saiu = enviados.slice(inicio)
+  assert.equal(saiu.length, 2)
+  assert.match(saiu[0].conteudo.text, /8123124352/)
+  assert.match(saiu[1].conteudo.text, /Enviados: 220/)
+  assert.deepEqual(pedidosLike, ['8123124352'])
+  assert.equal(pedidosIa.length, antes)
+})
+
+test('"faz o envio pra mim" sem ID usa o último ID da conversa', async () => {
+  const inicio = enviados.length
+  await handler(mensagem('aurora faz o envio pra mim aí'))
+  const fim = Date.now() + 6000
+  while (enviados.length < inicio + 2 && Date.now() < fim) await new Promise((r) => setTimeout(r, 50))
+  assert.deepEqual(pedidosLike, ['8123124352', '8123124352'])
 })

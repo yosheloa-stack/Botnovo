@@ -68,6 +68,21 @@ export function acharId(texto = '') {
   return m ? m[1] : ''
 }
 
+// ── pediram pra ela mandar like ─────────────────────────────────────────────
+// "faz o envio pra mim", "manda like no 123…", "envia uns likes aí". Pergunta
+// ("como mando like?") e negação ("não manda") não contam.
+export function pediuLike(texto = '') {
+  const t = semAcento(texto)
+  if (/\b(como|quando|quanto|qual|porque|por que|pq|nao)\b/.test(t)) return false
+  return /\b(mand\w*|envi[ae]\w*|faz\w*|fac[ao]|solt\w*|jog[ae]\w*|bot[ae]\w*|da|de|quero|queria|precis\w*)\b[\s\S]{0,40}?\b(likes?|envio|curtidas?)\b/.test(t)
+}
+
+export const FRASES_LIKE = [
+  (uid) => `bora! mandando os likes pro ${uid} agora 🔥`,
+  (uid) => `deixa comigo 😎 já tô mandando pro ${uid}`,
+  (uid) => `fechou, likes indo pro ${uid} 💜 segura aí`
+]
+
 export function blocoConsulta(uid, d) {
   if (!d || !d.sucesso) {
     return `CONSULTA DO ID: ${uid} não foi encontrado ou a consulta falhou agora${d?.erro ? ` (${String(d.erro).slice(0, 120)})` : ''}. Diga isso e peça pra pessoa conferir o número.`
@@ -196,6 +211,14 @@ export function createAurora({
     while (memoria.size > LIMITES.memoriaMax) memoria.delete(memoria.keys().next().value)
   }
   const esquecer = (conversa) => memoria.delete(conversa)
+  // O último ID que a pessoa mandou nesta conversa (pra "faz o envio pra mim").
+  function ultimoId(conversa) {
+    for (const m of [...lembrar(conversa)].reverse()) {
+      const uid = m.role === 'user' && acharId(m.content)
+      if (uid) return uid
+    }
+    return ''
+  }
 
   function usosHoje() {
     const d = diaUtc(agora())
@@ -309,6 +332,8 @@ export function createAurora({
   return {
     responder,
     esquecer,
+    ultimoId,
+    anotar: (conversa, user, assistant) => guardar(conversa, String(user), String(assistant)),
     estado: () => ({ hoje: usosHoje().n, max: maxDia(), pausadaAte, chaveRecusada, fila: esperando, conversas: memoria.size }),
     _memoria: (conversa) => lembrar(conversa)
   }

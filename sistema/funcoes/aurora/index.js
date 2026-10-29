@@ -9,12 +9,13 @@
 // mesma do suporte com IA do site. Vem SÓ do ambiente: SQUARECLOUD_API_KEY
 // (ou SQUARECLOUD_AI_KEY). Nunca no config.json.
 
-import { createAurora, deveResponder, textoPrecos, LIMITES } from './ia.js'
+import { createAurora, deveResponder, textoPrecos, pediuLike, acharId, FRASES_LIKE, LIMITES } from './ia.js'
 import { extractText } from '../../core/contexto.js'
 import { contextInfoFromMessage, quotedInfo, quotedTarget } from '../mensagem.js'
 import { autoSystem } from '../auto.js'
 import { pedirAoSite } from '../rede.js'
-import { auroraIaLigada, auroraNoGrupo, aluguelOk, getDonoAluguel } from '../banco.js'
+import { auroraIaLigada, auroraNoGrupo, aluguelOk, getDonoAluguel, hasCmd, hasGcmd } from '../banco.js'
+import likeCmd from '../../comandos/ff/like.js'
 import { modoCliente } from '../cliente.js'
 import { digits, mesmoNumero } from '../jid.js'
 
@@ -104,9 +105,24 @@ async function digitando(system, estado) {
   try { await system.client?.presence?.sendChatstate?.(system.from, { state: estado }) } catch {}
 }
 
+const textoCitado = (system) => { const q = quotedInfo(system.event); return q ? extractText(q.message) : '' }
+
+// Pediram like: ela responde no jeito dela e o bot roda o mesmo #like ID
+// (mesmos limites e mensagens do comando). Não gasta chamada da IA.
+async function mandarLike(system, texto, uid) {
+  const conversa = `${system.from}:${system.senderKey}`
+  const frase = FRASES_LIKE[Math.floor(Math.random() * FRASES_LIKE.length)](uid)
+  await system.reply(frase, modoCliente ? { semMarca: true } : {})
+  aurora.anotar(conversa, `[${String(system.pushName || 'alguém').slice(0, 40)}] ${texto.slice(0, 800)}`, frase)
+  system.command = 'like'
+  system.args = [uid]
+  system.q = uid
+  await likeCmd.run(system)
+}
+
 async function conversar(system, texto) {
   const conversa = `${system.from}:${system.senderKey}`
-  const citado = (() => { const q = quotedInfo(system.event); return q ? extractText(q.message) : '' })()
+  const citado = textoCitado(system)
   await digitando(system, 'composing')
   // O "digitando…" some sozinho depois de uns segundos: renova enquanto espera a fila.
   const renovar = setInterval(() => { void digitando(system, 'composing') }, 10_000)
@@ -161,7 +177,12 @@ export function handleAurora(system, { forcado = false, texto } = {}) {
     if (decisao.motivo) console.log('[ AURORA IA ] ignorou:', decisao.motivo, '|', system.from)
     return false
   }
-  void conversar(system, t).catch((err) => console.error('[ AURORA IA ] falha ao responder:', err?.message || err))
+  const likeBloqueado = hasGcmd('like') || (system.isGroup && hasCmd(system.from, 'like'))
+  const uid = !likeBloqueado && pediuLike(t)
+    ? acharId(t) || acharId(textoCitado(system)) || aurora.ultimoId(`${system.from}:${system.senderKey}`)
+    : ''
+  const tarefa = uid ? mandarLike(system, t, uid) : conversar(system, t)
+  void tarefa.catch((err) => console.error('[ AURORA IA ] falha ao responder:', err?.message || err))
   return true
 }
 
