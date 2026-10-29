@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { participantIdentity } from './jid.js'
 import { downloadFile, cleanup } from './midia.js'
 
@@ -8,6 +9,21 @@ try { links = JSON.parse(fs.readFileSync(linksPath, 'utf8')) } catch {}
 
 export function mediaLink(key = '') {
 return String(links?.[key] || '').trim()
+}
+
+// GIFs e imagens guardados no próprio bot (sistema/midia/brincadeiras/<chave>
+// .mp4, .jpg...). Vêm antes do link do links.json: hospedagem de fora (catbox)
+// sai do ar e o comando ficava só no texto.
+const pastaLocal = new URL('../midia/brincadeiras/', import.meta.url)
+const tiposLocais = { mp4: 'video/mp4', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' }
+export function midiaLocal(key = '') {
+const nome = String(key).replace(/[^\w-]/g, '')
+if (!nome) return null
+for (const [ext, mimetype] of Object.entries(tiposLocais)) {
+const caminho = fileURLToPath(new URL(`${nome}.${ext}`, pastaLocal))
+if (fs.existsSync(caminho)) return { path: caminho, mimetype }
+}
+return null
 }
 
 export function random(max = 100) {
@@ -76,33 +92,35 @@ return system.reply(text, { mentions })
 
 export async function sendAkameMedia(system, key, caption, identities = [], fallbackText = '') {
 const url = mediaLink(key)
+const local = midiaLocal(key)
 const mentions = identities.map((x) => typeof x === 'string' ? x : x?.jid).filter(Boolean)
-if (!url) return system.reply(fallbackText || caption, { mentions })
+if (!url && !local) return system.reply(fallbackText || caption, { mentions })
 
 let file
 try {
 const fallback = /\.mp4(?:$|\?)/i.test(url) ? 'mp4' : 'jpg'
-file = await downloadFile(url, system.config, fallback)
-if (file.mimetype.startsWith('video/')) {
+const media = local || (file = await downloadFile(url, system.config, fallback))
+if (media.mimetype.startsWith('video/')) {
 return await system.send({
 type: 'video',
-media: file.path,
-mimetype: file.mimetype || 'video/mp4',
+media: media.path,
+mimetype: media.mimetype || 'video/mp4',
 gifPlayback: true,
 caption
 }, system.from, { mentions })
 }
-if (file.mimetype.startsWith('image/')) {
+if (media.mimetype.startsWith('image/')) {
 return await system.send({
 type: 'image',
-media: file.path,
-mimetype: file.mimetype,
+media: media.path,
+mimetype: media.mimetype,
 caption
 }, system.from, { mentions })
 }
+console.log(`[ BRINCADEIRA MEDIA:${key} ] o link não devolveu imagem nem vídeo (${media.mimetype || 'sem tipo'}):`, url)
 return system.reply(fallbackText || caption, { mentions })
 } catch (error) {
-console.log(`[ BRINCADEIRA MEDIA:${key} ]`, error?.message || error)
+console.log(`[ BRINCADEIRA MEDIA:${key} ]`, error?.message || error, '|', local?.path || url)
 return system.reply(fallbackText || caption, { mentions })
 } finally {
 await cleanup(file)
