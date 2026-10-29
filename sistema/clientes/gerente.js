@@ -22,8 +22,9 @@ const nomePasta = (pedido) => limpo(pedido).replace(/[^A-Za-z0-9_-]/g, '_').slic
 
 // Variáveis do bot da casa que o bot da cliente NÃO pode herdar.
 // AURORA_PREFIX também é da casa: cada bot de cliente guarda o próprio
-// prefixo (#setprefix) na pasta dele.
-const SO_DA_CASA = ['AURORA_RENTAL_TOKEN', 'AUTO_SYSTEM_TOKEN', 'AUTOSYSTEM_TOKEN', 'AURORA_PREFIX', 'AURORA_OWNER_NUMBER', 'AURORA_CONNECTION_NUMBER', 'AURORA_CONFIG_FILE', 'AURORA_DATA_DIR', 'AURORA_MARCA', 'AURORA_CLIENTE']
+// prefixo (#setprefix) na pasta dele. A chave da Square Cloud (Aurora com IA)
+// também: a IA é só do bot da casa.
+const SO_DA_CASA = ['AURORA_RENTAL_TOKEN', 'AUTO_SYSTEM_TOKEN', 'AUTOSYSTEM_TOKEN', 'AURORA_PREFIX', 'AURORA_OWNER_NUMBER', 'AURORA_CONNECTION_NUMBER', 'AURORA_CONFIG_FILE', 'AURORA_DATA_DIR', 'AURORA_MARCA', 'AURORA_CLIENTE', 'SQUARECLOUD_API_KEY', 'SQUARECLOUD_AI_KEY', 'AURORA_MAX_DIA']
 
 export function marcaDo(c) {
   return {
