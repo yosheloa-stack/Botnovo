@@ -149,3 +149,23 @@ test('bot com número de outro país também liga', async () => {
 test('marcaDo limpa o número da dona', () => {
   assert.equal(marcaDo({ dono_numero: '+55 (11) 98888-0000' }).dono, '5511988880000')
 })
+
+test('Aurora com IA: só o bot no número da casa recebe a chave da Square Cloud', async () => {
+  process.env.SQUARECLOUD_API_KEY = 'chave-da-ia-da-casa'
+  process.env.AURORA_MAX_DIA = '50'
+  const { g, filhos } = cenario(() => [
+    cliente({ codigo_pedido: 1, pedido: 'casa', bot_numero: '556781517686' }),
+    cliente({ codigo_pedido: 1, pedido: 'outra', bot_numero: '5511999990000' })
+  ])
+  await g.sincronizar()
+  delete process.env.SQUARECLOUD_API_KEY
+  delete process.env.AURORA_MAX_DIA
+  const casa = filhos.find((f) => f.opcoes.env.AURORA_CONNECTION_NUMBER === '556781517686').opcoes.env
+  const outra = filhos.find((f) => f.opcoes.env.AURORA_CONNECTION_NUMBER === '5511999990000').opcoes.env
+  assert.equal(casa.AURORA_IA, '1', 'número da casa sem o nono dígito também conta')
+  assert.equal(casa.SQUARECLOUD_API_KEY, 'chave-da-ia-da-casa')
+  assert.equal(casa.AURORA_MAX_DIA, '50')
+  assert.equal(outra.AURORA_IA, undefined)
+  assert.equal(outra.SQUARECLOUD_API_KEY, undefined)
+  assert.equal(outra.AURORA_MAX_DIA, undefined)
+})

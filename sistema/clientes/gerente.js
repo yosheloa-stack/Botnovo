@@ -15,6 +15,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { criarLogRaro, motivoDaFalha, pedirAoSite, respostaEstranha } from '../funcoes/rede.js'
+import { NUMERO_BOT_DA_CASA } from '../funcoes/config.js'
+import { mesmoNumero } from '../funcoes/jid.js'
 
 const INDEX = fileURLToPath(new URL('../../index.js', import.meta.url))
 const limpo = (v) => String(v ?? '').trim()
@@ -23,8 +25,17 @@ const nomePasta = (pedido) => limpo(pedido).replace(/[^A-Za-z0-9_-]/g, '_').slic
 // Variáveis do bot da casa que o bot da cliente NÃO pode herdar.
 // AURORA_PREFIX também é da casa: cada bot de cliente guarda o próprio
 // prefixo (#setprefix) na pasta dele. A chave da Square Cloud (Aurora com IA)
-// também: a IA é só do bot da casa.
-const SO_DA_CASA = ['AURORA_RENTAL_TOKEN', 'AUTO_SYSTEM_TOKEN', 'AUTOSYSTEM_TOKEN', 'AURORA_PREFIX', 'AURORA_OWNER_NUMBER', 'AURORA_CONNECTION_NUMBER', 'AURORA_CONFIG_FILE', 'AURORA_DATA_DIR', 'AURORA_MARCA', 'AURORA_CLIENTE', 'SQUARECLOUD_API_KEY', 'SQUARECLOUD_AI_KEY', 'AURORA_MAX_DIA']
+// também, menos no número da casa (ver IA_DA_CASA).
+const IA_DA_CASA = ['SQUARECLOUD_API_KEY', 'SQUARECLOUD_AI_KEY', 'AURORA_MAX_DIA']
+const SO_DA_CASA = ['AURORA_RENTAL_TOKEN', 'AUTO_SYSTEM_TOKEN', 'AUTOSYSTEM_TOKEN', 'AURORA_PREFIX', 'AURORA_OWNER_NUMBER', 'AURORA_CONNECTION_NUMBER', 'AURORA_CONFIG_FILE', 'AURORA_DATA_DIR', 'AURORA_MARCA', 'AURORA_CLIENTE', 'AURORA_IA', ...IA_DA_CASA]
+
+// A Aurora com IA é do bot da casa. Quando o número da casa está ligado como
+// bot de cliente (o dono alugou pro próprio número, é ele que manda os avisos
+// de compra), esse bot também tem a IA. AURORA_IA_NUMERO troca o número.
+export const temIaDaCasa = (botNumero) => {
+  const numero = limpo(process.env.AURORA_IA_NUMERO) || NUMERO_BOT_DA_CASA
+  return Boolean(limpo(botNumero)) && (mesmoNumero(numero, botNumero) || mesmoNumero(botNumero, numero))
+}
 
 export function marcaDo(c) {
   return {
@@ -103,6 +114,10 @@ export function criarGerente({
       // pedidos no bot saem do plano dela, não da key da casa.
       ...(tokenDo(c) ? { AUTOSYSTEM_TOKEN: tokenDo(c) } : {})
     })
+    if (temIaDaCasa(c.bot_numero)) {
+      env.AURORA_IA = '1'
+      for (const k of IA_DA_CASA) if (process.env[k]) env[k] = process.env[k]
+    }
     const nome = limpo(c.nome_bot) || limpo(c.bot_numero)
     const filho = spawnImpl(process.execPath, ['--disable-warning=ExperimentalWarning', INDEX], { cwd: pasta, env, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] })
     estado.filho = filho

@@ -17,8 +17,11 @@ O bot consulta a Kasane periodicamente. Quando encontra um pedido pago, valida o
 ## Aurora com IA
 
 Com `SQUARECLOUD_API_KEY` no ambiente, a Aurora conversa como gente, usando o
-AI Gateway da Square Cloud (modelo `cubic`). Só no bot da casa: o bot de
-cliente não tem.
+AI Gateway da Square Cloud (modelo `cubic`). Só no bot da casa: bot de
+cliente não tem, menos o que roda no número da casa (quando o dono alugou um
+bot pro próprio número, que é o que manda os avisos de compra). Pra usar outro
+número, ponha `AURORA_IA_NUMERO`. Nesse bot a resposta dela sai sem a troca de
+marca (continua "Aurora" e com o endereço do site).
 
 - **Quando ela responde:** no privado, sempre. No grupo, quando alguém marca o
   bot, responde (cita) uma mensagem dele ou fala "aurora" na frase. Comando

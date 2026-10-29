@@ -1,12 +1,11 @@
 import { parseToggle } from '../../funcoes/toggle.js'
 import { auroraNoGrupo } from '../../funcoes/banco.js'
-import { handleAurora, ligadaNoGrupo } from '../../funcoes/aurora/index.js'
-import { modoCliente } from '../../funcoes/cliente.js'
+import { handleAurora, ligadaNoGrupo, iaNesteBot } from '../../funcoes/aurora/index.js'
 
 // #aurora texto  → fala com a Aurora (qualquer pessoa)
 // #aurora 1 / 0  → liga ou desliga a Aurora neste grupo (admin ou dono)
 export default {name: 'aurora',aliases: ['ia'],category: 'geral',description: 'Conversa com a Aurora (IA) ou liga/desliga ela no grupo',async run(system){
-if (modoCliente) return system.reply('Comando indisponível neste bot.')
+if (!iaNesteBot()) return system.reply('Comando indisponível neste bot.')
 const valor = system.args.length === 1 ? parseToggle(system.args[0]) : null
 if (valor !== null) {
 if (!system.isGroup) return system.reply('Use este comando dentro do grupo. No privado é só falar comigo 😉')
