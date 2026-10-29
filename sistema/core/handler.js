@@ -12,6 +12,7 @@ import { necessarios as currentNecessarios } from '../funcoes/necessarios.js'
 import { handleSoli } from '../funcoes/soli.js'
 import { marcaCliente, modoCliente } from '../funcoes/cliente.js'
 import { handleAurora } from '../funcoes/aurora/index.js'
+import { chamouAurora } from '../funcoes/aurora/ia.js'
 
 const missingRentalLogs = new Map()
 const msgIdioma = (system, pt, es, en) => {
@@ -189,10 +190,13 @@ if (system.isGroup && aluguelOn() && !aluguelOk(system.from) && !system.isOwner)
   // pra saber se foi a dona (aí é número cadastrado errado) ou outra pessoa.
   const now = Date.now()
   const last = missingRentalLogs.get(system.from) || 0
-  if (system.command && now - last > 60_000) {
+  // Chamar a Aurora num grupo não registrado também avisa (senão ela só
+  // "ignora" quem não é dono e ninguém sabe por quê).
+  const chamouIa = !system.command && chamouAurora(extractText(event?.message))
+  if ((system.command || chamouIa) && now - last > 60_000) {
     missingRentalLogs.set(system.from, now)
     console.warn('[ AURORA ALUGUEL ] Comando ignorado: grupo não registrado:', system.from,
-      '| comando:', system.command, '| de:', system.senderNumber || system.senderKey || '(ausente)',
+      '| comando:', system.command || 'Aurora', '| de:', system.senderNumber || system.senderKey || '(ausente)',
       modoCliente ? '| a dona registra o grupo mandando #rgaluguel nele' : '| verifique persistência de sistema/dados/dados.db e retorno da ativação pelo site')
   }
   return

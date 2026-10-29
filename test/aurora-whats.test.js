@@ -15,10 +15,11 @@ process.env.SQUARECLOUD_API_KEY = 'chave-de-teste'
 
 const pedidosIa = []
 const pedidosLike = []
+let respostaIa = 'oi, tô aqui 😌'
 globalThis.fetch = async (url, opcoes = {}) => {
   if (String(url).includes('/v2/ai/chat/completions')) {
     pedidosIa.push(JSON.parse(opcoes.body))
-    return new Response(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: 'oi, tô aqui 😌' } }] }), { status: 200 })
+    return new Response(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: respostaIa } }] }), { status: 200 })
   }
   if (String(url).includes('/v1/like')) {
     pedidosLike.push(new URL(String(url)).searchParams.get('uid'))
@@ -124,4 +125,12 @@ test('"faz o envio pra mim" sem ID usa o último ID da conversa', async () => {
   const fim = Date.now() + 6000
   while (enviados.length < inicio + 2 && Date.now() < fim) await new Promise((r) => setTimeout(r, 50))
   assert.deepEqual(pedidosLike, ['8123124352', '8123124352'])
+})
+
+test('ela vê os membros do grupo pelo nome e marca de verdade', async () => {
+  respostaIa = 'olha o @5544911112222 aí 😏'
+  const saiu = await respostaDe(mensagem('aurora quem tá no grupo?'))
+  respostaIa = 'oi, tô aqui 😌'
+  assert.match(pedidosIa.at(-1).messages[0].content, /MEMBROS DESTE GRUPO \(1 pessoas[\s\S]*- Yosh: @5544911112222/)
+  assert.deepEqual(saiu[0].opcoes.mentions, ['5544911112222@s.whatsapp.net'])
 })

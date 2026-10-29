@@ -9,7 +9,7 @@
 // mesma do suporte com IA do site. Vem SÓ do ambiente: SQUARECLOUD_API_KEY
 // (ou SQUARECLOUD_AI_KEY). Nunca no config.json.
 
-import { createAurora, deveResponder, textoPrecos, pediuLike, acharId, FRASES_LIKE, LIMITES } from './ia.js'
+import { createAurora, deveResponder, chamouAurora, textoPrecos, pediuLike, acharId, FRASES_LIKE, blocoMembros, acharMarcacoes, LIMITES } from './ia.js'
 import { extractText } from '../../core/contexto.js'
 import { contextInfoFromMessage, quotedInfo, quotedTarget } from '../mensagem.js'
 import { autoSystem } from '../auto.js'
@@ -17,7 +17,7 @@ import { pedirAoSite } from '../rede.js'
 import { auroraIaLigada, auroraNoGrupo, aluguelOk, getDonoAluguel, hasCmd, hasGcmd } from '../banco.js'
 import likeCmd from '../../comandos/ff/like.js'
 import { modoCliente } from '../cliente.js'
-import { digits, mesmoNumero } from '../jid.js'
+import { digits, mesmoNumero, jidNumber, participantIdentity } from '../jid.js'
 
 // Este processo tem a IA? O bot da casa sempre; bot de cliente só o do número da casa.
 export const iaNesteBot = () => !modoCliente || process.env.AURORA_IA === '1'
@@ -90,6 +90,22 @@ export function citouBot(system) {
   return Boolean(quotedTarget(system)?.fromMe) || idsDoBot(system).includes(base(q.participant))
 }
 
+// Os membros do grupo com o nome que o bot já viu (perfil de quem já falou).
+export function membrosDoGrupo(system) {
+  const meus = idsDoBot(system)
+  const perfis = system.db?.profiles || {}
+  const lista = []
+  for (const p of system.metadata?.participants || []) {
+    const id = participantIdentity(p)
+    const tag = id.number || jidNumber(id.lidJid || id.jid)
+    if (!tag || meus.includes(tag)) continue
+    const perfil = perfis[id.number] || perfis[id.lidJid] || perfis[id.jid]
+    const nome = String(perfil?.name || '').trim()
+    lista.push({ tag, jid: id.pnJid || id.jid, nome: nome === 'Usuário' ? '' : nome, admin: Boolean(p?.isAdmin || p?.isSuperAdmin || p?.admin === 'admin' || p?.admin === 'superadmin') })
+  }
+  return lista
+}
+
 // Grupo sem escolha feita: ligada, menos em grupo alugado por cliente.
 export function ligadaNoGrupo(system) {
   const escolha = auroraNoGrupo(system.from)
@@ -123,6 +139,7 @@ async function mandarLike(system, texto, uid) {
 async function conversar(system, texto) {
   const conversa = `${system.from}:${system.senderKey}`
   const citado = textoCitado(system)
+  const membros = system.isGroup ? membrosDoGrupo(system) : []
   await digitando(system, 'composing')
   // O "digitando…" some sozinho depois de uns segundos: renova enquanto espera a fila.
   const renovar = setInterval(() => { void digitando(system, 'composing') }, 10_000)
@@ -137,7 +154,8 @@ async function conversar(system, texto) {
       ehAdmin: Boolean(system.isAdmin),
       ehDono: Boolean(system.isOwner),
       citado,
-      prefixo: system.prefix
+      prefixo: system.prefix,
+      membros: blocoMembros(membros)
     })
     if (resposta) {
       const falta = Math.min(4_000, 800 + resposta.length * 25) - (Date.now() - inicio)
@@ -149,7 +167,10 @@ async function conversar(system, texto) {
   }
   // No bot de cliente do número da casa, a resposta sai sem a troca de marca:
   // senão "Aurora" vira o nome do bot e o endereço do site some da resposta.
-  if (resposta) await system.reply(resposta, modoCliente ? { semMarca: true } : {})
+  if (!resposta) return
+  const opcoes = modoCliente ? { semMarca: true } : {}
+  const mentions = acharMarcacoes(resposta, membros)
+  await system.reply(resposta, mentions.length ? { ...opcoes, mentions } : opcoes)
 }
 
 // Devolve true quando a mensagem é da Aurora (o handler para por aqui).
@@ -160,7 +181,10 @@ export function handleAurora(system, { forcado = false, texto } = {}) {
   const t = String(texto ?? system.text ?? '').trim()
   const p = String(system.prefix || '#')
   const ehComando = !forcado && (t.startsWith(p) || t.startsWith('/'))
-  if (!forcado && system.isGroup && Number(system.group?.soAdm) === 1 && !system.isAdmin && !system.isOwner) return false
+  if (!forcado && system.isGroup && Number(system.group?.soAdm) === 1 && !system.isAdmin && !system.isOwner) {
+    if (chamouAurora(t)) console.log('[ AURORA IA ] ignorou: grupo no modo só admin |', system.from)
+    return false
+  }
   const decisao = deveResponder({
     texto: t,
     isGroup: system.isGroup,
