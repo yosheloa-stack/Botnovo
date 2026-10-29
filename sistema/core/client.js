@@ -7,6 +7,7 @@ import { loadNecessarios } from '../funcoes/necessarios.js'
 import { loadState, importNecessarios, boasVindasEnviada, marcarBoasVindas } from '../funcoes/banco.js'
 import { loadPlugins } from './loader.js'
 import { createHandler } from './handler.js'
+import { esquecerGrupo } from './contexto.js'
 import { createGroupHandler } from './eventos.js'
 import { createOutgoingX9Tracker, createProtocolX9Handler, createInteractionX9Handler, createGroupX9Handler, createCallX9Handler, createUnavailableX9Handler } from '../funcoes/x9.js'
 import { showConnected, showPairing, showStart } from '../funcoes/terminal.js'
@@ -308,6 +309,8 @@ client.on('group', (event) => {
     console.error('[ AURORA ALUGUEL ] Erro ao tratar evento de participantes:', err?.message || err)
   })
 })
+// Promoveu, rebaixou, entrou ou saiu: o próximo comando lê os ADMs de novo.
+client.on('group', (event) => { if (event?.groupJid) esquecerGrupo(event.groupJid) })
 client.on('group', createGroupHandler({ client, config, necesarios: flags }))
 client.on('group', createGroupX9Handler({ client }))
 client.on('call', createCallX9Handler({ client }))
