@@ -98,6 +98,12 @@ test('limite por pessoa: avisa uma vez e depois fica quieta', async () => {
   assert.equal(await a.responder(fala('aurora oi', { conversa: 'g@g.us:5511' })), 'oi sumido 😏', 'outra pessoa segue')
 })
 
+test('o dono não tem limite por pessoa', async () => {
+  const { a, chamadas } = aurora()
+  for (let i = 0; i < LIMITES.porPessoa + 3; i++) assert.equal(await a.responder(fala('aurora ' + i, { ehDono: true })), 'oi sumido 😏')
+  assert.equal(chamadas.length, LIMITES.porPessoa + 3)
+})
+
 test('teto do dia (AURORA_MAX_DIA): para de chamar e fala que tá cansada uma vez', async () => {
   const { a, chamadas } = aurora({ deps: { maxDia: () => 2 } })
   await a.responder(fala('aurora 1', { conversa: 'g:1' }))

@@ -254,7 +254,8 @@ export function createAurora({
       log(`chegou no teto do dia (${maxDia()} respostas, AURORA_MAX_DIA)`)
       return avisarUmaVez('dia:' + (grupo || conversa), FRASES.cansada, proximaMeiaNoiteUtc(t) - t)
     }
-    const daPessoa = recentes(usoPessoa, conversa, LIMITES.porPessoaJanelaMs)
+    // O dono do bot não tem limite por pessoa (só o do grupo e o do dia).
+    const daPessoa = ehDono ? [] : recentes(usoPessoa, conversa, LIMITES.porPessoaJanelaMs)
     if (daPessoa.length >= LIMITES.porPessoa) {
       log('ignorou: limite por pessoa', conversa)
       return avisarUmaVez('pessoa:' + conversa, FRASES.pessoa, LIMITES.porPessoaJanelaMs)
