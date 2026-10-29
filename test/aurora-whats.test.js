@@ -82,7 +82,7 @@ test('responder (citar) a mensagem do bot pelo LID chama a Aurora, mesmo só com
   assert.deepEqual(estados.slice(0, 1), ['composing'])
   const ultimo = pedidosIa.at(-1)
   assert.equal(ultimo.model, 'cubic')
-  assert.match(ultimo.messages.at(-1).content, /\[Yosh\] 123456789\n\(respondendo a: "Só cola aqui/)
+  assert.match(ultimo.messages.at(-1).content, /\[Yosh\] 123456789\n\(respondendo a uma mensagem SUA: "Só cola aqui/)
 })
 
 test('citar pelo número, marcar o bot e falar "aurora" no meio também chamam', async () => {

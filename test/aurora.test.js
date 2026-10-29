@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   createAurora, deveResponder, chamouAurora, acharId, pediuLike, blocoConsulta, textoPrecos,
-  montarSystem, limparResposta, blocoMembros, acharMarcacoes, blocoErro, motivoLimpo, FRASES, LIMITES, SEM_PRECOS
+  montarSystem, limparResposta, blocoMembros, acharMarcacoes, blocoErro, motivoLimpo, pediuClima, acharCidade, textoClima, CLIMA_SEM_CIDADE, FRASES, LIMITES, SEM_PRECOS
 } from '../sistema/funcoes/aurora/ia.js'
 
 const ok = (content, extra = {}) => ({ status: 200, data: { choices: [{ finish_reason: 'stop', message: { content }, ...extra }] } })
@@ -70,15 +70,16 @@ test('lembra o último ID que a pessoa mandou na conversa', async () => {
   assert.equal(a.ultimoId('g@g.us:5511'), '')
 })
 
-test('uma mensagem = uma resposta, e a memória guarda no máximo 10', async () => {
+test('uma mensagem = uma resposta, e a memória tem limite', async () => {
   const { a, chamadas } = aurora()
-  for (let i = 0; i < 6; i++) assert.equal(await a.responder(fala('aurora oi ' + i)), 'oi sumido 😏')
-  assert.equal(chamadas.length, 6)
+  for (let i = 0; i < 6; i++) assert.equal(await a.responder(fala('aurora oi ' + i, { ehCriador: true })), 'oi sumido 😏')
+  for (let i = 6; i < 10; i++) await a.responder(fala('aurora oi ' + i, { ehCriador: true }))
+  assert.equal(chamadas.length, 10)
   assert.equal(a._memoria('g@g.us:5544').length, LIMITES.memoriaMsgs)
   const ultima = chamadas.at(-1)
   assert.equal(ultima[0].role, 'system')
   assert.equal(ultima.at(-1).role, 'user')
-  assert.match(ultima.at(-1).content, /^\[Yosh\] aurora oi 5/)
+  assert.match(ultima.at(-1).content, /^\[Yosh, CRIADOR\] aurora oi 9/)
   a.esquecer('g@g.us:5544')
   assert.equal(a._memoria('g@g.us:5544').length, 0)
 })
@@ -250,4 +251,42 @@ test('a mulher do criador vem marcada pra ela, e a marcação nunca vai pro grup
   assert.match(chamadas[0].at(-1).content, /^\[Ju, ESPOSA DO CRIADOR\] aurora oi amor/)
   assert.match(chamadas[0][0].content, /ESPOSA DO CRIADOR[\s\S]*respeitosa, carinhosa/)
   assert.equal(limparResposta('[Ju, ESPOSA DO CRIADOR] oi, linda 💜'), 'oi, linda 💜')
+})
+
+test('no grupo a memória é de todos: ela sabe o que falou pra outra pessoa', async () => {
+  const { a, chamadas } = aurora()
+  await a.responder(fala('oi aurora', { conversa: 'g@g.us:5568', nome: 'Hemi' }))
+  await a.responder(fala('rapaz', { citado: 'oi sumido 😏', citadoDela: true }))
+  const ultima = chamadas.at(-1)
+  assert.match(ultima[1].content, /^\[Hemi\] oi aurora/)
+  assert.match(ultima.at(-1).content, /respondendo a uma mensagem SUA: "oi sumido/)
+  assert.equal(a._memoria('outro@g.us:1').length, 0, 'outro grupo não vê')
+})
+
+test('clima: entende a pergunta e acha a cidade', () => {
+  for (const t of ['como está o clima hoje', 'aurora quantos graus em maringá?', 'vai chover em Rio Branco amanhã']) assert.equal(pediuClima(t), true, t)
+  for (const t of ['quanto tempo falta', 'bom dia']) assert.equal(pediuClima(t), false, t)
+  assert.equal(acharCidade('como está o clima hoje'), '')
+  assert.equal(acharCidade('aurora quantos graus em maringá?'), 'maringá')
+  assert.equal(acharCidade('vai chover em Rio Branco amanhã'), 'Rio Branco')
+  assert.equal(acharCidade('clima de hoje em São José dos Campos'), 'São José dos Campos')
+  const t = textoClima({ nome: 'Rio Branco', estado: 'Acre', pais: 'Brasil' }, {
+    current: { temperature_2m: 31.4, apparent_temperature: 35.2, relative_humidity_2m: 60, weather_code: 2, is_day: 1 },
+    daily: { temperature_2m_min: [22.1], temperature_2m_max: [33.6], precipitation_probability_max: [40] }
+  })
+  assert.match(t, /CLIMA AGORA EM Rio Branco, Acre[\s\S]*31°C \(sensação 35°C\), parcialmente nublado, umidade 60%, de dia[\s\S]*mínima 22°C, máxima 34°C, chance de chuva 40%/)
+  assert.equal(textoClima({ nome: 'X' }, {}), '')
+})
+
+test('clima sem cidade: ela pergunta, e a resposta curta vira a cidade', async () => {
+  const pedidas = []
+  const { a, chamadas } = aurora({ deps: { buscarClima: async (c) => { pedidas.push(c); return c === 'Rio Branco' ? 'CLIMA AGORA EM Rio Branco, Acre (dados reais; use só estes números):\n- Agora: 31°C' : null } } })
+  await a.responder(fala('como está o clima hoje'))
+  assert.ok(chamadas[0][0].content.includes(CLIMA_SEM_CIDADE))
+  await a.responder(fala('Rio Branco'))
+  assert.match(chamadas[1][0].content, /CLIMA AGORA EM Rio Branco/)
+  await a.responder(fala('aurora clima em Lugarnenhum'))
+  assert.match(chamadas[2][0].content, /não conseguiu ver o clima de "Lugarnenhum"/)
+  assert.deepEqual(pedidas, ['Rio Branco', 'Lugarnenhum'])
+  assert.doesNotMatch(montarSystem({ texto: 'oi' }), /CLIMA AGORA/)
 })

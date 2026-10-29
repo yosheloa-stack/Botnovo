@@ -9,7 +9,7 @@
 // mesma do suporte com IA do site. Vem SÓ do ambiente: SQUARECLOUD_API_KEY
 // (ou SQUARECLOUD_AI_KEY). Nunca no config.json.
 
-import { createAurora, deveResponder, chamouAurora, textoPrecos, pediuLike, acharId, FRASES_LIKE, blocoMembros, acharMarcacoes, SEM_MEMBROS, LIMITES } from './ia.js'
+import { createAurora, deveResponder, chamouAurora, textoPrecos, textoClima, pediuLike, acharId, FRASES_LIKE, blocoMembros, acharMarcacoes, SEM_MEMBROS, LIMITES } from './ia.js'
 import { extractText } from '../../core/contexto.js'
 import { contextInfoFromMessage, quotedInfo, quotedTarget } from '../mensagem.js'
 import { autoSystem } from '../auto.js'
@@ -64,8 +64,34 @@ async function buscarPrecos() {
   return texto || precosCache.texto
 }
 
+// Clima de verdade pelo Open-Meteo (grátis, sem chave). Cidade do Brasil
+// primeiro; 10 min de cache por cidade.
+const climaCache = new Map()
+async function buscarClima(cidade) {
+  const chave = String(cidade).toLowerCase().trim()
+  const c = climaCache.get(chave)
+  if (c && Date.now() - c.at < 10 * 60_000) return c.texto
+  const json = async (url) => {
+    const r = await fetch(url, { signal: AbortSignal.timeout(10_000), headers: { Accept: 'application/json' } })
+    return r.ok ? r.json() : null
+  }
+  const geo = (extra) => json(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cidade)}&count=1&language=pt&format=json${extra}`)
+  try {
+    const g = (await geo('&countryCode=BR'))?.results?.[0] || (await geo(''))?.results?.[0]
+    if (!g) return null
+    const dados = await json(`https://api.open-meteo.com/v1/forecast?latitude=${g.latitude}&longitude=${g.longitude}&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=1`)
+    const texto = textoClima({ nome: g.name, estado: g.admin1, pais: g.country }, dados) || null
+    if (texto) { climaCache.set(chave, { at: Date.now(), texto }); if (climaCache.size > 300) climaCache.delete(climaCache.keys().next().value) }
+    return texto
+  } catch (err) {
+    console.warn('[ AURORA IA ] clima indisponível:', err?.message || err)
+    return null
+  }
+}
+
 export const aurora = createAurora({
   chamar,
+  buscarClima,
   consultarId: (uid) => autoSystem.info(configAtual, uid),
   buscarPrecos,
   maxDia
@@ -230,6 +256,7 @@ async function conversar(system, texto) {
       ehCriador: ehCriador(system),
       ehEsposa: ehEsposa(system),
       citado,
+      citadoDela: Boolean(citado) && citouBot(system),
       prefixo: system.prefix,
       membros: system.isGroup ? blocoMembros(membros) || SEM_MEMBROS : '',
       erro: errosRecentes.get(system.from) || null

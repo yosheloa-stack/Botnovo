@@ -18,7 +18,7 @@ const MINUTO = 60_000
 const HORA = 60 * MINUTO
 
 export const LIMITES = {
-  memoriaMsgs: 10,
+  memoriaMsgs: 16,
   memoriaVidaMs: 40 * MINUTO,
   memoriaMax: 2000,
   porPessoa: 6, porPessoaJanelaMs: 10 * MINUTO,
@@ -156,6 +156,48 @@ export function acharMarcacoes(texto = '', membros = []) {
   return [...new Set(membros.filter((m) => tags.has(String(m.tag))).map((m) => m.jid))]
 }
 
+// ── clima de verdade (Open-Meteo) ────────────────────────────────────────────
+export function pediuClima(texto = '') {
+  return /\b(clima|temperatura|graus|chov\w*|chuva|previsao do tempo|como (ta|esta) o tempo|calor|frio|calorao|friaca)\b/.test(semAcento(texto))
+}
+const NAO_CIDADE = new Set(['hoje', 'amanha', 'agora', 'aqui', 'ai', 'la', 'voce', 'vc', 'tempo', 'clima', 'sol', 'noite', 'dia', 'manha', 'tarde', 'aurora', 'mim', 'casa', 'minha', 'sua', 'tua'])
+// "quantos graus em maringá" → "maringá"; "clima de hoje" → ""
+export function acharCidade(texto = '') {
+  const palavras = String(texto).replace(/[?!.,;:]+/g, ' ').split(/\s+/).filter(Boolean)
+  const limpa = (p) => semAcento(p).replace(/[^a-z]/g, '')
+  const PREP = new Set(['em', 'no', 'na', 'pra', 'para', 'de', 'do', 'da'])
+  const LIGA = new Set(['de', 'da', 'do', 'das', 'dos'])
+  let achou = ''
+  palavras.forEach((p, i) => {
+    if (!PREP.has(limpa(p))) return
+    const nome = []
+    for (let j = i + 1; j < palavras.length && nome.length < 6; j++) {
+      const w = limpa(palavras[j])
+      if (NAO_CIDADE.has(w) || PREP.has(w) && !LIGA.has(w)) break
+      if (LIGA.has(w) && !nome.length) break
+      nome.push(palavras[j])
+    }
+    while (nome.length && LIGA.has(limpa(nome.at(-1)))) nome.pop()
+    if (nome.length) achou = nome.join(' ')
+  })
+  return achou
+}
+const TEMPO_WMO = { 0: 'céu limpo', 1: 'quase limpo', 2: 'parcialmente nublado', 3: 'nublado', 45: 'neblina', 48: 'neblina', 51: 'garoa fraca', 53: 'garoa', 55: 'garoa forte', 61: 'chuva fraca', 63: 'chuva', 65: 'chuva forte', 66: 'chuva congelante', 67: 'chuva congelante', 71: 'neve fraca', 73: 'neve', 75: 'neve forte', 80: 'pancadas de chuva fracas', 81: 'pancadas de chuva', 82: 'pancadas de chuva fortes', 95: 'trovoada', 96: 'trovoada com granizo', 99: 'trovoada com granizo' }
+// lugar: { nome, estado, pais }; dados: resposta do /v1/forecast do Open-Meteo.
+export function textoClima(lugar, dados) {
+  const c = dados?.current, d = dados?.daily
+  if (!lugar?.nome || !c || typeof c.temperature_2m !== 'number') return ''
+  const onde = [lugar.nome, lugar.estado, lugar.pais !== 'Brasil' && lugar.pais].filter(Boolean).join(', ')
+  const r = (n) => Math.round(n)
+  const linhas = [
+    `- Agora: ${r(c.temperature_2m)}°C (sensação ${r(c.apparent_temperature ?? c.temperature_2m)}°C), ${TEMPO_WMO[c.weather_code] || 'tempo sem descrição'}, umidade ${r(c.relative_humidity_2m ?? 0)}%, ${c.is_day ? 'de dia' : 'de noite'} lá`,
+    d?.temperature_2m_max?.length ? `- Hoje: mínima ${r(d.temperature_2m_min[0])}°C, máxima ${r(d.temperature_2m_max[0])}°C${d.precipitation_probability_max?.[0] != null ? `, chance de chuva ${r(d.precipitation_probability_max[0])}%` : ''}` : ''
+  ].filter(Boolean)
+  return `CLIMA AGORA EM ${onde} (dados reais; use só estes números):\n${linhas.join('\n')}`
+}
+export const CLIMA_SEM_CIDADE = 'CLIMA: a pessoa perguntou do clima mas não disse a cidade. Pergunte de qual cidade, no seu jeito. Não invente temperatura nem tempo.'
+export const climaFalhou = (cidade) => `CLIMA: você não conseguiu ver o clima de "${String(cidade).slice(0, 40)}" agora. Diga isso do seu jeito (pode pedir pra escrever o nome da cidade certinho). Não invente temperatura nem tempo.`
+
 // ── o último erro de comando no grupo (o de verdade, do console) ─────────────
 // erro: { comando, quem, at, motivo }. Link e chave nunca vão pra ela.
 export function motivoLimpo(motivo = '') {
@@ -172,13 +214,14 @@ export function blocoErro(erro, agora = Date.now(), prefixo = '#') {
 - Explique esse motivo em palavras simples, sem inventar outro. Se for técnico demais, diga que o serviço que esse comando usa falhou e é pra tentar mais tarde.`
 }
 
-export function montarSystem({ prefixo = '#', agora = Date.now(), texto = '', precos = null, consulta = '', membros = '', erro = '' }) {
+export function montarSystem({ prefixo = '#', agora = Date.now(), texto = '', precos = null, consulta = '', membros = '', erro = '', clima = '' }) {
   const a = assuntos(texto)
   const partes = [PERSONA, BASE]
   if (a.api) partes.push(API)
   if (a.aluguel) partes.push(ALUGUEL)
   if (a.precos) partes.push(precos || SEM_PRECOS)
   if (consulta) partes.push(consulta)
+  if (clima) partes.push(clima)
   const texto0 = partes.join('\n\n').replaceAll('{prefixo}', prefixo).replaceAll('{agora}', horaBrasilia(agora))
   return [texto0, membros, erro].filter(Boolean).join('\n\n')
 }
@@ -215,12 +258,18 @@ export function createAurora({
   chamar,                          // async (messages) => { status, data }
   consultarId = async () => null,  // async (uid) => resposta do /v1/info
   buscarPrecos = async () => null, // async () => texto de preços ou null
+  buscarClima = async () => null,  // async (cidade) => texto do clima ou null
   agora = () => Date.now(),
   esperar = (ms) => new Promise((r) => setTimeout(r, ms)),
   maxDia = () => LIMITES.maxDiaPadrao,
   log = (...a) => console.log('[ AURORA IA ]', ...a)
 } = {}) {
-  const memoria = new Map()   // conversa -> { msgs, at }
+  const memoria = new Map()   // grupo (ou conversa no privado) -> { msgs, at }
+  const ids = new Map()       // conversa -> { uid, at }: o último ID que a pessoa mandou
+  const esperaCidade = new Map() // conversa -> quando ela perguntou "qual cidade?"
+  // No grupo a memória é do grupo todo: ela sabe o que falou com cada um
+  // (cada fala vem com [nome]). No privado, é a conversa.
+  const chaveMemoria = (conversa) => /@g\.us:/.test(conversa) ? conversa.split(':')[0] : conversa
   const usoPessoa = new Map() // conversa -> [ts]
   const usoGrupo = new Map()  // grupo -> [ts]
   const usoId = new Map()     // conversa -> [ts]
@@ -248,25 +297,26 @@ export function createAurora({
   }
 
   function lembrar(conversa) {
-    const m = memoria.get(conversa)
-    if (!m || agora() - m.at > LIMITES.memoriaVidaMs) { memoria.delete(conversa); return [] }
+    const k = chaveMemoria(conversa)
+    const m = memoria.get(k)
+    if (!m || agora() - m.at > LIMITES.memoriaVidaMs) { memoria.delete(k); return [] }
     return m.msgs
   }
   function guardar(conversa, user, assistant) {
+    const k = chaveMemoria(conversa)
     const msgs = [...lembrar(conversa), { role: 'user', content: user.slice(0, 600) }, { role: 'assistant', content: assistant.slice(0, 600) }]
       .slice(-LIMITES.memoriaMsgs)
-    memoria.delete(conversa)
-    memoria.set(conversa, { msgs, at: agora() })
+    memoria.delete(k)
+    memoria.set(k, { msgs, at: agora() })
     while (memoria.size > LIMITES.memoriaMax) memoria.delete(memoria.keys().next().value)
+    const uid = acharId(user)
+    if (uid) { ids.set(conversa, { uid, at: agora() }); if (ids.size > 5000) ids.delete(ids.keys().next().value) }
   }
-  const esquecer = (conversa) => memoria.delete(conversa)
+  const esquecer = (conversa) => { memoria.delete(chaveMemoria(conversa)); ids.delete(conversa) }
   // O último ID que a pessoa mandou nesta conversa (pra "faz o envio pra mim").
   function ultimoId(conversa) {
-    for (const m of [...lembrar(conversa)].reverse()) {
-      const uid = m.role === 'user' && acharId(m.content)
-      if (uid) return uid
-    }
-    return ''
+    const x = ids.get(conversa)
+    return x && agora() - x.at < LIMITES.memoriaVidaMs ? x.uid : ''
   }
 
   function usosHoje() {
@@ -317,7 +367,7 @@ export function createAurora({
   }
 
   // conversa: "grupo:pessoa". Devolve o texto pra mandar, ou null (silêncio).
-  async function responder({ conversa, grupo = '', texto, nome = 'alguém', ehAdmin = false, ehCriador = false, ehEsposa = false, citado = '', prefixo = '#', membros = '', erro = null }) {
+  async function responder({ conversa, grupo = '', texto, nome = 'alguém', ehAdmin = false, ehCriador = false, ehEsposa = false, citado = '', citadoDela = false, prefixo = '#', membros = '', erro = null }) {
     if (chaveRecusada) return null
     const t = agora()
     if (pausadaAte > t) return avisarUmaVez('cansada:' + (grupo || conversa), FRASES.cansada, pausadaAte - t)
@@ -355,14 +405,32 @@ export function createAurora({
       } else consulta = `CONSULTA DO ID: a pessoa já pediu consultas demais agora. Diga pra esperar uns minutos ou usar ${prefixo}info ${uid}.`
     }
 
+    // Clima: de verdade ou nada. Sem cidade, ela pergunta; a próxima fala
+    // curta da pessoa é a cidade.
+    let clima = ''
+    const esperava = esperaCidade.get(conversa)
+    esperaCidade.delete(conversa)
+    let cidade = ''
+    if (pediuClima(texto)) {
+      cidade = acharCidade(texto)
+      if (!cidade) { clima = CLIMA_SEM_CIDADE; esperaCidade.set(conversa, t) }
+    } else if (esperava && t - esperava < 5 * MINUTO && String(texto).length <= 40) {
+      cidade = String(texto).replace(/\baurora\b/gi, '').replace(/^\s*(em|de|no|na|aqui em)\s+/i, '').replace(/[?!.,]+/g, '').trim()
+    }
+    if (cidade) {
+      let c = null
+      try { c = await buscarClima(cidade) } catch { c = null }
+      clima = c || climaFalhou(cidade)
+    }
+
     const sobre = texto + ' ' + citado
     let precos = null
     if (assuntos(sobre).precos) { try { precos = await buscarPrecos() } catch { precos = null } }
 
     const quem = [nome, ehAdmin && 'admin', ehCriador && 'CRIADOR', !ehCriador && ehEsposa && 'ESPOSA DO CRIADOR'].filter(Boolean).join(', ')
-    const fala = `[${quem}] ${String(texto).trim().slice(0, 800)}` + (citado ? `\n(respondendo a: "${String(citado).slice(0, 300)}")` : '')
+    const fala = `[${quem}] ${String(texto).trim().slice(0, 800)}` + (citado ? `\n(respondendo a ${citadoDela ? 'uma mensagem SUA' : 'uma mensagem de outra pessoa'}: "${String(citado).slice(0, 300)}")` : '')
     const messages = [
-      { role: 'system', content: montarSystem({ prefixo, agora: t, texto: sobre, precos, consulta, membros, erro: blocoErro(erro, t, prefixo) }) },
+      { role: 'system', content: montarSystem({ prefixo, agora: t, texto: sobre, precos, consulta, membros, erro: blocoErro(erro, t, prefixo), clima }) },
       ...lembrar(conversa),
       { role: 'user', content: fala }
     ]
