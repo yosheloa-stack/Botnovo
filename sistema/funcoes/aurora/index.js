@@ -136,6 +136,14 @@ async function digitando(system, estado) {
   try { await system.client?.presence?.sendChatstate?.(system.from, { state: estado }) } catch {}
 }
 
+// O último erro de comando de cada conversa, pra ela explicar o de verdade.
+const errosRecentes = new Map()
+export function anotarErro(system, err) {
+  if (!system?.command || !system.from) return
+  errosRecentes.set(system.from, { comando: system.command, quem: String(system.pushName || '').slice(0, 30), at: Date.now(), motivo: err?.message || String(err || '') })
+  if (errosRecentes.size > 500) errosRecentes.delete(errosRecentes.keys().next().value)
+}
+
 const textoCitado = (system) => { const q = quotedInfo(system.event); return q ? extractText(q.message) : '' }
 
 // Pediram like: ela responde no jeito dela e o bot roda o mesmo #like ID
@@ -171,7 +179,8 @@ async function conversar(system, texto) {
       ehDono: Boolean(system.isOwner),
       citado,
       prefixo: system.prefix,
-      membros: system.isGroup ? blocoMembros(membros) || SEM_MEMBROS : ''
+      membros: system.isGroup ? blocoMembros(membros) || SEM_MEMBROS : '',
+      erro: errosRecentes.get(system.from) || null
     })
     if (resposta) {
       const falta = Math.min(4_000, 800 + resposta.length * 25) - (Date.now() - inicio)

@@ -52,7 +52,8 @@ const client = {
   presence: { sendChatstate: async (jid, { state }) => { estados.push(state) } }
 }
 const config = { prefix: '#', owner: { number: '5544900000000' }, connection: { number: BOT }, autoSystem: { url: 'https://autolikesystem.com.br', token: 'token-de-teste' } }
-const handler = createHandler({ client, config, registry: { commands: new Map(), plugins: [] } })
+const comandos = new Map()
+const handler = createHandler({ client, config, registry: { commands: comandos, plugins: [] } })
 
 let n = 0
 function mensagem(texto, contextInfo) {
@@ -134,4 +135,11 @@ test('ela vê os membros do grupo pelo nome e marca de verdade', async () => {
   respostaIa = 'oi, tô aqui 😌'
   assert.match(pedidosIa.at(-1).messages[0].content, /MEMBROS DESTE GRUPO \(fora você: 2[\s\S]*- Yosh: @5544911112222\n- TROPA DE ELITE: @77665544332211/)
   assert.deepEqual(saiu[0].opcoes.mentions, ['5544911112222@s.whatsapp.net'])
+})
+
+test('perguntou do erro: ela recebe o motivo real do último comando que quebrou', async () => {
+  comandos.set('tiktok', { name: 'tiktok', run: async () => { throw new Error('Falha ao baixar mídia: HTTP 502') } })
+  await respostaDe(mensagem('#tiktok https://vt.tiktok.com/x'))
+  await respostaDe(mensagem('aurora qual foi o erro?'))
+  assert.match(pedidosIa.at(-1).messages[0].content, /ÚLTIMO ERRO DE COMANDO[\s\S]*#tiktok de Yosh[\s\S]*HTTP 502/)
 })

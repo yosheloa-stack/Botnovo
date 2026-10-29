@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   createAurora, deveResponder, chamouAurora, acharId, pediuLike, blocoConsulta, textoPrecos,
-  montarSystem, limparResposta, blocoMembros, acharMarcacoes, FRASES, LIMITES, SEM_PRECOS
+  montarSystem, limparResposta, blocoMembros, acharMarcacoes, blocoErro, motivoLimpo, FRASES, LIMITES, SEM_PRECOS
 } from '../sistema/funcoes/aurora/ia.js'
 
 const ok = (content, extra = {}) => ({ status: 200, data: { choices: [{ finish_reason: 'stop', message: { content }, ...extra }] } })
@@ -208,4 +208,14 @@ test('membros do grupo: nome primeiro, sem nome vira @número, e só marca quem 
   assert.match(blocoMembros(membros), /fora você: 2/)
   assert.deepEqual(acharMarcacoes('oi @5511999990000 e @5599999999999', membros), ['5511999990000@s.whatsapp.net'])
   assert.deepEqual(acharMarcacoes('sem marcação', membros), [])
+})
+
+test('erro de comando de verdade vai pra ela, sem link nem chave, e some depois de 15 min', () => {
+  assert.equal(motivoLimpo('Falha em https://api.x.com/tt?apikey=abc123 HTTP 500'), 'Falha em (link) HTTP 500')
+  assert.equal(motivoLimpo('token=segredo falhou'), 'token=*** falhou')
+  const agora = Date.UTC(2026, 9, 29, 12)
+  const erro = { comando: 'tiktok', quem: 'Selena', at: agora - 2 * 60_000, motivo: 'Falha ao baixar mídia: HTTP 500' }
+  assert.match(blocoErro(erro, agora, '/'), /\/tiktok de Selena, há 2 min\. Motivo: Falha ao baixar mídia: HTTP 500/)
+  assert.equal(blocoErro(erro, agora + 20 * 60_000), '')
+  assert.equal(blocoErro(null), '')
 })

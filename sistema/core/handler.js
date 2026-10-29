@@ -11,7 +11,7 @@ import { verifiedSendOptions } from '../funcoes/meta.js'
 import { necessarios as currentNecessarios } from '../funcoes/necessarios.js'
 import { handleSoli } from '../funcoes/soli.js'
 import { marcaCliente, modoCliente } from '../funcoes/cliente.js'
-import { handleAurora } from '../funcoes/aurora/index.js'
+import { handleAurora, anotarErro } from '../funcoes/aurora/index.js'
 import { chamouAurora } from '../funcoes/aurora/ia.js'
 
 const missingRentalLogs = new Map()
@@ -364,6 +364,7 @@ if (ffDislike) consumirCotaFF(system.from, system.senderKey)
 await saveState()
 } catch (err) {
 console.error('[ AURORA ] Erro no handler:', err)
+anotarErro(system, err)
 try {
 if (system) {
 const text = messages.commandError()

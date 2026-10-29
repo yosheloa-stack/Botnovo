@@ -156,7 +156,23 @@ export function acharMarcacoes(texto = '', membros = []) {
   return [...new Set(membros.filter((m) => tags.has(String(m.tag))).map((m) => m.jid))]
 }
 
-export function montarSystem({ prefixo = '#', agora = Date.now(), texto = '', precos = null, consulta = '', membros = '' }) {
+// ── o último erro de comando no grupo (o de verdade, do console) ─────────────
+// erro: { comando, quem, at, motivo }. Link e chave nunca vão pra ela.
+export function motivoLimpo(motivo = '') {
+  return String(motivo || '')
+    .replace(/https?:\/\/\S+/gi, '(link)')
+    .replace(/(apikey|api_key|key|token)=\S+/gi, '$1=***')
+    .replace(/\s+/g, ' ').trim().slice(0, 200) || 'sem detalhe'
+}
+export function blocoErro(erro, agora = Date.now(), prefixo = '#') {
+  if (!erro || agora - erro.at > 15 * MINUTO) return ''
+  const min = Math.max(0, Math.round((agora - erro.at) / MINUTO))
+  return `ÚLTIMO ERRO DE COMANDO NESTE GRUPO (real, do sistema; só fale disso se perguntarem de erro):
+- ${prefixo}${erro.comando} de ${erro.quem || 'alguém'}, há ${min} min. Motivo: ${motivoLimpo(erro.motivo)}
+- Explique esse motivo em palavras simples, sem inventar outro. Se for técnico demais, diga que o serviço que esse comando usa falhou e é pra tentar mais tarde.`
+}
+
+export function montarSystem({ prefixo = '#', agora = Date.now(), texto = '', precos = null, consulta = '', membros = '', erro = '' }) {
   const a = assuntos(texto)
   const partes = [PERSONA, BASE]
   if (a.api) partes.push(API)
@@ -164,7 +180,7 @@ export function montarSystem({ prefixo = '#', agora = Date.now(), texto = '', pr
   if (a.precos) partes.push(precos || SEM_PRECOS)
   if (consulta) partes.push(consulta)
   const texto0 = partes.join('\n\n').replaceAll('{prefixo}', prefixo).replaceAll('{agora}', horaBrasilia(agora))
-  return membros ? texto0 + '\n\n' + membros : texto0
+  return [texto0, membros, erro].filter(Boolean).join('\n\n')
 }
 
 // ── a resposta, do jeito do WhatsApp ────────────────────────────────────────
@@ -291,7 +307,7 @@ export function createAurora({
   }
 
   // conversa: "grupo:pessoa". Devolve o texto pra mandar, ou null (silêncio).
-  async function responder({ conversa, grupo = '', texto, nome = 'alguém', ehAdmin = false, ehDono = false, citado = '', prefixo = '#', membros = '' }) {
+  async function responder({ conversa, grupo = '', texto, nome = 'alguém', ehAdmin = false, ehDono = false, citado = '', prefixo = '#', membros = '', erro = null }) {
     if (chaveRecusada) return null
     const t = agora()
     if (pausadaAte > t) return avisarUmaVez('cansada:' + (grupo || conversa), FRASES.cansada, pausadaAte - t)
@@ -336,7 +352,7 @@ export function createAurora({
     const quem = [nome, ehAdmin && 'admin', ehDono && 'dono do bot'].filter(Boolean).join(', ')
     const fala = `[${quem}] ${String(texto).trim().slice(0, 800)}` + (citado ? `\n(respondendo a: "${String(citado).slice(0, 300)}")` : '')
     const messages = [
-      { role: 'system', content: montarSystem({ prefixo, agora: t, texto: sobre, precos, consulta, membros }) },
+      { role: 'system', content: montarSystem({ prefixo, agora: t, texto: sobre, precos, consulta, membros, erro: blocoErro(erro, t, prefixo) }) },
       ...lembrar(conversa),
       { role: 'user', content: fala }
     ]
