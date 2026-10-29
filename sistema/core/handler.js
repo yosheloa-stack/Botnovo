@@ -329,6 +329,8 @@ return
 
 if (hasGcmd(system.command) && !system.isOwner) return system.reply(msgIdioma(system, `• 🚫 O comando *${system.prefix}${system.command}* está bloqueado globalmente.`, `• 🚫 El comando *${system.prefix}${system.command}* está bloqueado globalmente.`, `• 🚫 Command *${system.prefix}${system.command}* is blocked globally.`))
 if (system.isGroup && hasCmd(system.from, system.command) && !system.isOwner) return system.reply(msgIdioma(system, `• 🚫 O comando *${system.prefix}${system.command}* está bloqueado neste grupo.`, `• 🚫 El comando *${system.prefix}${system.command}* está bloqueado en este grupo.`, `• 🚫 Command *${system.prefix}${system.command}* is blocked in this group.`))
+const precisaAdm = system.isGroup && (Number(system.group?.soAdm) === 1 || plugin.adminOnly) && !system.isAdmin && !system.isOwner
+if (precisaAdm || (system.isGroup && plugin.botAdminOnly && !system.isBotAdmin)) await system.recarregarAdmins?.()
 if (system.isGroup && Number(system.group?.soAdm) === 1 && !system.isAdmin && !system.isOwner) return system.reply(messages.onlyAdmMode())
 if (plugin.ownerOnly && !system.isOwner) return system.reply(messages.onlyOwner())
 if (plugin.groupOnly && !system.isGroup) return system.reply(messages.onlyGroup())

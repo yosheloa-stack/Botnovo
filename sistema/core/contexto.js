@@ -17,6 +17,7 @@ import { applyCanalToContent, bindCanalConfig, canalSendOptions } from '../funco
 import { necessarios as liveNecessarios, saveNecessarios } from '../funcoes/necessarios.js'
 import messages from '../funcoes/global.js'
 import fs from 'node:fs/promises'
+import { criarLogRaro } from '../funcoes/rede.js'
 
 function unwrapOne(message) {
 if (!message) return message
@@ -100,29 +101,64 @@ return [...new Set(values.filter(Boolean))]
 const GROUP_METADATA_TTL = 60_000
 const GROUP_METADATA_COOLDOWN = 120_000
 const groupMetadataCache = new Map()
-async function cachedGroupMetadata(client, jid) {
-  const now = Date.now()
+const consultasGrupo = new Map() // jid -> consulta em andamento
+const ultimaConferencia = new Map() // jid -> quando conferiu os ADMs de novo
+const logGrupo = criarLogRaro({ intervaloMs: 10 * 60_000 })
+
+function guardarMetadados(jid, data) {
+  groupMetadataCache.set(jid, { data, expires: Date.now() + GROUP_METADATA_TTL })
+  if (groupMetadataCache.size > 1000) {
+    for (const [key, value] of groupMetadataCache) {
+      if (value.expires < Date.now()) groupMetadataCache.delete(key)
+    }
+  }
+}
+
+// Uma consulta por grupo de cada vez. A resposta que chega depois do prazo
+// (WhatsApp lento) também vai para o cache: antes ela era jogada fora e, se o
+// WhatsApp passava sempre dos 5 s, o bot nunca sabia quem é ADM no grupo
+// ("APENAS ADMINISTRADORES" para ADM e "BOT SEM ADMIN" com o bot ADM).
+function consultarGrupo(client, jid) {
+  let consulta = consultasGrupo.get(jid)
+  if (!consulta) {
+    consulta = Promise.resolve()
+      .then(() => client.group.queryGroupMetadata(jid))
+      .then((data) => { if (data) guardarMetadados(jid, data); return data })
+      .finally(() => consultasGrupo.delete(jid))
+    consultasGrupo.set(jid, consulta)
+  }
+  return consulta
+}
+
+async function cachedGroupMetadata(client, jid, { fresco = false, prazoMs = 5_000 } = {}) {
   const cached = groupMetadataCache.get(jid)
-  if (cached && now < cached.expires) return cached.data
+  if (!fresco && cached && Date.now() < cached.expires) return cached.data
+  let timer
   try {
     // Metadados não podem travar o processamento de /like e /menu.
-    // A consulta subjacente pode continuar, mas não bloqueia o handler.
     const data = await Promise.race([
-      client.group.queryGroupMetadata(jid),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('group metadata timeout 5s')), 5_000))
+      consultarGrupo(client, jid),
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`group metadata timeout ${prazoMs / 1000}s`)), prazoMs) })
     ])
-    groupMetadataCache.set(jid, { data, expires: Date.now() + GROUP_METADATA_TTL })
-    if (groupMetadataCache.size > 1000) {
-      for (const [key, value] of groupMetadataCache) {
-        if (value.expires < Date.now()) groupMetadataCache.delete(key)
-      }
-    }
+    logGrupo.voltou(jid)
     return data
   } catch (err) {
-    const limited = /(?:429|rate.overlimit|rate.limit|too many requests)/i.test(String(err?.message || err || ''))
-    groupMetadataCache.set(jid, { data: cached?.data || null, expires: Date.now() + (limited ? GROUP_METADATA_COOLDOWN : 15_000) })
-    return cached?.data || null
+    const msg = String(err?.message || err || '')
+    const limited = /(?:429|rate.overlimit|rate.limit|too many requests)/i.test(msg)
+    const atual = groupMetadataCache.get(jid)
+    groupMetadataCache.set(jid, { data: atual?.data || null, expires: Date.now() + (limited ? GROUP_METADATA_COOLDOWN : 15_000) })
+    logGrupo.falha(jid, '[ AURORA GRUPO ] Não consegui ler os membros/ADMs do grupo', jid, '|', msg)
+    return atual?.data || null
+  } finally {
+    clearTimeout(timer)
   }
+}
+
+// Alguém virou ou deixou de ser ADM (ou entrou/saiu): o próximo comando no
+// grupo lê os ADMs de novo. O que já estava no cache fica de reserva.
+export function esquecerGrupo(jid) {
+  const cached = groupMetadataCache.get(jid)
+  if (cached) cached.expires = 0
 }
 
 
@@ -132,7 +168,11 @@ export async function makeSystem({ client, event, config, registry, necessarios 
 bindCanalConfig(config)
 const from = [event?.key?.remoteJid, event?.key?.remoteJidAlt].find(isGroupJid) || event?.key?.remoteJid || event?.key?.remoteJidAlt || ''
 const sender = event?.key?.participant || event?.key?.participantAlt || event?.participant || event?.participantAlt || from
-const senderAlt = event?.key?.participantAlt || event?.participantAlt || event?.key?.participant || ''
+// No privado não tem participant: quem mandou é a própria conversa. Quando ela
+// vem pelo @lid (id interno, não é o telefone), o número fica no remoteJidAlt.
+// Sem ele, a dona do bot aparecia como membro no menu.
+const pvAlt = isGroupJid(from) ? '' : [event?.key?.remoteJidAlt, event?.key?.remoteJid].find((jid) => jid && jid !== from) || ''
+const senderAlt = event?.key?.participantAlt || event?.participantAlt || event?.key?.participant || pvAlt
 const text = extractText(event?.message)
 const prefix = String(config.prefix || '!')
 // Aceita o prefixo escolhido pelo dono e o padrão / usado pelos clientes.
@@ -157,12 +197,13 @@ metadata = await cachedGroupMetadata(client, from)
 } catch {}
 }
 
-const participants = metadata?.participants ?? []
+let participants = metadata?.participants ?? []
 const senderInfo = resolveIdentityPair(sender, senderAlt, participants)
 const senderNumber = senderInfo.number
 const senderKey = senderNumber || senderInfo.lidJid || senderInfo.jid
 
-if (isGroup && participants.length) {
+const lerAdmins = () => {
+if (!isGroup || !participants.length) return
 const senderP = findParticipant(participants, sender) || findParticipant(participants, senderAlt)
 isAdmin = isAdminParticipant(senderP)
 
@@ -174,12 +215,33 @@ const botP = findParticipant(participants, meJid)
 || findParticipant(participants, digits(config.connection?.number))
 isBotAdmin = isAdminParticipant(botP)
 }
+lerAdmins()
 
 if (isGroup) await ensureGroupState(from, { nome: metadata?.subject || 'Grupo' })
 
 // Quem alugou pelo site manda como ADM e VIP, mas só no grupo alugado.
 const isDonoAluguel = Boolean(isGroup && senderNumber && mesmoNumero(getDonoAluguel(from), senderNumber) && aluguelOk(from))
 if (isDonoAluguel) isAdmin = true
+
+// Antes de dizer "apenas administradores" ou "bot sem admin", o handler
+// confere no WhatsApp de novo (no máximo a cada 10 s por grupo): o cache pode
+// estar velho (alguém acabou de virar ADM) ou a leitura pode ter falhado.
+const recarregarAdmins = async () => {
+if (!isGroup) return false
+const agora = Date.now()
+if (agora - (ultimaConferencia.get(from) || 0) < 10_000) return false
+ultimaConferencia.set(from, agora)
+const data = await cachedGroupMetadata(client, from, { fresco: true, prazoMs: 8_000 })
+if (!data?.participants?.length) return false
+metadata = data
+participants = data.participants
+lerAdmins()
+if (isDonoAluguel) isAdmin = true
+system.metadata = metadata
+system.isAdmin = isAdmin
+system.isBotAdmin = isBotAdmin
+return true
+}
 
 const state = db()
 const currentProfile = userProfile(senderKey, {
@@ -220,6 +282,7 @@ isDonoAluguel,
 isVip: Boolean(isDonoAluguel || (senderNumber && state.vip.includes(senderNumber))),
 isPremium: Boolean(isDonoAluguel || (senderNumber && state.vip.includes(senderNumber))), // alias legado
 metadata,
+recarregarAdmins,
 db: state,
 profile: currentProfile,
 userProfile,
