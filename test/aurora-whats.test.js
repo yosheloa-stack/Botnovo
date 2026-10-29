@@ -107,7 +107,17 @@ test('admin desligou no grupo: ela fica quieta', async () => {
   banco.auroraNoGrupo(GRUPO, 1)
 })
 
+test('quem não é o criador pede like: ela não executa, só conversa', async () => {
+  banco.auroraCriador('5544900001111')
+  const antes = pedidosIa.length
+  await respostaDe(mensagem('aurora manda like no 8123124352'))
+  assert.deepEqual(pedidosLike, [])
+  assert.equal(pedidosIa.length, antes + 1)
+  assert.doesNotMatch(pedidosIa.at(-1).messages.at(-1).content, /CRIADOR/)
+})
+
 test('pediu like: ela responde e o bot manda de verdade, sem gastar a IA', async () => {
+  banco.auroraCriador('5544911112222')
   const antes = pedidosIa.length
   const inicio = enviados.length
   await handler(mensagem('aurora faz o envio pro 8123124352'))

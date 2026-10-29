@@ -26,7 +26,7 @@ const nomePasta = (pedido) => limpo(pedido).replace(/[^A-Za-z0-9_-]/g, '_').slic
 // AURORA_PREFIX também é da casa: cada bot de cliente guarda o próprio
 // prefixo (#setprefix) na pasta dele. A chave da Square Cloud (Aurora com IA)
 // também, menos no número da casa (ver IA_DA_CASA).
-const IA_DA_CASA = ['SQUARECLOUD_API_KEY', 'SQUARECLOUD_AI_KEY', 'AURORA_MAX_DIA']
+const IA_DA_CASA = ['SQUARECLOUD_API_KEY', 'SQUARECLOUD_AI_KEY', 'AURORA_MAX_DIA', 'AURORA_CRIADOR']
 const SO_DA_CASA = ['AURORA_RENTAL_TOKEN', 'AUTO_SYSTEM_TOKEN', 'AUTOSYSTEM_TOKEN', 'AURORA_PREFIX', 'AURORA_OWNER_NUMBER', 'AURORA_CONNECTION_NUMBER', 'AURORA_CONFIG_FILE', 'AURORA_DATA_DIR', 'AURORA_MARCA', 'AURORA_CLIENTE', 'AURORA_IA', ...IA_DA_CASA]
 
 // A Aurora com IA é do bot da casa. Quando o número da casa está ligado como

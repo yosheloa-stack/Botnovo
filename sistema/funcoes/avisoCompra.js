@@ -38,7 +38,7 @@ export async function destino(client, numero) {
 // `meuNumero` e `enviar` mudam conforme quem manda: o bot da casa usa o
 // próprio WhatsApp; o launcher (avisosVenda.js) usa o bot de cliente que
 // estiver conectado no número fixo. `enviar(numero, texto)` manda um aviso.
-export function createAvisoCompra({ client, config, api, meuNumero, enviar, aoSaberRemetente }) {
+export function createAvisoCompra({ client, config, api, meuNumero, enviar, aoSaberRemetente, aoSaberDestino }) {
   let pausaAte = 0, ultimoErro = ''
   let avisouOutro = false
   meuNumero = meuNumero || (() => digits(String(client.getCredentials?.()?.meJid || '').split(/[:@]/)[0]) || digits(config?.connection?.number))
@@ -70,6 +70,8 @@ export function createAvisoCompra({ client, config, api, meuNumero, enviar, aoSa
     avisouOutro = false
     const numero = clean(data?.numero).replace(/\D/g, '')
     const avisos = Array.isArray(data?.avisos) ? data.avisos : []
+    // Quem recebe os avisos é o criador (a Aurora usa pra saber quem manda nela).
+    if (numero) aoSaberDestino?.(numero)
     if (!numero || !avisos.length) return
     const entregues = []
     for (const aviso of avisos) {

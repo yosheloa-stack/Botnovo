@@ -185,9 +185,13 @@ export function montarSystem({ prefixo = '#', agora = Date.now(), texto = '', pr
 
 // ── a resposta, do jeito do WhatsApp ────────────────────────────────────────
 const linkBom = /(autolikesystem\.com\.br|cvv\.org\.br)/i
+const ESPERA = /\b(to|estou|tou) (vendo|olhando|verificando|checando|procurando)\b|\bso um (momento|minuto|instante|segundo)\b|\bum instante\b|\bdeixa eu (ver|olhar|procurar|checar)\b|\bvou (ver|olhar|procurar|checar|verificar)\b|\bja volto\b|\baguard[ae]\b/
 export function limparResposta(texto = '', max = LIMITES.respostaMax) {
   let t = String(texto || '').trim()
   t = t.replace(/^\s*aurora\s*:\s*/i, '')
+  // "tô vendo isso pra você… só um momento": ela não faz nada depois, então sai.
+  const partes = t.split(/\n\s*\n/).filter((p) => !(p.length < 140 && ESPERA.test(semAcento(p))))
+  if (partes.length) t = partes.join('\n\n')
   t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, (_, rotulo, url) => linkBom.test(url) ? `${rotulo} (${url})` : rotulo)
   t = t.replace(/https?:\/\/[^\s)]+/g, (url) => linkBom.test(url) ? url : '')
   t = t.replace(/【[^】]*】|\[\d+\]/g, '')
@@ -307,7 +311,7 @@ export function createAurora({
   }
 
   // conversa: "grupo:pessoa". Devolve o texto pra mandar, ou null (silêncio).
-  async function responder({ conversa, grupo = '', texto, nome = 'alguém', ehAdmin = false, ehDono = false, citado = '', prefixo = '#', membros = '', erro = null }) {
+  async function responder({ conversa, grupo = '', texto, nome = 'alguém', ehAdmin = false, ehCriador = false, citado = '', prefixo = '#', membros = '', erro = null }) {
     if (chaveRecusada) return null
     const t = agora()
     if (pausadaAte > t) return avisarUmaVez('cansada:' + (grupo || conversa), FRASES.cansada, pausadaAte - t)
@@ -316,8 +320,8 @@ export function createAurora({
       log(`chegou no teto do dia (${maxDia()} respostas, AURORA_MAX_DIA)`)
       return avisarUmaVez('dia:' + (grupo || conversa), FRASES.cansada, proximaMeiaNoiteUtc(t) - t)
     }
-    // O dono do bot não tem limite por pessoa (só o do grupo e o do dia).
-    const daPessoa = ehDono ? [] : recentes(usoPessoa, conversa, LIMITES.porPessoaJanelaMs)
+    // O criador não tem limite por pessoa (só o do grupo e o do dia).
+    const daPessoa = ehCriador ? [] : recentes(usoPessoa, conversa, LIMITES.porPessoaJanelaMs)
     if (daPessoa.length >= LIMITES.porPessoa) {
       log('ignorou: limite por pessoa', conversa)
       return avisarUmaVez('pessoa:' + conversa, FRASES.pessoa, LIMITES.porPessoaJanelaMs)
@@ -349,7 +353,7 @@ export function createAurora({
     let precos = null
     if (assuntos(sobre).precos) { try { precos = await buscarPrecos() } catch { precos = null } }
 
-    const quem = [nome, ehAdmin && 'admin', ehDono && 'dono do bot'].filter(Boolean).join(', ')
+    const quem = [nome, ehAdmin && 'admin', ehCriador && 'CRIADOR'].filter(Boolean).join(', ')
     const fala = `[${quem}] ${String(texto).trim().slice(0, 800)}` + (citado ? `\n(respondendo a: "${String(citado).slice(0, 300)}")` : '')
     const messages = [
       { role: 'system', content: montarSystem({ prefixo, agora: t, texto: sobre, precos, consulta, membros, erro: blocoErro(erro, t, prefixo) }) },

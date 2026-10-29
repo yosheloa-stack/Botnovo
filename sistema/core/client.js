@@ -4,7 +4,7 @@ import { createStore, WaClient } from 'zapo-js'
 import { createFileStore } from './store.js'
 import { loadConfig } from '../funcoes/config.js'
 import { loadNecessarios } from '../funcoes/necessarios.js'
-import { loadState, importNecessarios, boasVindasEnviada, marcarBoasVindas } from '../funcoes/banco.js'
+import { loadState, importNecessarios, boasVindasEnviada, marcarBoasVindas, auroraCriador } from '../funcoes/banco.js'
 import { loadPlugins } from './loader.js'
 import { createHandler } from './handler.js'
 import { createGroupHandler } from './eventos.js'
@@ -195,6 +195,7 @@ reconnectTimer = restartTimer = null
 const avisarLauncher = (msg) => { if (typeof process.send === 'function') try { process.send(msg) } catch {} }
 if (typeof process.send === 'function') {
 process.on('message', async (msg) => {
+if (msg?.tipo === 'aurora_criador') { if (msg.numero) auroraCriador(msg.numero); return }
 if (msg?.tipo !== 'aviso_venda') return
 const responder = (r) => avisarLauncher({ tipo: 'aviso_venda_ok', id: msg.id, ...r })
 if (!connectionOpen) return responder({ ok: false, erro: 'WhatsApp desconectado' })

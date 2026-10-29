@@ -23,6 +23,10 @@ bot pro próprio número, que é o que manda os avisos de compra). Pra usar outr
 número, ponha `AURORA_IA_NUMERO`. Nesse bot a resposta dela sai sem a troca de
 marca (continua "Aurora" e com o endereço do site).
 
+- **O criador:** é o número que recebe os avisos de compra (o site informa a
+  cada volta da fila; `AURORA_CRIADOR` no ambiente serve até chegar). Só ele
+  faz ela mandar like e falar do sistema por dentro; dono, subdono e admin do
+  bot não contam. `#auroraia` mostra qual número ela reconhece.
 - **Quando ela responde:** no privado, sempre. No grupo, quando alguém marca o
   bot, responde (cita) uma mensagem dele ou fala "aurora" na frase. Comando
   continua sendo comando.

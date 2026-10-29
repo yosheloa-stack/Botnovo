@@ -494,6 +494,12 @@ export function auroraIaLigada(value) {
   if (value !== undefined) setCfg('aurora_ia', value ? 1 : 0)
   return Number(getCfg('aurora_ia', 1)) === 1
 }
+// O criador: o número que recebe os avisos de compra (o site diz qual é a
+// cada volta da fila). Só ele vê o sistema por dentro e manda ela agir.
+export function auroraCriador(value) {
+  if (value !== undefined) setCfg('aurora_criador', String(value || '').replace(/\D/g, ''))
+  return String(getCfg('aurora_criador', '') || process.env.AURORA_CRIADOR || '').replace(/\D/g, '')
+}
 export function auroraNoGrupo(gp, value) {
   const k = 'aurora:grupo:' + txt(gp)
   if (value !== undefined) setKv(k, value ? 1 : 0)

@@ -18,6 +18,7 @@ return system.reply([
 `Chave da Square Cloud: ${e.temChave ? (e.chaveRecusada ? 'recusada pela Square Cloud, confira a SQUARECLOUD_API_KEY' : 'configurada') : 'falta SQUARECLOUD_API_KEY no ambiente'}`,
 `Respostas hoje: ${e.hoje} de ${e.max} (zera às 21h)`,
 pausa ? `Pausada até: ${pausa} (limite do plano da Square Cloud)` : '',
+`Criador (quem recebe os avisos de compra): ${e.criador || 'ainda não sei — chega com a próxima volta dos avisos do site'}`,
 `Conversas lembradas: ${e.conversas}`
 ].filter(Boolean).join('\n'), { semMarca: true })
 }

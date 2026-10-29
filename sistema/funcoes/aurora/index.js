@@ -14,7 +14,7 @@ import { extractText } from '../../core/contexto.js'
 import { contextInfoFromMessage, quotedInfo, quotedTarget } from '../mensagem.js'
 import { autoSystem } from '../auto.js'
 import { pedirAoSite } from '../rede.js'
-import { auroraIaLigada, auroraNoGrupo, aluguelOk, getDonoAluguel, hasCmd, hasGcmd } from '../banco.js'
+import { auroraIaLigada, auroraNoGrupo, auroraCriador, aluguelOk, getDonoAluguel, hasCmd, hasGcmd } from '../banco.js'
 import likeCmd from '../../comandos/ff/like.js'
 import { modoCliente } from '../cliente.js'
 import { digits, mesmoNumero, jidNumber, participantIdentity } from '../jid.js'
@@ -121,6 +121,14 @@ export async function membrosDoGrupo(system) {
   return lista
 }
 
+// O criador é quem recebe os avisos de compra (ver auroraCriador). Dono,
+// subdono ou admin do bot não contam: só ele vê o sistema por dentro e
+// manda ela agir.
+export function ehCriador(system) {
+  const criador = auroraCriador()
+  return Boolean(criador && system.senderNumber && mesmoNumero(system.senderNumber, criador))
+}
+
 // Grupo sem escolha feita: ligada, menos em grupo alugado por cliente.
 export function ligadaNoGrupo(system) {
   const escolha = auroraNoGrupo(system.from)
@@ -176,7 +184,7 @@ async function conversar(system, texto) {
       texto,
       nome: String(system.pushName || 'alguém').slice(0, 40),
       ehAdmin: Boolean(system.isAdmin),
-      ehDono: Boolean(system.isOwner),
+      ehCriador: ehCriador(system),
       citado,
       prefixo: system.prefix,
       membros: system.isGroup ? blocoMembros(membros) || SEM_MEMBROS : '',
@@ -227,7 +235,7 @@ export function handleAurora(system, { forcado = false, texto } = {}) {
     return false
   }
   const likeBloqueado = hasGcmd('like') || (system.isGroup && hasCmd(system.from, 'like'))
-  const uid = !likeBloqueado && pediuLike(t)
+  const uid = !likeBloqueado && ehCriador(system) && pediuLike(t)
     ? acharId(t) || acharId(textoCitado(system)) || aurora.ultimoId(`${system.from}:${system.senderKey}`)
     : ''
   const tarefa = uid ? mandarLike(system, t, uid) : conversar(system, t)
@@ -236,6 +244,6 @@ export function handleAurora(system, { forcado = false, texto } = {}) {
 }
 
 export const esquecerAurora = (system) => aurora.esquecer(`${system.from}:${system.senderKey}`)
-export const estadoAurora = () => ({ ...aurora.estado(), temChave: Boolean(chaveIa()), ligada: auroraIaLigada() })
+export const estadoAurora = () => ({ ...aurora.estado(), temChave: Boolean(chaveIa()), ligada: auroraIaLigada(), criador: auroraCriador() })
 
 if (iaNesteBot() && !chaveIa()) console.log('[ AURORA IA ] desligada: falta SQUARECLOUD_API_KEY no ambiente')

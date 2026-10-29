@@ -111,9 +111,9 @@ test('limite por pessoa: avisa uma vez e depois fica quieta', async () => {
   assert.equal(await a.responder(fala('aurora oi', { conversa: 'g@g.us:5511' })), 'oi sumido 😏', 'outra pessoa segue')
 })
 
-test('o dono não tem limite por pessoa', async () => {
+test('o criador não tem limite por pessoa', async () => {
   const { a, chamadas } = aurora()
-  for (let i = 0; i < LIMITES.porPessoa + 3; i++) assert.equal(await a.responder(fala('aurora ' + i, { ehDono: true })), 'oi sumido 😏')
+  for (let i = 0; i < LIMITES.porPessoa + 3; i++) assert.equal(await a.responder(fala('aurora ' + i, { ehCriador: true })), 'oi sumido 😏')
   assert.equal(chamadas.length, LIMITES.porPessoa + 3)
 })
 
@@ -218,4 +218,19 @@ test('erro de comando de verdade vai pra ela, sem link nem chave, e some depois 
   assert.match(blocoErro(erro, agora, '/'), /\/tiktok de Selena, há 2 min\. Motivo: Falha ao baixar mídia: HTTP 500/)
   assert.equal(blocoErro(erro, agora + 20 * 60_000), '')
   assert.equal(blocoErro(null), '')
+})
+
+test('frase de "tô vendo, só um momento" sai da resposta', () => {
+  assert.equal(limparResposta('to vendo isso pra você, man 🔍 só um momento...\n\npô, não tenho acesso às vendas daqui'), 'pô, não tenho acesso às vendas daqui')
+  assert.equal(limparResposta('só um momento'), 'só um momento', 'se for só isso, não fica vazio')
+  assert.equal(limparResposta('tô de boa, e tu?'), 'tô de boa, e tu?')
+})
+
+test('o CRIADOR vem marcado pra ela; dono comum não', async () => {
+  const { a, chamadas } = aurora()
+  await a.responder(fala('aurora oi', { ehCriador: true }))
+  await a.responder(fala('aurora oi', { conversa: 'g@g.us:5511', nome: 'TROPA', ehAdmin: true }))
+  assert.match(chamadas[0].at(-1).content, /^\[Yosh, CRIADOR\]/)
+  assert.match(chamadas[1].at(-1).content, /^\[TROPA, admin\] aurora oi$/)
+  assert.match(chamadas[0][0].content, /YoshGGx/)
 })

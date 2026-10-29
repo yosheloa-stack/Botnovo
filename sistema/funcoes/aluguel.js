@@ -1,6 +1,6 @@
 import { createAvisoCompra } from './avisoCompra.js'
 import { criarLogRaro, motivoDaFalha, pedirAoSite, respostaEstranha } from './rede.js'
-import { aluguelOn, delAluguel, listAluguel, setAluguelPedido, transferirAluguelPedido, ultimoPedidoAluguel, setDonoAluguel, setPersonalizacaoAluguel, setIdiomaGrupo, tokenAluguelSalvo } from './banco.js'
+import { auroraCriador, aluguelOn, delAluguel, listAluguel, setAluguelPedido, transferirAluguelPedido, ultimoPedidoAluguel, setDonoAluguel, setPersonalizacaoAluguel, setIdiomaGrupo, tokenAluguelSalvo } from './banco.js'
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const isRateLimit = (error) => /(?:429|rate.overlimit|rate.limit|too many requests)/i.test(String(error?.message || error || ''))
@@ -257,7 +257,7 @@ export function createAluguelWorker({ client, config }) {
   // Consultar group.list bloqueava toda a sincronização quando o WhatsApp respondia 429.
   const getGroups = async () => listAluguel().map((item) => ({ jid: clean(item?.gp) })).filter((item) => item.jid)
   // Aviso de compra do site para o WhatsApp do dono: mesma porta, mesmo token.
-  const avisosDeCompra = createAvisoCompra({ client, config, api })
+  const avisosDeCompra = createAvisoCompra({ client, config, api, aoSaberDestino: (n) => { if (n !== auroraCriador()) auroraCriador(n) } })
   // Site fora do ar = a mesma falha a cada 15 s; no console, uma linha por minuto.
   const logSite = criarLogRaro()
 

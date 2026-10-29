@@ -43,9 +43,14 @@ test('bot de cliente no número fixo manda o aviso e o site recebe a entrega', a
   assert.equal(s.chamadas[0][0], '/api/bot/avisos-compra/pendentes?bot=556781517686')
   assert.equal(s.chamadas[0][2], 'tk')
   assert.equal(outro.recebidos.length, 0, 'outro bot mandou o aviso de venda')
-  assert.equal(fixo.recebidos.length, 1)
-  assert.equal(fixo.recebidos[0].para, '5544991853469')
-  assert.equal(fixo.recebidos[0].texto, '*Aviso de teste*')
+  const enviados = fixo.recebidos.filter((m) => m.tipo === 'aviso_venda')
+  assert.equal(enviados.length, 1)
+  assert.equal(enviados[0].para, '5544991853469')
+  assert.equal(enviados[0].texto, '*Aviso de teste*')
+  // Quem recebe os avisos é o criador: o bot do número fixo fica sabendo, uma vez.
+  assert.deepEqual(fixo.recebidos.filter((m) => m.tipo === 'aurora_criador'), [{ tipo: 'aurora_criador', numero: '5544991853469' }])
+  await avisos.volta()
+  assert.equal(fixo.recebidos.filter((m) => m.tipo === 'aurora_criador').length, 1)
   assert.deepEqual(s.chamadas[1].slice(0, 2), ['/api/bot/avisos-compra/entregues', { ids: ['p1'] }])
 })
 

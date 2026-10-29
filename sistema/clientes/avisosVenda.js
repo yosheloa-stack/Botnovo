@@ -36,6 +36,7 @@ export function criarAvisosVenda({ site, canais, intervaloMs = 15_000, fetchImpl
   let remetente = NUMERO_BOT_DA_CASA
   let atual = null
   let timer = null, rodando = false, avisouSemBot = false
+  const criadorAvisado = new WeakMap()
 
   const api = async (config, caminho, { method = 'GET', body } = {}) => {
     let r
@@ -58,7 +59,13 @@ export function criarAvisosVenda({ site, canais, intervaloMs = 15_000, fetchImpl
     meuNumero: () => atual?.numero || '',
     enviar: (numero, texto) => enviarImpl(atual.filho, numero, texto),
     // O dono pode trocar no admin o número que manda: vale na volta seguinte.
-    aoSaberRemetente: (n) => { remetente = n }
+    aoSaberRemetente: (n) => { remetente = n },
+    // Quem recebe os avisos é o criador: o bot do número fixo fica sabendo
+    // (a Aurora só obedece ele). Manda de novo se o bot reiniciou.
+    aoSaberDestino: (n) => {
+      if (!atual?.filho || criadorAvisado.get(atual.filho) === n) return
+      try { atual.filho.send({ tipo: 'aurora_criador', numero: n }); criadorAvisado.set(atual.filho, n) } catch {}
+    }
   })
 
   async function volta() {
