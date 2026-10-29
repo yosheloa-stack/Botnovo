@@ -168,4 +168,6 @@ test('Aurora com IA: só o bot no número da casa recebe a chave da Square Cloud
   assert.equal(outra.AURORA_IA, undefined)
   assert.equal(outra.SQUARECLOUD_API_KEY, undefined)
   assert.equal(outra.AURORA_MAX_DIA, undefined)
+  assert.ok(casa.AURORA_SITE_TOKEN, 'o bot do número da casa lê o painel do site')
+  assert.equal(outra.AURORA_SITE_TOKEN, undefined, 'bot de cliente nunca recebe o token do site')
 })

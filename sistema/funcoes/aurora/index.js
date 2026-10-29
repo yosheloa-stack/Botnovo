@@ -14,7 +14,7 @@ import { extractText } from '../../core/contexto.js'
 import { contextInfoFromMessage, quotedInfo, quotedTarget } from '../mensagem.js'
 import { autoSystem } from '../auto.js'
 import { pedirAoSite } from '../rede.js'
-import { auroraIaLigada, auroraNoGrupo, auroraCriador, auroraEsposa, aluguelOk, getDonoAluguel, hasCmd, hasGcmd } from '../banco.js'
+import { auroraIaLigada, auroraNoGrupo, auroraCriador, auroraEsposa, tokenAluguelSalvo, aluguelOk, getDonoAluguel, hasCmd, hasGcmd } from '../banco.js'
 import likeCmd from '../../comandos/ff/like.js'
 import { modoCliente } from '../cliente.js'
 import { digits, mesmoNumero, jidNumber, participantIdentity, variantesNumero } from '../jid.js'
@@ -89,9 +89,30 @@ async function buscarClima(cidade) {
   }
 }
 
+// O painel do site pro criador: mesmo token do aluguel (o bot de cliente no
+// número da casa recebe pelo gerente, em AURORA_SITE_TOKEN). 1 min de cache.
+let painelCache = { at: 0, d: null }
+const tokenSite = () => String(process.env.AURORA_SITE_TOKEN || process.env.AURORA_RENTAL_TOKEN || configAtual?.autoSystem?.rentalToken || (() => { try { return tokenAluguelSalvo() } catch { return '' } })() || '').trim()
+async function buscarPainel() {
+  if (painelCache.d && Date.now() - painelCache.at < 60_000) return painelCache.d
+  const token = tokenSite()
+  if (!token) { console.warn('[ AURORA IA ] painel do site: sem token (AURORA_SITE_TOKEN / #tokenaluguel)'); return null }
+  try {
+    const r = await pedirAoSite(siteBase() + '/api/bot/aurora/painel', { timeoutMs: 15_000, headers: { Accept: 'application/json', 'X-Aurora-Token': token } })
+    const d = r.ok ? await r.json() : null
+    if (!d?.ok) { console.warn('[ AURORA IA ] painel do site respondeu', r.status); return null }
+    painelCache = { at: Date.now(), d }
+    return d
+  } catch (err) {
+    console.warn('[ AURORA IA ] painel do site indisponível:', err?.message || err)
+    return null
+  }
+}
+
 export const aurora = createAurora({
   chamar,
   buscarClima,
+  buscarPainel,
   consultarId: (uid) => autoSystem.info(configAtual, uid),
   buscarPrecos,
   maxDia

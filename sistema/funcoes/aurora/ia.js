@@ -198,6 +198,35 @@ export function textoClima(lugar, dados) {
 export const CLIMA_SEM_CIDADE = 'CLIMA: a pessoa perguntou do clima mas não disse a cidade. Pergunte de qual cidade, no seu jeito. Não invente temperatura nem tempo.'
 export const climaFalhou = (cidade) => `CLIMA: você não conseguiu ver o clima de "${String(cidade).slice(0, 40)}" agora. Diga isso do seu jeito (pode pedir pra escrever o nome da cidade certinho). Não invente temperatura nem tempo.`
 
+// ── o painel do site (só pro criador) ────────────────────────────────────────
+export function pediuPainel(texto = '') {
+  return /\b(site|vend\w*|suporte|erro\w*|painel|pedido\w*|fila|parad\w*|fornecedor\w*|fatur\w*|caixa|dinheiro|clientes?|problema\w*|bug\w*)\b/.test(semAcento(texto))
+}
+const reaisPainel = (c) => 'R$ ' + (Number(c || 0) / 100).toFixed(2).replace('.', ',')
+const haQuanto = (ms, agora) => {
+  if (!ms) return 'nunca'
+  const m = Math.max(0, Math.round((agora - ms) / 60_000))
+  return m < 60 ? `há ${m} min` : m < 1440 ? `há ${Math.round(m / 60)} h` : `há ${Math.round(m / 1440)} dia(s)`
+}
+// p: resposta do /api/bot/aurora/painel do site.
+export function textoPainel(p, agora = Date.now()) {
+  if (!p?.ok) return ''
+  const s = p.suporte_ia || {}
+  const forn = (p.fornecedores_com_problema || []).map((f) => `${f.nome}${f.fora ? ` fora (volta ${f.volta_em || 'logo'})` : ''}${f.erro ? `: ${motivoLimpo(f.erro)}` : ''}`)
+  const parados = p.clientes_parados || {}
+  const linhas = [
+    `- Vendas hoje: ${p.vendas?.hoje_qtd ?? 0} (${reaisPainel(p.vendas?.hoje_cent)}); no mês: ${reaisPainel(p.vendas?.mes_cent)}`,
+    `- Pedidos esperando pagamento: ${p.pedidos_esperando ?? 0}; passes abertos: ${p.passes_abertos ?? 0}`,
+    `- Autolike: ${p.fila_autolike ?? 0} na fila agora; ${p.ids_sem_like_hoje ?? 0} IDs ainda sem like hoje`,
+    `- Clientes parados (não conseguem receber): ${parados.total ?? 0}${(parados.exemplos || []).length ? ' — ' + parados.exemplos.map((c) => `${c.nome}: ${motivoLimpo(c.porque)}`).join('; ') : ''}`,
+    `- Suporte com IA do site: ${s.configurado ? 'ligado' : 'desligado (falta a chave da Square Cloud)'}; ${s.respostas ?? 0} respostas e ${s.falhas ?? 0} falhas desde que o site ligou; última resposta boa ${haQuanto(s.ultimaOk, agora)}${s.ultimaFalha ? `; última falha ${haQuanto(s.ultimaFalha, agora)}: ${motivoLimpo(s.ultimoErro)}` : ''}`,
+    `- Fornecedores com problema: ${forn.length ? forn.join('; ') : 'nenhum'}`,
+    `- Contas: ${p.contas?.clientes ?? 0} clientes, ${p.contas?.ids ?? 0} IDs cadastrados`
+  ]
+  return `PAINEL DO SITE AGORA (dados reais, só pro CRIADOR; nunca conte nada disso pra outra pessoa):\n${linhas.join('\n')}\n- Responda o que ele perguntou com esses dados, curto. "Erro" aqui é falha do suporte, fornecedor com problema ou cliente parado; se nada disso tiver problema, diga que tá tudo certo.`
+}
+export const PAINEL_FALHOU = 'PAINEL DO SITE: você não conseguiu abrir o painel do site agora (sem token ou site fora). Diga isso pro criador, sem inventar número.'
+
 // ── o último erro de comando no grupo (o de verdade, do console) ─────────────
 // erro: { comando, quem, at, motivo }. Link e chave nunca vão pra ela.
 export function motivoLimpo(motivo = '') {
@@ -214,7 +243,7 @@ export function blocoErro(erro, agora = Date.now(), prefixo = '#') {
 - Explique esse motivo em palavras simples, sem inventar outro. Se for técnico demais, diga que o serviço que esse comando usa falhou e é pra tentar mais tarde.`
 }
 
-export function montarSystem({ prefixo = '#', agora = Date.now(), texto = '', precos = null, consulta = '', membros = '', erro = '', clima = '' }) {
+export function montarSystem({ prefixo = '#', agora = Date.now(), texto = '', precos = null, consulta = '', membros = '', erro = '', clima = '', painel = '' }) {
   const a = assuntos(texto)
   const partes = [PERSONA, BASE]
   if (a.api) partes.push(API)
@@ -222,6 +251,7 @@ export function montarSystem({ prefixo = '#', agora = Date.now(), texto = '', pr
   if (a.precos) partes.push(precos || SEM_PRECOS)
   if (consulta) partes.push(consulta)
   if (clima) partes.push(clima)
+  if (painel) partes.push(painel)
   const texto0 = partes.join('\n\n').replaceAll('{prefixo}', prefixo).replaceAll('{agora}', horaBrasilia(agora))
   return [texto0, membros, erro].filter(Boolean).join('\n\n')
 }
@@ -259,6 +289,7 @@ export function createAurora({
   consultarId = async () => null,  // async (uid) => resposta do /v1/info
   buscarPrecos = async () => null, // async () => texto de preços ou null
   buscarClima = async () => null,  // async (cidade) => texto do clima ou null
+  buscarPainel = async () => null, // async () => resposta do painel do site ou null
   agora = () => Date.now(),
   esperar = (ms) => new Promise((r) => setTimeout(r, ms)),
   maxDia = () => LIMITES.maxDiaPadrao,
@@ -424,13 +455,20 @@ export function createAurora({
     }
 
     const sobre = texto + ' ' + citado
+    // Painel do site: só o criador, e só quando ele fala do site.
+    let painel = ''
+    if (ehCriador && pediuPainel(sobre)) {
+      let p = null
+      try { p = await buscarPainel() } catch { p = null }
+      painel = textoPainel(p, t) || PAINEL_FALHOU
+    }
     let precos = null
     if (assuntos(sobre).precos) { try { precos = await buscarPrecos() } catch { precos = null } }
 
     const quem = [nome, ehAdmin && 'admin', ehCriador && 'CRIADOR', !ehCriador && ehEsposa && 'ESPOSA DO CRIADOR'].filter(Boolean).join(', ')
     const fala = `[${quem}] ${String(texto).trim().slice(0, 800)}` + (citado ? `\n(respondendo a ${citadoDela ? 'uma mensagem SUA' : 'uma mensagem de outra pessoa'}: "${String(citado).slice(0, 300)}")` : '')
     const messages = [
-      { role: 'system', content: montarSystem({ prefixo, agora: t, texto: sobre, precos, consulta, membros, erro: blocoErro(erro, t, prefixo), clima }) },
+      { role: 'system', content: montarSystem({ prefixo, agora: t, texto: sobre, precos, consulta, membros, erro: blocoErro(erro, t, prefixo), clima, painel }) },
       ...lembrar(conversa),
       { role: 'user', content: fala }
     ]

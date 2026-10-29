@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   createAurora, deveResponder, chamouAurora, acharId, pediuLike, blocoConsulta, textoPrecos,
-  montarSystem, limparResposta, blocoMembros, acharMarcacoes, blocoErro, motivoLimpo, pediuClima, acharCidade, textoClima, CLIMA_SEM_CIDADE, FRASES, LIMITES, SEM_PRECOS
+  montarSystem, limparResposta, blocoMembros, acharMarcacoes, blocoErro, motivoLimpo, pediuClima, acharCidade, textoClima, CLIMA_SEM_CIDADE, pediuPainel, textoPainel, PAINEL_FALHOU, FRASES, LIMITES, SEM_PRECOS
 } from '../sistema/funcoes/aurora/ia.js'
 
 const ok = (content, extra = {}) => ({ status: 200, data: { choices: [{ finish_reason: 'stop', message: { content }, ...extra }] } })
@@ -289,4 +289,32 @@ test('clima sem cidade: ela pergunta, e a resposta curta vira a cidade', async (
   assert.match(chamadas[2][0].content, /não conseguiu ver o clima de "Lugarnenhum"/)
   assert.deepEqual(pedidas, ['Rio Branco', 'Lugarnenhum'])
   assert.doesNotMatch(montarSystem({ texto: 'oi' }), /CLIMA AGORA/)
+})
+
+const PAINEL = {
+  ok: true, vendas: { hoje_qtd: 3, hoje_cent: 7470, mes_cent: 152000 }, pedidos_esperando: 2, passes_abertos: 0,
+  fila_autolike: 5, ids_sem_like_hoje: 12, clientes_parados: { total: 1, exemplos: [{ nome: 'Maria', porque: 'plano vencido' }] },
+  fornecedores_com_problema: [{ nome: 'Fonte A', fora: true, volta_em: '120s', erro: 'HTTP 502 em https://x.com?key=abc' }],
+  suporte_ia: { configurado: true, respostas: 40, falhas: 2, ultimaOk: 0, ultimaFalha: 0, ultimoErro: '' }, contas: { clientes: 50, ids: 80 }
+}
+
+test('painel do site: só o criador, só quando fala do site, com dados reais', async () => {
+  assert.equal(pediuPainel('já olhou suporte do site?'), true)
+  assert.equal(pediuPainel('dá uma olhada lá vê se tem algum erro'), true)
+  assert.equal(pediuPainel('aurora você me ama?'), false)
+  const t = textoPainel(PAINEL)
+  assert.match(t, /Vendas hoje: 3 \(R\$ 74,70\); no mês: R\$ 1520,00/)
+  assert.match(t, /Fonte A fora \(volta 120s\): HTTP 502 em \(link\)/)
+  assert.match(t, /Maria: plano vencido/)
+  assert.match(t, /Suporte com IA do site: ligado; 40 respostas e 2 falhas/)
+  let pedidos = 0
+  const { a, chamadas } = aurora({ deps: { buscarPainel: async () => { pedidos++; return PAINEL } } })
+  await a.responder(fala('aurora quantas vendas hoje?', { conversa: 'g@g.us:9', nome: 'TROPA' }))
+  assert.doesNotMatch(chamadas[0][0].content, /PAINEL DO SITE/, 'outra pessoa não vê o painel')
+  await a.responder(fala('aurora quantas vendas hoje?', { ehCriador: true }))
+  assert.match(chamadas[1][0].content, /PAINEL DO SITE AGORA[\s\S]*Vendas hoje: 3/)
+  assert.equal(pedidos, 1)
+  const { a: b, chamadas: c2 } = aurora({ deps: { buscarPainel: async () => null } })
+  await b.responder(fala('aurora tem erro no site?', { ehCriador: true }))
+  assert.ok(c2[0][0].content.includes(PAINEL_FALHOU))
 })
