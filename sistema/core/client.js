@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises'
 import chalk from 'chalk'
-import { createPinoLogger, createStore, WaClient } from 'zapo-js'
+import { createStore, WaClient } from 'zapo-js'
 import { createFileStore } from './store.js'
 import { loadConfig } from '../funcoes/config.js'
 import { loadNecessarios } from '../funcoes/necessarios.js'
@@ -17,32 +17,11 @@ import { installMarcaAluguel } from '../funcoes/marcaAluguel.js'
 import { avisarGerente, marcaCliente, modoCliente } from '../funcoes/cliente.js'
 import { destino } from '../funcoes/avisoCompra.js'
 import { textoBoasVindas } from '../funcoes/boasVindas.js'
+import { criarLoggerZapo } from '../funcoes/registro.js'
 
 const restartCode = 75
 let desligando = false
 
-// Logger do Zapo sem enxurrada: o mesmo aviso (ex.: 'socket open failed'
-// durante uma queda de rede) aparece no máximo uma vez por minuto, com quantas
-// vezes se repetiu.
-function semEnxurrada(base, vistos = new Map()) {
-const filtrar = (nivel) => (message, context) => {
-const agora = Date.now()
-const visto = vistos.get(message)
-if (visto && agora - visto.ultimo < 60_000) { visto.repetidas++; return }
-if (vistos.size > 300) vistos.clear()
-vistos.set(message, { ultimo: agora, repetidas: 0 })
-base[nivel](message, visto?.repetidas ? { ...(context || {}), repetidas: visto.repetidas } : context)
-}
-return {
-get level() { return base.level },
-trace: (message, context) => base.trace(message, context),
-debug: (message, context) => base.debug(message, context),
-info: (message, context) => base.info(message, context),
-warn: filtrar('warn'),
-error: filtrar('error'),
-child: (bindings, options) => semEnxurrada(base.child(bindings, options), vistos)
-}
-}
 const sessionId = 'aurora'
 const digits = (value = '') => String(value).replace(/\D/g, '')
 
@@ -91,7 +70,8 @@ importNecessarios(flags)
 const registry = await loadPlugins()
 await fs.mkdir('sistema/dados/sessao', { recursive: true })
 
-const logger = semEnxurrada(await createPinoLogger({ level: 'warn', pretty: false }))
+// Avisos do Zapo legíveis e sem enxurrada (sistema/funcoes/registro.js).
+const logger = criarLoggerZapo()
 const store = createStore({
 backends: { file: createFileStore('sistema/dados/sessao') },
 providers: {
@@ -234,7 +214,7 @@ failure_client_too_old: 'a versão do Zapo ficou velha para o WhatsApp'
 client.on('connection', (event) => {
 const status = String(event?.status || '')
 if (status === 'open') {
-console.log('[ AURORA CONEXÃO ] WhatsApp conectado', new Date().toISOString(), quedas ? `(voltou depois de ${quedas} queda(s))` : '')
+console.log('[ AURORA CONEXÃO ] WhatsApp conectado', quedas ? `(voltou depois de ${quedas} queda(s))` : '')
 connectionOpen = true
 quedas = 0
 limparTimers()
@@ -295,7 +275,7 @@ const handleMessage = createHandler({ client, config, registry })
 client.on('message', (event) => {
   const rawText = event?.message?.conversation || event?.message?.extendedTextMessage?.text || event?.message?.imageMessage?.caption || event?.message?.buttonsResponseMessage?.selectedButtonId || event?.message?.listResponseMessage?.singleSelectReply?.selectedRowId || ''
   const isPossibleCommand = /^[!/\.]/.test(String(rawText).trim())
-  if (isPossibleCommand) console.log('[ AURORA RECEBIMENTO ]', new Date().toISOString(), '| id:', event?.key?.id || '-', '| grupo:', event?.key?.remoteJid || '-', '| comando:', String(rawText).trim().split(/\s+/)[0])
+  if (isPossibleCommand) console.log('[ AURORA RECEBIMENTO ] id:', event?.key?.id || '-', '| grupo:', event?.key?.remoteJid || '-', '| comando:', String(rawText).trim().split(/\s+/)[0])
   void Promise.resolve().then(() => handleMessage(event)).catch((err) => {
     console.error('[ AURORA ] Erro isolado no processamento da mensagem:', err?.message || err)
   })
