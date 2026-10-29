@@ -1,8 +1,9 @@
 // AURORA COM IA NO WHATSAPP — a ponte entre o handler e o miolo (ia.js).
 //
-// Só no bot da casa: o bot de cliente (modo cliente) não tem a Aurora, e grupo
-// alugado por cliente começa com ela desligada (lá o bot leva a marca do
-// cliente; o admin liga com #aurora 1 se quiser).
+// Só no bot da casa: bot de cliente não tem a Aurora, menos o que roda no
+// número da casa (o dono alugou pro próprio número; o gerente liga AURORA_IA).
+// Grupo alugado por cliente começa com ela desligada (lá o bot leva a marca
+// do cliente; o admin liga com #aurora 1 se quiser).
 //
 // A chave é a API key da conta da Square Cloud com a permissão ai:chat — a
 // mesma do suporte com IA do site. Vem SÓ do ambiente: SQUARECLOUD_API_KEY
@@ -16,6 +17,9 @@ import { pedirAoSite } from '../rede.js'
 import { auroraIaLigada, auroraNoGrupo, aluguelOk, getDonoAluguel } from '../banco.js'
 import { modoCliente } from '../cliente.js'
 import { digits, mesmoNumero } from '../jid.js'
+
+// Este processo tem a IA? O bot da casa sempre; bot de cliente só o do número da casa.
+export const iaNesteBot = () => !modoCliente || process.env.AURORA_IA === '1'
 
 const GATEWAY = () => String(process.env.SQUARECLOUD_AI_URL || 'https://api.squarecloud.app/v2/ai').replace(/\/+$/, '')
 export const chaveIa = () => String(process.env.SQUARECLOUD_API_KEY || process.env.SQUARECLOUD_AI_KEY || '').trim()
@@ -127,13 +131,15 @@ async function conversar(system, texto) {
     clearInterval(renovar)
     await digitando(system, 'paused')
   }
-  if (resposta) await system.reply(resposta)
+  // No bot de cliente do número da casa, a resposta sai sem a troca de marca:
+  // senão "Aurora" vira o nome do bot e o endereço do site some da resposta.
+  if (resposta) await system.reply(resposta, modoCliente ? { semMarca: true } : {})
 }
 
 // Devolve true quando a mensagem é da Aurora (o handler para por aqui).
 // forcado: veio do comando #aurora texto.
 export function handleAurora(system, { forcado = false, texto } = {}) {
-  if (modoCliente) return false
+  if (!iaNesteBot()) return false
   configAtual = system.config || configAtual
   const t = String(texto ?? system.text ?? '').trim()
   const p = String(system.prefix || '#')
@@ -162,4 +168,4 @@ export function handleAurora(system, { forcado = false, texto } = {}) {
 export const esquecerAurora = (system) => aurora.esquecer(`${system.from}:${system.senderKey}`)
 export const estadoAurora = () => ({ ...aurora.estado(), temChave: Boolean(chaveIa()), ligada: auroraIaLigada() })
 
-if (!modoCliente && !chaveIa()) console.log('[ AURORA IA ] desligada: falta SQUARECLOUD_API_KEY no ambiente')
+if (iaNesteBot() && !chaveIa()) console.log('[ AURORA IA ] desligada: falta SQUARECLOUD_API_KEY no ambiente')

@@ -1,11 +1,10 @@
 import { parseToggle } from '../../funcoes/toggle.js'
 import { auroraIaLigada } from '../../funcoes/banco.js'
-import { estadoAurora } from '../../funcoes/aurora/index.js'
-import { modoCliente } from '../../funcoes/cliente.js'
+import { estadoAurora, iaNesteBot } from '../../funcoes/aurora/index.js'
 
 // Liga/desliga a Aurora com IA no bot inteiro. Sem argumento, mostra como ela está.
 export default {name: 'auroraia',aliases: [],category: 'dono',description: 'Liga/desliga a Aurora (IA) no bot inteiro',ownerOnly: true,async run(system){
-if (modoCliente) return system.reply('Comando indisponível neste bot.')
+if (!iaNesteBot()) return system.reply('Comando indisponível neste bot.')
 const valor = parseToggle(system.args[0])
 if (valor !== null) {
 auroraIaLigada(valor)
@@ -20,6 +19,6 @@ return system.reply([
 `Respostas hoje: ${e.hoje} de ${e.max} (zera às 21h)`,
 pausa ? `Pausada até: ${pausa} (limite do plano da Square Cloud)` : '',
 `Conversas lembradas: ${e.conversas}`
-].filter(Boolean).join('\n'))
+].filter(Boolean).join('\n'), { semMarca: true })
 }
 }
