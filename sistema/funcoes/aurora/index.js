@@ -17,7 +17,7 @@ import { pedirAoSite } from '../rede.js'
 import { auroraIaLigada, auroraNoGrupo, auroraCriador, auroraEsposa, aluguelOk, getDonoAluguel, hasCmd, hasGcmd } from '../banco.js'
 import likeCmd from '../../comandos/ff/like.js'
 import { modoCliente } from '../cliente.js'
-import { digits, mesmoNumero, jidNumber, participantIdentity } from '../jid.js'
+import { digits, mesmoNumero, jidNumber, participantIdentity, variantesNumero } from '../jid.js'
 
 // Este processo tem a IA? O bot da casa sempre; bot de cliente só o do número da casa.
 export const iaNesteBot = () => !modoCliente || process.env.AURORA_IA === '1'
@@ -124,14 +124,44 @@ export async function membrosDoGrupo(system) {
 // O criador é quem recebe os avisos de compra (ver auroraCriador). Dono,
 // subdono ou admin do bot não contam: só ele vê o sistema por dentro e
 // manda ela agir.
-export function ehCriador(system) {
-  const criador = auroraCriador()
-  return Boolean(criador && system.senderNumber && mesmoNumero(system.senderNumber, criador))
+//
+// No privado o WhatsApp costuma mandar só o LID (o código interno da pessoa,
+// @lid), sem o número. Por isso o LID de cada um fica guardado: aprendido
+// quando a pessoa fala num grupo (lá vem os dois) ou perguntado ao WhatsApp.
+const lids = new Map() // número -> { lid, at }
+const lidDe = (numero) => lids.get(digits(numero))?.lid || ''
+const quemFala = (system) => [system.senderInfo?.lidJid, system.sender, system.senderAlt]
+  .filter((j) => String(j || '').endsWith('@lid')).map(base)
+function mesmaPessoa(system, numero) {
+  if (!numero) return false
+  if (system.senderNumber && mesmoNumero(system.senderNumber, numero)) return true
+  const lid = lidDe(numero)
+  return Boolean(lid && quemFala(system).includes(lid))
 }
+export const ehCriador = (system) => mesmaPessoa(system, auroraCriador())
+export const ehEsposa = (system) => mesmaPessoa(system, auroraEsposa())
 
-export function ehEsposa(system) {
-  const esposa = auroraEsposa()
-  return Boolean(esposa && system.senderNumber && mesmoNumero(system.senderNumber, esposa))
+// Garante o LID do criador e da mulher dele antes de decidir quem fala.
+export async function conhecerPessoas(system) {
+  for (const numero of [auroraCriador(), auroraEsposa()].filter(Boolean)) {
+    const n = digits(numero)
+    const lid = base(system.senderInfo?.lidJid)
+    if (lid && system.senderNumber && mesmoNumero(system.senderNumber, n)) { lids.set(n, { lid, at: Date.now() }); continue }
+    const salvo = lids.get(n)
+    if (salvo?.lid || (salvo && Date.now() - salvo.at < 10 * 60_000)) continue
+    lids.set(n, { lid: '', at: Date.now() })
+    const perguntar = system.client?.profile?.getLidsByPhoneNumbers
+    if (typeof perguntar !== 'function' || !quemFala(system).length) continue
+    for (const v of variantesNumero(n)) {
+      try {
+        const [r] = await Promise.race([
+          perguntar.call(system.client.profile, [v]),
+          new Promise((_, nao) => setTimeout(() => nao(new Error('demorou')), 8_000))
+        ])
+        if (r?.exists && r.lidJid) { lids.set(n, { lid: base(r.lidJid), at: Date.now() }); break }
+      } catch {}
+    }
+  }
 }
 
 // Grupo sem escolha feita: ligada, menos em grupo alugado por cliente.
@@ -165,11 +195,19 @@ async function mandarLike(system, texto, uid) {
   const conversa = `${system.from}:${system.senderKey}`
   const frase = FRASES_LIKE[Math.floor(Math.random() * FRASES_LIKE.length)](uid)
   await system.reply(frase, modoCliente ? { semMarca: true } : {})
-  aurora.anotar(conversa, `[${String(system.pushName || 'alguém').slice(0, 40)}] ${texto.slice(0, 800)}`, frase)
+  aurora.anotar(conversa, `[${nomeDe(system)}] ${texto.slice(0, 800)}`, frase)
   system.command = 'like'
   system.args = [uid]
   system.q = uid
   await likeCmd.run(system)
+}
+
+// O nome do zap; a mulher do criador sem nome no zap é a Hemi.
+function nomeDe(system) {
+  const nome = String(system.pushName || '').trim()
+  const vazio = !nome || nome === 'Usuário'
+  if (vazio && ehEsposa(system)) return 'Hemi'
+  return (vazio ? 'alguém' : nome).slice(0, 40)
 }
 
 async function conversar(system, texto) {
@@ -187,7 +225,7 @@ async function conversar(system, texto) {
       conversa,
       grupo: system.isGroup ? system.from : '',
       texto,
-      nome: String(system.pushName || 'alguém').slice(0, 40),
+      nome: nomeDe(system),
       ehAdmin: Boolean(system.isAdmin),
       ehCriador: ehCriador(system),
       ehEsposa: ehEsposa(system),
@@ -241,10 +279,13 @@ export function handleAurora(system, { forcado = false, texto } = {}) {
     return false
   }
   const likeBloqueado = hasGcmd('like') || (system.isGroup && hasCmd(system.from, 'like'))
-  const uid = !likeBloqueado && ehCriador(system) && pediuLike(t)
-    ? acharId(t) || acharId(textoCitado(system)) || aurora.ultimoId(`${system.from}:${system.senderKey}`)
-    : ''
-  const tarefa = uid ? mandarLike(system, t, uid) : conversar(system, t)
+  const tarefa = (async () => {
+    await conhecerPessoas(system)
+    const uid = !likeBloqueado && ehCriador(system) && pediuLike(t)
+      ? acharId(t) || acharId(textoCitado(system)) || aurora.ultimoId(`${system.from}:${system.senderKey}`)
+      : ''
+    return uid ? mandarLike(system, t, uid) : conversar(system, t)
+  })()
   void tarefa.catch((err) => console.error('[ AURORA IA ] falha ao responder:', err?.message || err))
   return true
 }

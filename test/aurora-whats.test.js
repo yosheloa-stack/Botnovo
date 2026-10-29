@@ -49,7 +49,8 @@ const client = {
     { jid: '77665544332211@lid', displayName: 'TROPA DE ELITE' }
   ] }) },
   message: { send: async (jid, conteudo, opcoes) => { enviados.push({ jid, conteudo, opcoes }) } },
-  presence: { sendChatstate: async (jid, { state }) => { estados.push(state) } }
+  presence: { sendChatstate: async (jid, { state }) => { estados.push(state) } },
+  profile: { getLidsByPhoneNumbers: async ([n]) => [n === '5544977776666' ? { exists: true, phoneJid: n + '@s.whatsapp.net', lidJid: '123123123123@lid' } : { exists: false }] }
 }
 const config = { prefix: '#', owner: { number: '5544900000000' }, connection: { number: BOT }, autoSystem: { url: 'https://autolikesystem.com.br', token: 'token-de-teste' } }
 const comandos = new Map()
@@ -166,4 +167,30 @@ test('#auroramulher: só o criador escolhe, e ela passa a ser tratada como a mul
   banco.auroraCriador('5544900001111')
   await respostaDe(mensagem('aurora oi'))
   assert.match(pedidosIa.at(-1).messages.at(-1).content, /^\[Yosh, ESPOSA DO CRIADOR\]/)
+})
+
+const privado = (texto, key) => ({ key: { id: 'PV' + (++n), fromMe: false, ...key }, pushName: 'Yosh', message: { conversation: texto } })
+
+test('no privado vem só o LID: ela reconhece o criador pelo número alternativo', async () => {
+  banco.auroraCriador('5544911112222')
+  await respostaDe(privado('oi aurora', { remoteJid: '55555555555@lid', remoteJidAlt: '5544911112222@s.whatsapp.net' }))
+  assert.match(pedidosIa.at(-1).messages.at(-1).content, /^\[Yosh, CRIADOR\] oi aurora/)
+})
+
+test('no privado sem número nenhum: pergunta o LID do criador ao WhatsApp', async () => {
+  banco.auroraCriador('5544977776666')
+  await respostaDe(privado('oi aurora', { remoteJid: '123123123123@lid' }))
+  assert.match(pedidosIa.at(-1).messages.at(-1).content, /^\[Yosh, CRIADOR\] oi aurora/)
+  await respostaDe(privado('oi aurora', { remoteJid: '999999999999@lid' }))
+  assert.doesNotMatch(pedidosIa.at(-1).messages.at(-1).content, /CRIADOR/)
+})
+
+test('a mulher do criador sem nome no zap vira Hemi', async () => {
+  banco.auroraCriador('5544900001111')
+  banco.auroraEsposa('5544911112222')
+  const ev = privado('oi aurora', { remoteJid: '5544911112222@s.whatsapp.net' }); delete ev.pushName
+  await respostaDe(ev)
+  assert.match(pedidosIa.at(-1).messages.at(-1).content, /^\[Hemi, ESPOSA DO CRIADOR\] oi aurora/)
+  await respostaDe(privado('oi de novo', { remoteJid: '5544911112222@s.whatsapp.net' }))
+  assert.match(pedidosIa.at(-1).messages.at(-1).content, /^\[Yosh, ESPOSA DO CRIADOR\]/, 'com nome no zap, usa o nome dela')
 })
