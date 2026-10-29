@@ -11,6 +11,8 @@ const ehOscilacao = (message, context) =>
   OSCILACAO.has(message) || (message === 'received stream:error with code' && Number(context?.code) === 503)
 // Pedido de reenvio de mensagem que o celular não respondeu a tempo.
 const ehReenvio = (message) => message === 'placeholder resend: request failed'
+// Falha ao pedir o código de pareamento: o client.js já explica numa linha.
+const ehPareamento = (context) => /^companion hello/i.test(String(context?.message || ''))
 
 // As linhas de uma mesma queda chegam em menos de 1 s: dentro de 10 s é a mesma.
 const MESMA_QUEDA_MS = 10_000
@@ -26,6 +28,7 @@ function detalhes(context) {
 
 export function criarLoggerZapo({ saida = console, agora = Date.now, resumoMs = 30 * 60_000, timer = true } = {}) {
   const vistos = new Map()
+  const causas = new Map()
   let oscilacoes = 0
   let reenvios = 0
   let ultimaOscilacao = 0
@@ -51,8 +54,18 @@ export function criarLoggerZapo({ saida = console, agora = Date.now, resumoMs = 
       return
     }
     if (ehReenvio(texto)) { reenvios++; return }
-    // Mesmo aviso em sequência (ex.: queda de rede longa): 1 vez por minuto.
+    if (ehPareamento(context)) return
     const chave = nivel + texto
+    // O mesmo erro chega por duas partes do Zapo ("wa auth client error" e
+    // "wa client error"): o da outra parte, logo em seguida, não sai.
+    const causa = String(context?.message || '')
+    const outra = causa && causas.get(causa)
+    if (outra && outra.chave !== chave && agora() - outra.quando < 5_000) return
+    if (causa) {
+      if (causas.size > 300) causas.clear()
+      causas.set(causa, { chave, quando: agora() })
+    }
+    // Mesmo aviso em sequência (ex.: queda de rede longa): 1 vez por minuto.
     const visto = vistos.get(chave)
     if (visto && agora() - visto.ultimo < 60_000) { visto.repetidas++; return }
     if (vistos.size > 300) vistos.clear()

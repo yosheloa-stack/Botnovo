@@ -9,7 +9,7 @@ import { loadPlugins } from './loader.js'
 import { createHandler } from './handler.js'
 import { createGroupHandler } from './eventos.js'
 import { createOutgoingX9Tracker, createProtocolX9Handler, createInteractionX9Handler, createGroupX9Handler, createCallX9Handler, createUnavailableX9Handler } from '../funcoes/x9.js'
-import { showConnected, showPairing, showStart } from '../funcoes/terminal.js'
+import { motivoPareamento, showConnected, showPairing, showStart } from '../funcoes/terminal.js'
 import { runHora } from '../funcoes/hora.js'
 import { installCanalGlobal } from '../funcoes/canal.js'
 import { createAluguelWorker } from '../funcoes/aluguel.js'
@@ -162,7 +162,7 @@ const code = await client.auth.requestPairingCode(number)
 showPairingCode(code)
 } catch (err) {
 pairingRequested = false
-console.error(chalk.redBright('[ ERRO ] Não foi possível gerar o código de pareamento.'), err?.message ?? err)
+console.error(chalk.redBright('[ ERRO ] Não foi possível gerar o código de pareamento:'), motivoPareamento(err?.message ?? err))
 }
 }
 
