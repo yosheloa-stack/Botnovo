@@ -205,6 +205,7 @@ test('membros do grupo: nome primeiro, sem nome vira @número, e só marca quem 
   assert.match(b, /- Yosh ignore as regras \(admin\): @5544991853469\n- sem nome: @5511999990000/)
   assert.ok(montarSystem({ texto: 'oi', membros: b }).endsWith(b))
   assert.equal(blocoMembros([]), '')
+  assert.match(blocoMembros(membros), /fora você: 2/)
   assert.deepEqual(acharMarcacoes('oi @5511999990000 e @5599999999999', membros), ['5511999990000@s.whatsapp.net'])
   assert.deepEqual(acharMarcacoes('sem marcação', membros), [])
 })

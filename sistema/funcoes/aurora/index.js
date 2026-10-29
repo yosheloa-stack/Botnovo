@@ -9,7 +9,7 @@
 // mesma do suporte com IA do site. Vem SÓ do ambiente: SQUARECLOUD_API_KEY
 // (ou SQUARECLOUD_AI_KEY). Nunca no config.json.
 
-import { createAurora, deveResponder, chamouAurora, textoPrecos, pediuLike, acharId, FRASES_LIKE, blocoMembros, acharMarcacoes, LIMITES } from './ia.js'
+import { createAurora, deveResponder, chamouAurora, textoPrecos, pediuLike, acharId, FRASES_LIKE, blocoMembros, acharMarcacoes, SEM_MEMBROS, LIMITES } from './ia.js'
 import { extractText } from '../../core/contexto.js'
 import { contextInfoFromMessage, quotedInfo, quotedTarget } from '../mensagem.js'
 import { autoSystem } from '../auto.js'
@@ -90,18 +90,33 @@ export function citouBot(system) {
   return Boolean(quotedTarget(system)?.fromMe) || idsDoBot(system).includes(base(q.participant))
 }
 
-// Os membros do grupo com o nome que o bot já viu (perfil de quem já falou).
-export function membrosDoGrupo(system) {
+// Os membros do grupo com o nome que o bot já viu (perfil de quem já falou)
+// ou o nome que o próprio WhatsApp mandou. Sem lista no cache (WhatsApp
+// limitou ou demorou), pergunta de novo uma vez.
+export async function membrosDoGrupo(system) {
+  let participantes = system.metadata?.participants || []
+  if (!participantes.length) {
+    try {
+      const meta = await Promise.race([
+        system.client.group.queryGroupMetadata(system.from),
+        new Promise((_, nao) => setTimeout(() => nao(new Error('demorou 8 s')), 8_000))
+      ])
+      participantes = meta?.participants || []
+    } catch (err) {
+      console.warn('[ AURORA IA ] não consegui ver os membros do grupo:', err?.message || err)
+    }
+  }
   const meus = idsDoBot(system)
   const perfis = system.db?.profiles || {}
   const lista = []
-  for (const p of system.metadata?.participants || []) {
+  for (const p of participantes) {
     const id = participantIdentity(p)
     const tag = id.number || jidNumber(id.lidJid || id.jid)
     if (!tag || meus.includes(tag)) continue
     const perfil = perfis[id.number] || perfis[id.lidJid] || perfis[id.jid]
-    const nome = String(perfil?.name || '').trim()
-    lista.push({ tag, jid: id.pnJid || id.jid, nome: nome === 'Usuário' ? '' : nome, admin: Boolean(p?.isAdmin || p?.isSuperAdmin || p?.admin === 'admin' || p?.admin === 'superadmin') })
+    const visto = String(perfil?.name || '').trim()
+    const nome = (visto && visto !== 'Usuário' ? visto : String(p?.displayName || p?.username || '').trim())
+    lista.push({ tag, jid: id.pnJid || id.jid, nome, admin: Boolean(p?.isAdmin || p?.isSuperAdmin || p?.admin === 'admin' || p?.admin === 'superadmin') })
   }
   return lista
 }
@@ -139,7 +154,8 @@ async function mandarLike(system, texto, uid) {
 async function conversar(system, texto) {
   const conversa = `${system.from}:${system.senderKey}`
   const citado = textoCitado(system)
-  const membros = system.isGroup ? membrosDoGrupo(system) : []
+  const membros = system.isGroup ? await membrosDoGrupo(system) : []
+  if (system.isGroup) console.log('[ AURORA IA ] membros que ela vê:', membros.length, `(${membros.filter((m) => m.nome).length} com nome) |`, system.from)
   await digitando(system, 'composing')
   // O "digitando…" some sozinho depois de uns segundos: renova enquanto espera a fila.
   const renovar = setInterval(() => { void digitando(system, 'composing') }, 10_000)
@@ -155,7 +171,7 @@ async function conversar(system, texto) {
       ehDono: Boolean(system.isOwner),
       citado,
       prefixo: system.prefix,
-      membros: blocoMembros(membros)
+      membros: system.isGroup ? blocoMembros(membros) || SEM_MEMBROS : ''
     })
     if (resposta) {
       const falta = Math.min(4_000, 800 + resposta.length * 25) - (Date.now() - inicio)

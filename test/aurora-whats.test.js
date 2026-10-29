@@ -45,7 +45,8 @@ const client = {
   getCredentials: () => ({ meJid: `${BOT}:3@s.whatsapp.net`, meLid: `${BOT_LID}:3@lid` }),
   group: { queryGroupMetadata: async () => ({ subject: 'Teste', participants: [
     { jid: `${BOT}@s.whatsapp.net`, isAdmin: true },
-    { jid: '5544911112222@s.whatsapp.net' }
+    { jid: '5544911112222@s.whatsapp.net' },
+    { jid: '77665544332211@lid', displayName: 'TROPA DE ELITE' }
   ] }) },
   message: { send: async (jid, conteudo, opcoes) => { enviados.push({ jid, conteudo, opcoes }) } },
   presence: { sendChatstate: async (jid, { state }) => { estados.push(state) } }
@@ -131,6 +132,6 @@ test('ela vê os membros do grupo pelo nome e marca de verdade', async () => {
   respostaIa = 'olha o @5544911112222 aí 😏'
   const saiu = await respostaDe(mensagem('aurora quem tá no grupo?'))
   respostaIa = 'oi, tô aqui 😌'
-  assert.match(pedidosIa.at(-1).messages[0].content, /MEMBROS DESTE GRUPO \(1 pessoas[\s\S]*- Yosh: @5544911112222/)
+  assert.match(pedidosIa.at(-1).messages[0].content, /MEMBROS DESTE GRUPO \(fora você: 2[\s\S]*- Yosh: @5544911112222\n- TROPA DE ELITE: @77665544332211/)
   assert.deepEqual(saiu[0].opcoes.mentions, ['5544911112222@s.whatsapp.net'])
 })
