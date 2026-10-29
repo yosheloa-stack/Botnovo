@@ -27,13 +27,20 @@ saida.log(chalk.greenBright.bold('        ✓ Conectado com sucesso'))
 saida.log()
 }
 
+// Código de pareamento numa linha só, com etiqueta: ganha o horário no
+// terminal e não se perde no meio dos bots das clientes.
 export function showPairing(code, { cliente = ehCliente(), saida = console } = {}) {
 const raw = String(code ?? '').replace(/-/g, '')
 const formatted = raw.match(/.{1,4}/g)?.join('-') ?? raw
 if (cliente) return saida.log(`[ AURORA CONEXÃO ] Código de pareamento: ${formatted}`)
-saida.log(chalk.greenBright('        ✦ Código de pareamento'))
-saida.log(chalk.whiteBright.bold(`          ${formatted}`))
-saida.log()
+saida.log(chalk.greenBright.bold(`[ AURORA CONEXÃO ] Código de pareamento: ${formatted}`) + chalk.white(' (WhatsApp do bot > Aparelhos conectados > Conectar com número de telefone)'))
+}
+
+// Por que o WhatsApp não deu o código de pareamento, em português.
+export function motivoPareamento(message) {
+const texto = String(message ?? '')
+if (/\b429\b|rate-overlimit/i.test(texto)) return 'o WhatsApp recusou: pedidos de código demais para este número (erro 429). Espere uns 30 min sem reiniciar o bot e peça de novo.'
+return texto
 }
 
 export function showCommand(system) {

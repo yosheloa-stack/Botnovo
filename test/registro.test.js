@@ -133,6 +133,41 @@ test('bot de cliente não desenha o logo nem o banner: as linhas iam uma por uma
   assert.deepEqual(out.linhas.map((l) => l.texto), ['[ AURORA CONEXÃO ] Código de pareamento: ABCD-1234'])
 })
 
+test('bot da casa: código de pareamento numa linha só, com etiqueta (ganha o horário)', async () => {
+  const { showPairing } = await import('../sistema/funcoes/terminal.js')
+  const out = saida()
+  showPairing('N2K61JHJ', { cliente: false, saida: out })
+  assert.equal(out.linhas.length, 1)
+  const texto = out.linhas[0].texto.replace(/\x1b\[[0-9;]*m/g, '')
+  assert.match(texto, /^\[ AURORA CONEXÃO \] Código de pareamento: N2K6-1JHJ/)
+})
+
+test('falha no código de pareamento: o Zapo não repete o erro (o bot já explica numa linha)', () => {
+  const out = saida()
+  const log = criarLoggerZapo({ saida: out, agora: relogio(), timer: false })
+  log.error('wa auth client error', { message: 'companion hello iq failed (429: rate-overlimit)' })
+  log.error('wa client error', { message: 'companion hello iq failed (429: rate-overlimit)' })
+  assert.equal(out.linhas.length, 0)
+})
+
+test('o mesmo erro contado por duas partes do Zapo sai uma vez só', () => {
+  const out = saida()
+  const agora = relogio()
+  const log = criarLoggerZapo({ saida: out, agora, timer: false })
+  log.error('wa auth client error', { message: 'bad thing' })
+  log.error('wa client error', { message: 'bad thing' })
+  assert.equal(out.linhas.length, 1)
+  agora.andar(61_000)
+  log.error('wa client error', { message: 'bad thing' })
+  assert.equal(out.linhas.length, 2)
+})
+
+test('texto da falha do pareamento: 429 vira explicação em português', async () => {
+  const { motivoPareamento } = await import('../sistema/funcoes/terminal.js')
+  assert.match(motivoPareamento('companion hello iq failed (429: rate-overlimit)'), /pedidos de código demais.*espere/i)
+  assert.equal(motivoPareamento('outra coisa'), 'outra coisa')
+})
+
 test('bot da casa continua com o logo e o banner', async () => {
   const { showStart, showConnected } = await import('../sistema/funcoes/terminal.js')
   const out = saida()
