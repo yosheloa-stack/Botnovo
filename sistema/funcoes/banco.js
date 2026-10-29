@@ -500,6 +500,12 @@ export function auroraCriador(value) {
   if (value !== undefined) setCfg('aurora_criador', String(value || '').replace(/\D/g, ''))
   return String(getCfg('aurora_criador', '') || process.env.AURORA_CRIADOR || '').replace(/\D/g, '')
 }
+// A mulher do criador (o criador escolhe com #auroramulher NUMERO): a
+// Aurora trata ela com respeito e carinho. Não ganha o acesso do criador.
+export function auroraEsposa(value) {
+  if (value !== undefined) setCfg('aurora_esposa', String(value || '').replace(/\D/g, ''))
+  return String(getCfg('aurora_esposa', '') || '').replace(/\D/g, '')
+}
 export function auroraNoGrupo(gp, value) {
   const k = 'aurora:grupo:' + txt(gp)
   if (value !== undefined) setKv(k, value ? 1 : 0)

@@ -14,7 +14,7 @@ import { extractText } from '../../core/contexto.js'
 import { contextInfoFromMessage, quotedInfo, quotedTarget } from '../mensagem.js'
 import { autoSystem } from '../auto.js'
 import { pedirAoSite } from '../rede.js'
-import { auroraIaLigada, auroraNoGrupo, auroraCriador, aluguelOk, getDonoAluguel, hasCmd, hasGcmd } from '../banco.js'
+import { auroraIaLigada, auroraNoGrupo, auroraCriador, auroraEsposa, aluguelOk, getDonoAluguel, hasCmd, hasGcmd } from '../banco.js'
 import likeCmd from '../../comandos/ff/like.js'
 import { modoCliente } from '../cliente.js'
 import { digits, mesmoNumero, jidNumber, participantIdentity } from '../jid.js'
@@ -129,6 +129,11 @@ export function ehCriador(system) {
   return Boolean(criador && system.senderNumber && mesmoNumero(system.senderNumber, criador))
 }
 
+export function ehEsposa(system) {
+  const esposa = auroraEsposa()
+  return Boolean(esposa && system.senderNumber && mesmoNumero(system.senderNumber, esposa))
+}
+
 // Grupo sem escolha feita: ligada, menos em grupo alugado por cliente.
 export function ligadaNoGrupo(system) {
   const escolha = auroraNoGrupo(system.from)
@@ -185,6 +190,7 @@ async function conversar(system, texto) {
       nome: String(system.pushName || 'alguém').slice(0, 40),
       ehAdmin: Boolean(system.isAdmin),
       ehCriador: ehCriador(system),
+      ehEsposa: ehEsposa(system),
       citado,
       prefixo: system.prefix,
       membros: system.isGroup ? blocoMembros(membros) || SEM_MEMBROS : '',
@@ -244,6 +250,6 @@ export function handleAurora(system, { forcado = false, texto } = {}) {
 }
 
 export const esquecerAurora = (system) => aurora.esquecer(`${system.from}:${system.senderKey}`)
-export const estadoAurora = () => ({ ...aurora.estado(), temChave: Boolean(chaveIa()), ligada: auroraIaLigada(), criador: auroraCriador() })
+export const estadoAurora = () => ({ ...aurora.estado(), temChave: Boolean(chaveIa()), ligada: auroraIaLigada(), criador: auroraCriador(), esposa: auroraEsposa() })
 
 if (iaNesteBot() && !chaveIa()) console.log('[ AURORA IA ] desligada: falta SQUARECLOUD_API_KEY no ambiente')

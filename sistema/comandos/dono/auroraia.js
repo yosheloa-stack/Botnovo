@@ -19,6 +19,7 @@ return system.reply([
 `Respostas hoje: ${e.hoje} de ${e.max} (zera às 21h)`,
 pausa ? `Pausada até: ${pausa} (limite do plano da Square Cloud)` : '',
 `Criador (quem recebe os avisos de compra): ${e.criador || 'ainda não sei — chega com a próxima volta dos avisos do site'}`,
+`Mulher do criador: ${e.esposa || 'não escolhida'} (${system.prefix}auroramulher NUMERO)`,
 `Conversas lembradas: ${e.conversas}`
 ].filter(Boolean).join('\n'), { semMarca: true })
 }

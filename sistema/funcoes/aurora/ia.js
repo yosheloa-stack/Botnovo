@@ -193,7 +193,7 @@ export function limparResposta(texto = '', max = LIMITES.respostaMax) {
   t = t.replace(/^\s*aurora\s*:\s*/i, '')
   // Nota de bastidor ("(Note: I'm treating this as the CRIADOR…)", "Obs.:",
   // "P.S.") e a marcação [nome, admin, CRIADOR] nunca vão pro grupo.
-  t = t.replace(/\[[^\]\n]*\b(CRIADOR|admin)\b[^\]\n]*\]/g, '')
+  t = t.replace(/\[[^\]\n]*\b(CRIADOR|admin|ESPOSA)\b[^\]\n]*\]/g, '')
   t = t.replace(/\(([^()]*)\)/g, (todo, dentro) => NOTA_DENTRO.test(semAcento(dentro)) ? '' : todo)
   // "tô vendo isso pra você… só um momento": ela não faz nada depois, então sai.
   const partes = t.split(/\n\s*\n/).filter((p) => !NOTA.test(semAcento(p.trim())) && !(p.length < 140 && ESPERA.test(semAcento(p))))
@@ -317,7 +317,7 @@ export function createAurora({
   }
 
   // conversa: "grupo:pessoa". Devolve o texto pra mandar, ou null (silêncio).
-  async function responder({ conversa, grupo = '', texto, nome = 'alguém', ehAdmin = false, ehCriador = false, citado = '', prefixo = '#', membros = '', erro = null }) {
+  async function responder({ conversa, grupo = '', texto, nome = 'alguém', ehAdmin = false, ehCriador = false, ehEsposa = false, citado = '', prefixo = '#', membros = '', erro = null }) {
     if (chaveRecusada) return null
     const t = agora()
     if (pausadaAte > t) return avisarUmaVez('cansada:' + (grupo || conversa), FRASES.cansada, pausadaAte - t)
@@ -359,7 +359,7 @@ export function createAurora({
     let precos = null
     if (assuntos(sobre).precos) { try { precos = await buscarPrecos() } catch { precos = null } }
 
-    const quem = [nome, ehAdmin && 'admin', ehCriador && 'CRIADOR'].filter(Boolean).join(', ')
+    const quem = [nome, ehAdmin && 'admin', ehCriador && 'CRIADOR', !ehCriador && ehEsposa && 'ESPOSA DO CRIADOR'].filter(Boolean).join(', ')
     const fala = `[${quem}] ${String(texto).trim().slice(0, 800)}` + (citado ? `\n(respondendo a: "${String(citado).slice(0, 300)}")` : '')
     const messages = [
       { role: 'system', content: montarSystem({ prefixo, agora: t, texto: sobre, precos, consulta, membros, erro: blocoErro(erro, t, prefixo) }) },

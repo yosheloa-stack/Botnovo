@@ -153,3 +153,17 @@ test('perguntou do erro: ela recebe o motivo real do último comando que quebrou
   await respostaDe(mensagem('aurora qual foi o erro?'))
   assert.match(pedidosIa.at(-1).messages[0].content, /ÚLTIMO ERRO DE COMANDO[\s\S]*#tiktok de Yosh[\s\S]*HTTP 502/)
 })
+
+test('#auroramulher: só o criador escolhe, e ela passa a ser tratada como a mulher dele', async () => {
+  const { default: cmd } = await import(path.join(raiz, 'sistema/comandos/dono/auroramulher.js'))
+  comandos.set('auroramulher', cmd)
+  banco.auroraCriador('5544900001111')
+  assert.match((await respostaDe(mensagem('#auroramulher 5544911112222')))[0].conteudo.text, /Só o criador/)
+  assert.equal(banco.auroraEsposa(), '')
+  banco.auroraCriador('5544911112222')
+  assert.match((await respostaDe(mensagem('#auroramulher 5568 98411-0000')))[0].conteudo.text, /556898411000/)
+  banco.auroraEsposa('5544911112222')
+  banco.auroraCriador('5544900001111')
+  await respostaDe(mensagem('aurora oi'))
+  assert.match(pedidosIa.at(-1).messages.at(-1).content, /^\[Yosh, ESPOSA DO CRIADOR\]/)
+})

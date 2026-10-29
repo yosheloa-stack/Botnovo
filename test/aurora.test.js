@@ -243,3 +243,11 @@ test('nota de bastidor e marcação de quem fala nunca vão pro grupo', () => {
   assert.equal(limparResposta('P.S.: te amo kkk\n\nfalou'), 'falou')
   assert.equal(limparResposta('fica de boa (sério) kkk'), 'fica de boa (sério) kkk', 'parêntese normal fica')
 })
+
+test('a mulher do criador vem marcada pra ela, e a marcação nunca vai pro grupo', async () => {
+  const { a, chamadas } = aurora()
+  await a.responder(fala('aurora oi amor', { conversa: 'g@g.us:5568', nome: 'Ju', ehEsposa: true }))
+  assert.match(chamadas[0].at(-1).content, /^\[Ju, ESPOSA DO CRIADOR\] aurora oi amor/)
+  assert.match(chamadas[0][0].content, /ESPOSA DO CRIADOR[\s\S]*respeitosa, carinhosa/)
+  assert.equal(limparResposta('[Ju, ESPOSA DO CRIADOR] oi, linda 💜'), 'oi, linda 💜')
+})
