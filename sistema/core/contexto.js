@@ -156,8 +156,8 @@ const sender = event?.key?.participant || event?.key?.participantAlt || event?.p
 const senderAlt = event?.key?.participantAlt || event?.participantAlt || event?.key?.participant || (isGroupJid(from) ? '' : event?.key?.remoteJidAlt || '')
 const text = extractText(event?.message)
 const prefix = String(config.prefix || '!')
-// Aceita o prefixo escolhido pelo dono e o padrão / usado pelos clientes.
-const raw = text.startsWith(prefix) ? text.slice(prefix.length).trim() : text.startsWith('/') ? text.slice(1).trim() : ''
+// Cada bot aceita exclusivamente seu prefixo configurado.
+const raw = text.startsWith(prefix) ? text.slice(prefix.length).trim() : ''
 const parts = raw ? raw.split(/\s+/) : []
 const commandRaw = (parts.shift() ?? '').toLowerCase()
 const command = commandRaw === 'menú' ? 'menu' : commandRaw
