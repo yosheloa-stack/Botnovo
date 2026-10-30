@@ -246,10 +246,10 @@ if (system.command === 'like2' && String(text || '').trim().startsWith('/like2')
 // A Aurora com IA: conversa que não é comando (marcaram o bot, citaram ele,
 // falaram "aurora" ou mandaram no privado). Ver sistema/funcoes/aurora.
 if (!system.command && handleAurora(system)) return
-// makeSystem aceita tanto o prefixo configurado quanto '/'.
+// Aceita somente o prefixo ativo deste bot, sem aliases globais.
 // Antes o parser reconhecia /menu, mas este filtro descartava a mensagem silenciosamente.
 const prefixoConfigurado = String(config.prefix || '!')
-if (!text || !(text.startsWith(prefixoConfigurado) || text.startsWith('/'))) return
+if (!text || !text.startsWith(prefixoConfigurado)) return
 console.log('[ AURORA CMD ] recebido:', system.command || '(vazio)', '| grupo:', system.isGroup,
   '| origem:', system.from, '| remetente:', system.senderNumber || system.senderKey || '(desconhecido)')
 // Idioma exclusivo do grupo; somente administradores podem alterá-lo.
