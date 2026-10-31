@@ -533,7 +533,7 @@ export function auroraEsposa(value) {
   return String(v === null ? '5568984111797' : v || '').replace(/\D/g, '')
 }
 // A voz da Aurora escolhida pelo criador no zap (#auroravoz): ID da voz (na
-// ElevenLabs ou na Fish Audio) e velocidade. Vazio = o padrão do bot.
+// ElevenLabs) e velocidade. Vazio = o padrão do bot.
 export function auroraVoz(value) {
   if (value !== undefined) setCfg('aurora_voz', String(value || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 40))
   return String(getCfg('aurora_voz', '') || '')

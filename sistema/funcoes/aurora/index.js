@@ -293,7 +293,7 @@ function pedidoDeMarcar(pedido, alvo) {
     : `\n- AGORA pediram pra marcar "${pedido}", mas ninguém com esse nome aparece na lista. Diga que não achou e peça pra marcarem a pessoa (ou mandarem o número). Não diga que marcou.`
 }
 
-// Algumas respostas saem em áudio (Fish Audio); se falhar, vai o texto.
+// Algumas respostas saem em áudio (ElevenLabs); se falhar, vai o texto.
 const voz = createVoz({ log: (m) => console.warn('[ AURORA VOZ ]', m), escolha: () => ({ voz: auroraVoz(), velocidade: auroraVelocidade() }) })
 
 // Antes de gravar, a IA marca na frase onde sussurra, ri, pausa e muda o
@@ -388,7 +388,7 @@ async function conversar(system, texto) {
     await digitando(system, 'paused')
     if (fala) return system.reply({ type: 'audio', media: fala.audio, mimetype: fala.mimetype, ptt: true, ...(fala.seconds ? { seconds: fala.seconds } : {}) }, opcoes)
   }
-  // Em texto, as marcações de voz ([laughing], [break]…) somem.
+  // Em texto, as marcações de voz ([laughs], [whispers]…) somem.
   await system.reply(semTagsDeVoz(resposta), mentions.length ? { ...opcoes, mentions } : opcoes)
 }
 

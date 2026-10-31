@@ -27,11 +27,7 @@ globalThis.fetch = async (url, opcoes = {}) => {
     return new Response(JSON.stringify({ voices: [{ voice_id: 'NS7yU4WmAouJsg84X3Mg', name: 'Aurora BR' }, { voice_id: 'XyZ0123456789abcdEFG', name: 'Luna Calma' }] }), { status: 200 })
   }
   if (String(url).includes('api.elevenlabs.io/v1/text-to-speech')) {
-    pedidosVoz.push('eleven:' + JSON.parse(opcoes.body).text)
-    return new Response(new Uint8Array([0x4f, 0x67, 0x67, 0x53, 0, 2, ...new Array(2000).fill(0)]), { status: 200 })
-  }
-  if (String(url).includes('api.fish.audio')) {
-    pedidosVoz.push(JSON.parse(opcoes.body).text.replace(/^\[Brazilian Portuguese accent\] /, ''))
+    pedidosVoz.push(JSON.parse(opcoes.body).text)
     return new Response(new Uint8Array([0x4f, 0x67, 0x67, 0x53, 0, 2, ...new Array(2000).fill(0)]), { status: 200 })
   }
   if (String(url).includes('/v1/info')) {
@@ -254,14 +250,14 @@ test('"marca o tropa aí": ela acha pelo nome e a marcação sai de verdade', as
 
 test('pediram áudio: a resposta sai como mensagem de voz; sem a chave, sai texto', async () => {
   respostaIa = '[playful] oii, tô aqui sim kkk 😌'
-  process.env.FISH_AUDIO_API_KEY = 'chave-falsa'
+  process.env.ELEVENLABS_API_KEY = 'chave-falsa'
   const saiu = await respostaDe(mensagem('aurora manda um áudio'))
   assert.match(pedidosIa.at(-1).messages[0].content, /ESTA RESPOSTA VAI SAIR EM ÁUDIO/)
   assert.equal(saiu[0].conteudo.type, 'audio')
   assert.equal(saiu[0].conteudo.ptt, true)
   assert.equal(saiu[0].conteudo.mimetype, 'audio/ogg; codecs=opus')
-  assert.equal(pedidosVoz.at(-1), '[playful] oii, tô aqui sim [laughing] ha ha')
-  delete process.env.FISH_AUDIO_API_KEY
+  assert.equal(pedidosVoz.at(-1), '[playful] oii, tô aqui sim [laughs]')
+  delete process.env.ELEVENLABS_API_KEY
   const texto = await respostaDe(mensagem('aurora manda um áudio'))
   respostaIa = 'oi, tô aqui 😌'
   assert.match(pedidosIa.at(-1).messages[0].content, /^(?![\s\S]*VAI SAIR EM ÁUDIO)/, 'sem chave, ela nem pensa em áudio')
@@ -272,48 +268,45 @@ test('#auroravoz: só o criador troca a voz e a velocidade', async () => {
   const { default: cmd } = await import(path.join(raiz, 'sistema/comandos/dono/auroravoz.js'))
   comandos.set('auroravoz', cmd)
   banco.auroraCriador('5544900001111')
-  assert.match((await respostaDe(mensagem('#auroravoz fofa')))[0].conteudo.text, /Só o criador/)
+  assert.match((await respostaDe(mensagem('#auroravoz luna')))[0].conteudo.text, /Só o criador/)
   banco.auroraCriador('5544911112222')
-  assert.match((await respostaDe(mensagem('#auroravoz')))[0].conteudo.text, /Loli[\s\S]*#auroravoz fofa/)
-  assert.match((await respostaDe(mensagem('#auroravoz fofa')))[0].conteudo.text, /Garota fofa/)
-  assert.equal(banco.auroraVoz(), '24522123b5804bf691a8450d9187f03e')
+  assert.match((await respostaDe(mensagem('#auroravoz')))[0].conteudo.text, /ELEVENLABS_API_KEY/, 'sem a chave, avisa')
+  process.env.ELEVENLABS_API_KEY = 'chave-eleven'
   await respostaDe(mensagem('#auroravoz lenta'))
   assert.equal(banco.auroraVelocidade(), 0.75)
-  assert.match((await respostaDe(mensagem('#auroravoz xpto')))[0].conteudo.text, /Não conheço/)
+  assert.match((await respostaDe(mensagem('#auroravoz xpto')))[0].conteudo.text, /Não achei essa voz/)
   assert.match((await respostaDe(mensagem('#auroravoz estilo sombria')))[0].conteudo.text, /sombrio/)
   assert.match(banco.auroraEstilo(), /sombrio/)
   await respostaDe(mensagem('#auroravoz estilo calma e sussurrando'))
   assert.equal(banco.auroraEstilo(), 'calma e sussurrando')
   await respostaDe(mensagem('#auroravoz estilo 0'))
   assert.equal(banco.auroraEstilo(), '')
-  // Com a ElevenLabs ligada, ainda dá pra escolher a Rize (Fish) pelo nome.
-  process.env.FISH_AUDIO_API_KEY = 'chave-fish'
-  process.env.ELEVENLABS_API_KEY = 'chave-eleven'
-  assert.match((await respostaDe(mensagem('#auroravoz rize')))[0].conteudo.text, /Rize Kamishiro \(Fish Audio\)/)
-  assert.equal(banco.auroraVoz(), '5d83ac54f5c844ee9746112a9310d72f')
-  delete process.env.FISH_AUDIO_API_KEY
+  await respostaDe(mensagem('#auroravoz luna'))
+  assert.equal(banco.auroraVoz(), 'XyZ0123456789abcdEFG')
+  await respostaDe(mensagem('#auroravoz padrao'))
+  assert.equal(banco.auroraVoz(), '')
   delete process.env.ELEVENLABS_API_KEY
 })
 
 test('ela ofereceu áudio, o criador respondeu "S pode": sai áudio de verdade', async () => {
-  process.env.FISH_AUDIO_API_KEY = 'chave-falsa'
+  process.env.ELEVENLABS_API_KEY = 'chave-falsa'
   respostaIa = '[happy] Yosh, você é demais, viu?'
   const saiu = await respostaDe(mensagem('S pode', citandoBot(`${BOT}@s.whatsapp.net`, 'aaai meu lord, você é tudo 😳💕 posso mandar um áudio dizendo isso?')))
-  delete process.env.FISH_AUDIO_API_KEY
+  delete process.env.ELEVENLABS_API_KEY
   respostaIa = 'oi, tô aqui 😌'
   assert.equal(saiu[0].conteudo.type, 'audio')
   assert.equal(pedidosVoz.at(-1), '[happy] Yosh, você é demais, viu?')
 })
 
 test('o criador pede "manda um áudio falando X": ela fala X igualzinho, só com a entonação marcada', async () => {
-  process.env.FISH_AUDIO_API_KEY = 'chave-falsa'
+  process.env.ELEVENLABS_API_KEY = 'chave-falsa'
   banco.auroraCriador('5544911112222')
   const antes = pedidosIa.length
   respostaIa = '[excited] bom dia grupo, [break] bora de like'
   const saiu = await respostaDe(mensagem('aurora manda um áudio falando bom dia grupo, bora de like'))
   respostaIa = '[excited] bom dia gente, bora'
   const trocou = await respostaDe(mensagem('aurora manda um áudio falando bom dia grupo, bora de like'))
-  delete process.env.FISH_AUDIO_API_KEY
+  delete process.env.ELEVENLABS_API_KEY
   respostaIa = 'oi, tô aqui 😌'
   assert.equal(saiu[0].conteudo.type, 'audio')
   assert.equal(pedidosVoz.at(-2), '[excited] bom dia grupo, [break] bora de like', 'a IA só marcou a entonação')
@@ -355,7 +348,7 @@ test('ElevenLabs: #auroravoz lista as vozes da conta, escolhe pelo nome e o áud
     respostaIa = 'oii, tô aqui sim'
     const saiu = await respostaDe(mensagem('aurora manda um áudio'))
     assert.equal(saiu[0].conteudo.type, 'audio')
-    assert.equal(pedidosVoz.at(-1), 'eleven:oii, tô aqui sim')
+    assert.equal(pedidosVoz.at(-1), 'oii, tô aqui sim')
   } finally {
     delete process.env.ELEVENLABS_API_KEY
     banco.auroraVoz('')
