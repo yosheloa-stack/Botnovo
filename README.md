@@ -39,5 +39,5 @@ marca (continua "Aurora" e com o endereço do site).
   a cada 10 minutos, 40 por grupo por hora e `AURORA_MAX_DIA` por dia.
 - **Comandos:** `#aurora texto` (fala com ela), `#aurora 1/0` (admin liga ou
   desliga no grupo), `#esquecer` (apaga a memória da conversa) e `#auroraia`
-  (dono: liga/desliga no bot inteiro e mostra como ela está) e `#auroravoz` (criador: troca a voz dos áudios pelo nome — loli, fofa, isabela, sunny, madura — e a velocidade: lenta/normal/rapida).
+  (dono: liga/desliga no bot inteiro e mostra como ela está) e `#auroravoz` (criador: troca a voz dos áudios pelo nome — loli, fofa, isabela, sunny, madura, misteriosa — e a velocidade: lenta/normal/rapida).
 - **Personalidade e conhecimento:** `sistema/funcoes/aurora/conhecimento.js`.

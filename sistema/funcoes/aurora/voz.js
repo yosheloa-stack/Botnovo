@@ -21,7 +21,8 @@ export const VOZES = {
   fofa: { id: '24522123b5804bf691a8450d9187f03e', nome: 'Garota fofa', jeito: 'moça nova, calma e clara' },
   isabela: { id: '5661bf8cb97740fcb10d2f756abf7779', nome: 'Isabela', jeito: 'suave, meio sussurrada' },
   sunny: { id: 'b7105f831b9644f28b0a92e004d9fd94', nome: 'Sunny', jeito: 'animada, jeito de tiktoker' },
-  madura: { id: 'ca0326921a254a7295650b2cf85fe098', nome: 'Mulher de 30', jeito: 'calma e acolhedora' }
+  madura: { id: 'ca0326921a254a7295650b2cf85fe098', nome: 'Mulher de 30', jeito: 'calma e acolhedora' },
+  misteriosa: { id: 'eb81775a43bc469dafda02de59d13cb7', nome: 'Julia', jeito: 'doce, calma e misteriosa' }
 }
 const numeroEnv = (nome, padrao) => {
   const n = Number(process.env[nome])
