@@ -3,7 +3,7 @@
 // texto como sempre quando a API falha. O fetch da Fish Audio é falso.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { falaPraEleven, provedorVoz, limparAudio, pediuAudio, fraseDoAudio, blocoVoz, pedidoDeDirecao, direcaoValida, ESTILOS, duracaoOgg, paraOgg, ofereceuAudio, topou, textoFalado, podeFalar, semTagsDeVoz, createVoz, ehOgg } from '../sistema/funcoes/aurora/voz.js'
+import { falaPraEleven, provedorVoz, limparAudio, pediuAudio, fraseDoAudio, blocoVoz, pedidoDeDirecao, direcaoValida, ESTILOS, duracaoOgg, paraOgg, ofereceuAudio, topou, textoFalado, podeFalar, semTagsDeVoz, createVoz, ehOgg, VOZES } from '../sistema/funcoes/aurora/voz.js'
 
 const OGG = new Uint8Array([0x4f, 0x67, 0x67, 0x53, 0, 2, ...new Array(2000).fill(0)])
 
@@ -183,10 +183,10 @@ test('ElevenLabs: com a chave dela, é ela quem fala, com a voz escolhida e o v3
     if (pedidos.length === 2) return new Response(JSON.stringify({ detail: { status: 'model_not_found', message: 'sem v3' } }), { status: 400 })
     return new Response(OGG, { status: 200 })
   }
-  const voz = createVoz({ fetch, escolha: () => ({ voz: '24522123b5804bf691a8450d9187f03e' }) })
+  const voz = createVoz({ fetch, escolha: () => ({}) })
   const r = await voz.falar('[playful] oii kkk... tô aqui')
   assert.ok(r)
-  assert.equal(pedidos[0].url, 'https://api.elevenlabs.io/v1/text-to-speech/NS7yU4WmAouJsg84X3Mg?output_format=opus_48000_64', 'ID da Fish não serve: usa a padrão')
+  assert.equal(pedidos[0].url, 'https://api.elevenlabs.io/v1/text-to-speech/NS7yU4WmAouJsg84X3Mg?output_format=opus_48000_64', 'sem escolha: usa a padrão')
   assert.equal(pedidos[0].headers['xi-api-key'], 'chave-eleven')
   assert.equal(pedidos[0].corpo.model_id, 'eleven_v3')
   assert.equal(pedidos[0].corpo.language_code, 'pt')
@@ -199,6 +199,22 @@ test('ElevenLabs: com a chave dela, é ela quem fala, com a voz escolhida e o v3
   assert.equal(pedidos[2].corpo.language_code, undefined)
   delete process.env.ELEVENLABS_API_KEY
   assert.equal(provedorVoz(), 'Fish Audio')
+})
+
+test('voz da Fish escolhida no #auroravoz (rize): vai direto pela Fish, mesmo com a ElevenLabs ligada', async () => {
+  process.env.FISH_AUDIO_API_KEY = 'chave-fish'
+  process.env.ELEVENLABS_API_KEY = 'chave-eleven'
+  const pedidos = []
+  const fetch = async (url, opcoes) => { pedidos.push({ url: String(url), corpo: JSON.parse(opcoes.body) }); return new Response(OGG, { status: 200 }) }
+  assert.ok(await createVoz({ fetch, escolha: () => ({ voz: VOZES.rize.id }) }).falar('oi tudo bem'))
+  assert.equal(pedidos.length, 1)
+  assert.match(pedidos[0].url, /fish\.audio/)
+  assert.equal(pedidos[0].corpo.reference_id, '5d83ac54f5c844ee9746112a9310d72f')
+  // Sem a chave da Fish, o ID dela não serve: fica na ElevenLabs com a padrão.
+  delete process.env.FISH_AUDIO_API_KEY
+  assert.ok(await createVoz({ fetch, escolha: () => ({ voz: VOZES.rize.id }) }).falar('oi tudo bem'))
+  assert.match(pedidos[1].url, /text-to-speech\/NS7yU4WmAouJsg84X3Mg\?/)
+  delete process.env.ELEVENLABS_API_KEY
 })
 
 test('falaPraEleven: marcações da Fish viram as da ElevenLabs', () => {

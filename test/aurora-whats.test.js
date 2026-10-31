@@ -286,6 +286,13 @@ test('#auroravoz: só o criador troca a voz e a velocidade', async () => {
   assert.equal(banco.auroraEstilo(), 'calma e sussurrando')
   await respostaDe(mensagem('#auroravoz estilo 0'))
   assert.equal(banco.auroraEstilo(), '')
+  // Com a ElevenLabs ligada, ainda dá pra escolher a Rize (Fish) pelo nome.
+  process.env.FISH_AUDIO_API_KEY = 'chave-fish'
+  process.env.ELEVENLABS_API_KEY = 'chave-eleven'
+  assert.match((await respostaDe(mensagem('#auroravoz rize')))[0].conteudo.text, /Rize Kamishiro \(Fish Audio\)/)
+  assert.equal(banco.auroraVoz(), '5d83ac54f5c844ee9746112a9310d72f')
+  delete process.env.FISH_AUDIO_API_KEY
+  delete process.env.ELEVENLABS_API_KEY
 })
 
 test('ela ofereceu áudio, o criador respondeu "S pode": sai áudio de verdade', async () => {

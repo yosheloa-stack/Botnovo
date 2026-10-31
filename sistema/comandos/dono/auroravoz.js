@@ -28,6 +28,13 @@ return system.reply(`Pronto 🎙️ agora ela fala ${arg === 'normal' ? 'no norm
 }
 const velocidade = auroraVelocidade() ? `velocidade ${auroraVelocidade()}` : 'velocidade normal'
 const rodape = `\n\nVelocidade: ${p}auroravoz lenta / normal / rapida\nJeito de falar: ${p}auroravoz estilo`
+// Voz da Fish (pelo nome da lista ou ID de 32 letras): vale mesmo com a
+// ElevenLabs ligada, se tiver a chave da Fish. Os áudios passam a sair pela Fish.
+const daFish = VOZES[arg] || (/^[a-f0-9]{32}$/.test(arg) ? { id: arg, nome: arg } : null)
+if (daFish && process.env.FISH_AUDIO_API_KEY && provedorVoz() === 'ElevenLabs') {
+auroraVoz(daFish.id)
+return system.reply(`Pronto 🎙️ a voz da Aurora agora é a ${daFish.nome} (Fish Audio). Pra voltar pra ElevenLabs: ${p}auroravoz e o nome de uma voz da sua conta.`, { semMarca: true })
+}
 // ElevenLabs: as vozes são as da conta; escolhe pelo nome ou pelo ID.
 if (provedorVoz() === 'ElevenLabs') {
 const vozes = await vozesEleven()

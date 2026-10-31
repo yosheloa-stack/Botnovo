@@ -26,7 +26,8 @@ export const VOZES = {
   isabela: { id: '5661bf8cb97740fcb10d2f756abf7779', nome: 'Isabela', jeito: 'suave, meio sussurrada' },
   sunny: { id: 'b7105f831b9644f28b0a92e004d9fd94', nome: 'Sunny', jeito: 'animada, jeito de tiktoker' },
   madura: { id: 'ca0326921a254a7295650b2cf85fe098', nome: 'Mulher de 30', jeito: 'calma e acolhedora' },
-  misteriosa: { id: 'eb81775a43bc469dafda02de59d13cb7', nome: 'Julia', jeito: 'doce, calma e misteriosa' }
+  misteriosa: { id: 'eb81775a43bc469dafda02de59d13cb7', nome: 'Julia', jeito: 'doce, calma e misteriosa' },
+  rize: { id: '5d83ac54f5c844ee9746112a9310d72f', nome: 'Rize Kamishiro', jeito: 'a da personagem do anime, em português' }
 }
 const numeroEnv = (nome, padrao) => {
   const n = Number(process.env[nome])
@@ -286,7 +287,9 @@ export function createVoz({ fetch: fetchFn = globalThis.fetch, converter = limpa
   let substituta  // a voz liberada no plano grátis, quando a escolhida não é
   async function pedir(texto) {
     let r = { status: 0, motivo: 'sem chave de voz' }
-    if (chaveEleven() && elevenParadaAte <= agora()) {
+    // O criador escolheu uma voz da Fish (#auroravoz rize)? Vai direto nela.
+    const vozFish = chaveFish() && ehIdFish((escolha() || {}).voz)
+    if (chaveEleven() && !vozFish && elevenParadaAte <= agora()) {
       const modelo = String(process.env.ELEVENLABS_MODELO || '').trim() || 'eleven_v3'
       r = await pedirEleven(texto, modelo)
       if (!r.audio && [400, 403, 404, 422].includes(r.status) && modelo !== 'eleven_multilingual_v2') r = await pedirEleven(texto, 'eleven_multilingual_v2')
