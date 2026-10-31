@@ -3,7 +3,7 @@
 // texto como sempre quando a API falha. O fetch da Fish Audio é falso.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { pediuAudio, textoFalado, podeFalar, semTagsDeVoz, createVoz, ehOgg } from '../sistema/funcoes/aurora/voz.js'
+import { pediuAudio, ofereceuAudio, topou, textoFalado, podeFalar, semTagsDeVoz, createVoz, ehOgg } from '../sistema/funcoes/aurora/voz.js'
 
 const OGG = new Uint8Array([0x4f, 0x67, 0x67, 0x53, 0, 2, 0, 0])
 
@@ -114,4 +114,16 @@ test('a voz e a velocidade escolhidas no zap (#auroravoz) ganham do padrão', as
   await voz.falar('oi')
   assert.equal(pedidos[1].corpo.reference_id, 'da-variavel')
   delete process.env.FISH_AUDIO_VOZ
+})
+
+test('ela ofereceu áudio e a pessoa topou: conta como pedido', () => {
+  assert.equal(ofereceuAudio('aaai meu lord, você é tudo 😳💕 posso mandar um áudio dizendo isso?'), true)
+  assert.equal(ofereceuAudio('quer ouvir minha voz?'), true)
+  assert.equal(ofereceuAudio('o áudio do vídeo tava ruim'), false)
+  assert.equal(topou('S pode'), true)
+  assert.equal(topou('manda aí'), true)
+  assert.equal(topou('sim'), true)
+  assert.equal(topou('não precisa'), false)
+  assert.equal(topou('pode não'), false)
+  assert.equal(topou('sim, mas antes me fala quanto custa o plano mensal do bot e como pago'), false)
 })

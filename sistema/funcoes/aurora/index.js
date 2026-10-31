@@ -10,7 +10,7 @@
 // (ou SQUARECLOUD_AI_KEY). Nunca no config.json.
 
 import { createAurora, deveResponder, chamouAurora, trocarMarcacoes, textoPrecos, textoClima, acaoDoCriador, acharId, FRASES_LIKE, FRASES_INFO, blocoMembros, acharMarcacoes, SEM_MEMBROS, pediuMarcar, acharMembro, garantirMarcacao, LIMITES } from './ia.js'
-import { createVoz, vozLigada, pediuAudio, podeFalar, semTagsDeVoz, BLOCO_VOZ } from './voz.js'
+import { createVoz, vozLigada, pediuAudio, ofereceuAudio, topou, podeFalar, semTagsDeVoz, BLOCO_VOZ } from './voz.js'
 import { extractText } from '../../core/contexto.js'
 import { contextInfoFromMessage, quotedInfo, quotedTarget } from '../mensagem.js'
 import { autoSystem } from '../auto.js'
@@ -290,13 +290,20 @@ function pedidoDeMarcar(pedido, alvo) {
 // Algumas respostas saem em áudio (Fish Audio); se falhar, vai o texto.
 const voz = createVoz({ log: (m) => console.warn('[ AURORA VOZ ]', m), escolha: () => ({ voz: auroraVoz(), velocidade: auroraVelocidade() }) })
 
+// A última coisa que ela disse na conversa (no grupo, a memória é do grupo).
+function ultimaFalaDela(conversa) {
+  const msgs = aurora._memoria(conversa) || []
+  for (let i = msgs.length - 1; i >= 0; i--) if (msgs[i].role === 'assistant') return String(msgs[i].content || '')
+  return ''
+}
+
 async function conversar(system, texto) {
   const conversa = `${system.from}:${system.senderKey}`
   const citado = textoCitado(system)
   const membros = system.isGroup ? await membrosDoGrupo(system) : []
   // "marca o dylan aí": acha o membro pelo nome e a marcação sai de verdade.
   const pedido = system.isGroup ? pediuMarcar(texto) : ''
-  const pediuVoz = vozLigada() && pediuAudio(texto)
+  const pediuVoz = vozLigada() && (pediuAudio(texto) || (topou(texto) && ofereceuAudio(citado && citouBot(system) ? citado : ultimaFalaDela(conversa))))
   const emAudio = voz.vaiFalar({ pediu: pediuVoz })
   const alvo = pedido ? acharMembro(pedido, membros) : null
   texto = trocarMarcacoes(texto, marcadosNa(system, membros))

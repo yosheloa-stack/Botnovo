@@ -41,6 +41,17 @@ export function pediuAudio(texto = '') {
 // [excited]… Em texto elas somem.
 export const semTagsDeVoz = (texto = '') => String(texto).replace(/[ \t]*\[[a-z][a-z' -]{1,30}\][ \t]*/gi, ' ').replace(/ +([,.!?…])/g, '$1').replace(/[ \t]{2,}/g, ' ').trim()
 
+// Ela ofereceu ("posso mandar um áudio?", "quer ouvir minha voz?") e a
+// pessoa topou ("s pode", "manda", "sim"): conta como pedido de áudio.
+export function ofereceuAudio(textoDela = '') {
+  const t = semAcento(textoDela)
+  return /\b(audio|audiozinho|voz)\b/.test(t) && /\?|\b(posso|quer|queres|querem|mando|te mando|bora|topa|gravo)\b/.test(t)
+}
+export function topou(texto = '') {
+  const t = semAcento(texto).replace(/[^a-z\s]/g, ' ').trim()
+  return t.length <= 40 && /^(s|ss|sim|simm+|pode|podes|manda|mande|bora|quero|claro|vai|vamo|uhum|aham|ok|okay|blz|beleza|isso|por favor|pfv|sim sim|com certeza|obvio|lógico|logico|demorou|fechou)\b/.test(t) && !/\bnao\b/.test(t)
+}
+
 // Abreviação de zap a voz lê errado: "vc" vira "vê cê".
 const POR_EXTENSO = { vc: 'você', vcs: 'vocês', pq: 'porque', tb: 'também', tbm: 'também', mds: 'meu Deus', blz: 'beleza', msm: 'mesmo', q: 'que', n: 'não', oq: 'o que', cmg: 'comigo', td: 'tudo', hj: 'hoje', vlw: 'valeu', tmj: 'tamo junto', pfv: 'por favor', pf: 'por favor', obg: 'obrigada', dps: 'depois', agr: 'agora', ngm: 'ninguém', qnd: 'quando', ctz: 'certeza', sla: 'sei lá', bjs: 'beijos', bj: 'beijo', mto: 'muito', mt: 'muito', tlgd: 'tá ligado', slk: 'sério' }
 const ABREVIACAO = new RegExp(`(?<![\\p{L}\\d])(${Object.keys(POR_EXTENSO).join('|')})(?![\\p{L}\\d])`, 'giu')

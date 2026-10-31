@@ -83,7 +83,7 @@ async function respostaDe(evento, esperaMs = 6000) {
   while (enviados.length === antes && Date.now() < fim) await new Promise((r) => setTimeout(r, 50))
   return enviados.slice(antes)
 }
-const citandoBot = (participant) => ({ stanzaId: 'BOTMSG', participant, quotedMessage: { conversation: 'Só cola aqui o número do ID do jogador' } })
+const citandoBot = (participant, texto = 'Só cola aqui o número do ID do jogador') => ({ stanzaId: 'BOTMSG', participant, quotedMessage: { conversation: texto } })
 
 test('responder (citar) a mensagem do bot pelo LID chama a Aurora, mesmo só com número', async () => {
   const saiu = await respostaDe(mensagem('123456789', citandoBot(`${BOT_LID}@lid`)))
@@ -273,4 +273,14 @@ test('#auroravoz: só o criador troca a voz e a velocidade', async () => {
   await respostaDe(mensagem('#auroravoz lenta'))
   assert.equal(banco.auroraVelocidade(), 0.75)
   assert.match((await respostaDe(mensagem('#auroravoz xpto')))[0].conteudo.text, /Não conheço/)
+})
+
+test('ela ofereceu áudio, o criador respondeu "S pode": sai áudio de verdade', async () => {
+  process.env.FISH_AUDIO_API_KEY = 'chave-falsa'
+  respostaIa = '[happy] Yosh, você é demais, viu?'
+  const saiu = await respostaDe(mensagem('S pode', citandoBot(`${BOT}@s.whatsapp.net`, 'aaai meu lord, você é tudo 😳💕 posso mandar um áudio dizendo isso?')))
+  delete process.env.FISH_AUDIO_API_KEY
+  respostaIa = 'oi, tô aqui 😌'
+  assert.equal(saiu[0].conteudo.type, 'audio')
+  assert.equal(pedidosVoz.at(-1), '[happy] Yosh, você é demais, viu?')
 })
