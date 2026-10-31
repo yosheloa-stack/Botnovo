@@ -205,3 +205,24 @@ test('falaPraEleven: marcações da Fish viram as da ElevenLabs', () => {
   assert.equal(falaPraEleven('[Brazilian Portuguese accent] [whispering] oi [break] [chuckling] tudo?'), '[whispers] oi … [chuckles] tudo?')
   assert.equal(falaPraEleven('[soft tone] oi [long-break] tchau', 'eleven_multilingual_v2'), 'oi… tchau')
 })
+
+test('ElevenLabs recusou (402, voz da biblioteca no plano grátis): vai pela Fish Audio', async () => {
+  process.env.FISH_AUDIO_API_KEY = 'chave-fish'
+  process.env.ELEVENLABS_API_KEY = 'chave-eleven'
+  const urls = []
+  const logs = []
+  const fetch = async (url) => {
+    urls.push(String(url))
+    if (String(url).includes('elevenlabs')) return new Response(JSON.stringify({ detail: { status: 'payment_required', message: 'Free users cannot use library voices via the API.' } }), { status: 402 })
+    return new Response(OGG, { status: 200 })
+  }
+  const voz = createVoz({ fetch, log: (m) => logs.push(m) })
+  assert.ok(await voz.falar('oi tudo bem'))
+  assert.match(urls[0], /elevenlabs/)
+  assert.match(urls[1], /fish\.audio/)
+  assert.match(logs[0], /402: Free users cannot use library voices[\s\S]*Fish Audio/)
+  assert.ok(await voz.falar('oi de novo'))
+  assert.equal(urls.filter((u) => u.includes('elevenlabs')).length, 1, 'não insiste na ElevenLabs por 30 min')
+  assert.equal(voz.vaiFalar({ pediu: true }), true, 'a Fish continua falando')
+  delete process.env.ELEVENLABS_API_KEY
+})

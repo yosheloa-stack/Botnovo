@@ -268,20 +268,26 @@ export function createVoz({ fetch: fetchFn = globalThis.fetch, converter = limpa
     }
   }
 
-  // Pede pro provedor da vez. Na ElevenLabs, se o modelo v3 não estiver
-  // liberado na conta, tenta o multilingual v2 (sem as marcações).
+  // Pede pra ElevenLabs (se o v3 não estiver liberado na conta, tenta o
+  // multilingual v2, sem as marcações). Ela recusou (sem plano, sem crédito,
+  // voz da biblioteca no plano grátis…)? Vai pela Fish Audio, se tiver a chave.
+  let elevenParadaAte = 0
   async function pedir(texto) {
-    if (provedorVoz() === 'ElevenLabs') {
+    let r = { status: 0, motivo: 'sem chave de voz' }
+    if (chaveEleven() && elevenParadaAte <= agora()) {
       const modelo = String(process.env.ELEVENLABS_MODELO || '').trim() || 'eleven_v3'
-      const r = await pedirEleven(texto, modelo)
-      if (!r.audio && [400, 403, 404, 422].includes(r.status) && modelo !== 'eleven_multilingual_v2') return pedirEleven(texto, 'eleven_multilingual_v2')
-      return r
+      r = await pedirEleven(texto, modelo)
+      if (!r.audio && [400, 403, 404, 422].includes(r.status) && modelo !== 'eleven_multilingual_v2') r = await pedirEleven(texto, 'eleven_multilingual_v2')
+      if (r.audio) return r
+      log(`ElevenLabs respondeu ${r.status}${r.motivo ? ': ' + r.motivo : ''}${chaveFish() ? ' (vou pela Fish Audio)' : ''}`)
+      if (r.status === 401 || r.status === 402) elevenParadaAte = agora() + 30 * 60_000
     }
+    if (!chaveFish()) return { ...r, provedor: 'ElevenLabs', avisado: true }
     const modelo = String(process.env.FISH_AUDIO_MODELO || '').trim()
-    const r = await pedirFish(texto, modelo)
+    r = await pedirFish(texto, modelo)
     // Sem crédito no plano pago (402): tenta o modelo do plano grátis uma vez.
-    if (r.status === 402 && modelo !== 's2.1-pro-free') return pedirFish(texto, 's2.1-pro-free')
-    return r
+    if (r.status === 402 && modelo !== 's2.1-pro-free') r = await pedirFish(texto, 's2.1-pro-free')
+    return { ...r, provedor: 'Fish Audio' }
   }
 
   // Decide antes da IA responder, pra ela já escrever pensando na voz.
@@ -298,7 +304,7 @@ export function createVoz({ fetch: fetchFn = globalThis.fetch, converter = limpa
     try {
       const r = await pedir(texto)
       if (!r.audio) {
-        log(`${provedorVoz()} respondeu ${r.status}${r.motivo ? ': ' + r.motivo : ''}`)
+        if (!r.avisado) log(`${r.provedor} respondeu ${r.status}${r.motivo ? ': ' + r.motivo : ''}`)
         if (r.status === 401 || r.status === 402) semCreditoAte = agora() + 30 * 60_000
         return null
       }
