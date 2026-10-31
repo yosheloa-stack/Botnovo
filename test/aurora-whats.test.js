@@ -16,11 +16,16 @@ process.env.SQUARECLOUD_API_KEY = 'chave-de-teste'
 const pedidosIa = []
 const pedidosLike = []
 const pedidosInfo = []
+const pedidosVoz = []
 let respostaIa = 'oi, tô aqui 😌'
 globalThis.fetch = async (url, opcoes = {}) => {
   if (String(url).includes('/v2/ai/chat/completions')) {
     pedidosIa.push(JSON.parse(opcoes.body))
     return new Response(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: respostaIa } }] }), { status: 200 })
+  }
+  if (String(url).includes('api.fish.audio')) {
+    pedidosVoz.push(JSON.parse(opcoes.body).text)
+    return new Response(new Uint8Array([0x4f, 0x67, 0x67, 0x53, 0, 2, 0, 0]), { status: 200 })
   }
   if (String(url).includes('/v1/info')) {
     pedidosInfo.push(new URL(String(url)).searchParams.get('uid'))
@@ -238,4 +243,19 @@ test('"marca o tropa aí": ela acha pelo nome e a marcação sai de verdade', as
   respostaIa = 'oi, tô aqui 😌'
   assert.match(pedidosIa.at(-1).messages[0].content, /pediram pra marcar "dylan", mas ninguém com esse nome/)
   assert.equal(nada[0].opcoes?.mentions, undefined)
+})
+
+test('pediram áudio: a resposta sai como mensagem de voz; sem a chave, sai texto', async () => {
+  respostaIa = 'oii, tô aqui sim 😌'
+  process.env.FISH_AUDIO_API_KEY = 'chave-falsa'
+  const saiu = await respostaDe(mensagem('aurora manda um áudio'))
+  assert.match(pedidosIa.at(-1).messages[0].content, /ESTA RESPOSTA VAI SAIR EM ÁUDIO/)
+  assert.equal(saiu[0].conteudo.type, 'audio')
+  assert.equal(saiu[0].conteudo.ptt, true)
+  assert.equal(saiu[0].conteudo.mimetype, 'audio/ogg; codecs=opus')
+  assert.equal(pedidosVoz.at(-1), 'oii, tô aqui sim')
+  delete process.env.FISH_AUDIO_API_KEY
+  const texto = await respostaDe(mensagem('aurora manda um áudio'))
+  respostaIa = 'oi, tô aqui 😌'
+  assert.equal(texto[0].conteudo.text, 'oii, tô aqui sim 😌')
 })

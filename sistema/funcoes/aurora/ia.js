@@ -304,7 +304,7 @@ export function blocoErro(erro, agora = Date.now(), prefixo = '#') {
 - Explique esse motivo em palavras simples, sem inventar outro. Se for técnico demais, diga que o serviço que esse comando usa falhou e é pra tentar mais tarde.`
 }
 
-export function montarSystem({ prefixo = '#', agora = Date.now(), texto = '', precos = null, consulta = '', membros = '', erro = '', clima = '', painel = '' }) {
+export function montarSystem({ prefixo = '#', agora = Date.now(), texto = '', precos = null, consulta = '', membros = '', erro = '', clima = '', painel = '', voz = '' }) {
   const a = assuntos(texto)
   const partes = [PERSONA, BASE]
   if (a.api) partes.push(API)
@@ -314,7 +314,7 @@ export function montarSystem({ prefixo = '#', agora = Date.now(), texto = '', pr
   if (clima) partes.push(clima)
   if (painel) partes.push(painel)
   const texto0 = partes.join('\n\n').replaceAll('{prefixo}', prefixo).replaceAll('{agora}', horaBrasilia(agora))
-  return [texto0, membros, erro].filter(Boolean).join('\n\n')
+  return [texto0, membros, erro, voz].filter(Boolean).join('\n\n')
 }
 
 // ── a resposta, do jeito do WhatsApp ────────────────────────────────────────
@@ -465,7 +465,7 @@ export function createAurora({
   }
 
   // conversa: "grupo:pessoa". Devolve o texto pra mandar, ou null (silêncio).
-  async function responder({ conversa, grupo = '', texto, nome = 'alguém', ehAdmin = false, ehCriador = false, ehEsposa = false, citado = '', citadoDela = false, prefixo = '#', membros = '', erro = null }) {
+  async function responder({ conversa, grupo = '', texto, nome = 'alguém', ehAdmin = false, ehCriador = false, ehEsposa = false, citado = '', citadoDela = false, prefixo = '#', membros = '', erro = null, voz = '' }) {
     if (chaveRecusada) return null
     const t = agora()
     if (pausadaAte > t) return avisarUmaVez('cansada:' + (grupo || conversa), FRASES.cansada, pausadaAte - t)
@@ -535,7 +535,7 @@ export function createAurora({
     const quem = [nome, ehAdmin && 'admin', ehCriador && 'CRIADOR', !ehCriador && ehEsposa && 'ESPOSA DO CRIADOR'].filter(Boolean).join(', ')
     const fala = `[${quem}] ${String(texto).trim().slice(0, 800)}` + (citado ? `\n(respondendo a ${citadoDela ? 'uma mensagem SUA' : 'uma mensagem de outra pessoa'}: "${String(citado).slice(0, 300)}")` : '')
     const messages = [
-      { role: 'system', content: montarSystem({ prefixo, agora: t, texto: sobre, precos, consulta, membros, erro: blocoErro(erro, t, prefixo), clima, painel }) },
+      { role: 'system', content: montarSystem({ prefixo, agora: t, texto: sobre, precos, consulta, membros, erro: blocoErro(erro, t, prefixo), clima, painel, voz }) },
       ...lembrar(conversa),
       { role: 'user', content: fala }
     ]

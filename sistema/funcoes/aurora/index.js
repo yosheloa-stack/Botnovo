@@ -10,6 +10,7 @@
 // (ou SQUARECLOUD_AI_KEY). Nunca no config.json.
 
 import { createAurora, deveResponder, chamouAurora, trocarMarcacoes, textoPrecos, textoClima, acaoDoCriador, acharId, FRASES_LIKE, FRASES_INFO, blocoMembros, acharMarcacoes, SEM_MEMBROS, pediuMarcar, acharMembro, garantirMarcacao, LIMITES } from './ia.js'
+import { createVoz, vozLigada, pediuAudio, BLOCO_VOZ } from './voz.js'
 import { extractText } from '../../core/contexto.js'
 import { contextInfoFromMessage, quotedInfo, quotedTarget } from '../mensagem.js'
 import { autoSystem } from '../auto.js'
@@ -286,12 +287,16 @@ function pedidoDeMarcar(pedido, alvo) {
     : `\n- AGORA pediram pra marcar "${pedido}", mas ninguém com esse nome aparece na lista. Diga que não achou e peça pra marcarem a pessoa (ou mandarem o número). Não diga que marcou.`
 }
 
+// Algumas respostas saem em áudio (Fish Audio); se falhar, vai o texto.
+const voz = createVoz({ log: (m) => console.warn('[ AURORA VOZ ]', m) })
+
 async function conversar(system, texto) {
   const conversa = `${system.from}:${system.senderKey}`
   const citado = textoCitado(system)
   const membros = system.isGroup ? await membrosDoGrupo(system) : []
   // "marca o dylan aí": acha o membro pelo nome e a marcação sai de verdade.
   const pedido = system.isGroup ? pediuMarcar(texto) : ''
+  const pediuVoz = vozLigada() && pediuAudio(texto)
   const alvo = pedido ? acharMembro(pedido, membros) : null
   texto = trocarMarcacoes(texto, marcadosNa(system, membros))
   if (system.isGroup) console.log('[ AURORA IA ] membros que ela vê:', membros.length, `(${membros.filter((m) => m.nome).length} com nome) |`, system.from)
@@ -313,7 +318,8 @@ async function conversar(system, texto) {
       citadoDela: Boolean(citado) && citouBot(system),
       prefixo: system.prefix,
       membros: system.isGroup ? (blocoMembros(membros) ? blocoMembros(membros) + pedidoDeMarcar(pedido, alvo) : SEM_MEMBROS) : '',
-      erro: errosRecentes.get(system.from) || null
+      erro: errosRecentes.get(system.from) || null,
+      voz: pediuVoz ? BLOCO_VOZ : ''
     })
     if (resposta) {
       const falta = Math.min(4_000, 800 + resposta.length * 25) - (Date.now() - inicio)
@@ -329,6 +335,12 @@ async function conversar(system, texto) {
   const opcoes = modoCliente ? { semMarca: true } : {}
   resposta = garantirMarcacao(resposta, alvo)
   const mentions = acharMarcacoes(resposta, membros)
+  if (!mentions.length && voz.querFalar({ resposta, pediu: pediuVoz })) {
+    await digitando(system, 'recording')
+    const fala = await voz.falar(resposta)
+    await digitando(system, 'paused')
+    if (fala) return system.reply({ type: 'audio', media: fala.audio, mimetype: fala.mimetype, ptt: true }, opcoes)
+  }
   await system.reply(resposta, mentions.length ? { ...opcoes, mentions } : opcoes)
 }
 

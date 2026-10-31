@@ -153,6 +153,7 @@ test('marcaDo limpa o número da dona', () => {
 test('Aurora com IA: só o bot no número da casa recebe a chave da Square Cloud', async () => {
   process.env.SQUARECLOUD_API_KEY = 'chave-da-ia-da-casa'
   process.env.AURORA_MAX_DIA = '50'
+  process.env.FISH_AUDIO_API_KEY = 'chave-da-voz'
   const { g, filhos } = cenario(() => [
     cliente({ codigo_pedido: 1, pedido: 'casa', bot_numero: '556781517686' }),
     cliente({ codigo_pedido: 1, pedido: 'outra', bot_numero: '5511999990000' })
@@ -160,6 +161,7 @@ test('Aurora com IA: só o bot no número da casa recebe a chave da Square Cloud
   await g.sincronizar()
   delete process.env.SQUARECLOUD_API_KEY
   delete process.env.AURORA_MAX_DIA
+  delete process.env.FISH_AUDIO_API_KEY
   const casa = filhos.find((f) => f.opcoes.env.AURORA_CONNECTION_NUMBER === '556781517686').opcoes.env
   const outra = filhos.find((f) => f.opcoes.env.AURORA_CONNECTION_NUMBER === '5511999990000').opcoes.env
   assert.equal(casa.AURORA_IA, '1', 'número da casa sem o nono dígito também conta')
@@ -168,6 +170,8 @@ test('Aurora com IA: só o bot no número da casa recebe a chave da Square Cloud
   assert.equal(outra.AURORA_IA, undefined)
   assert.equal(outra.SQUARECLOUD_API_KEY, undefined)
   assert.equal(outra.AURORA_MAX_DIA, undefined)
+  assert.equal(casa.FISH_AUDIO_API_KEY, 'chave-da-voz', 'a voz da Aurora também é só da casa')
+  assert.equal(outra.FISH_AUDIO_API_KEY, undefined)
   assert.ok(casa.AURORA_SITE_TOKEN, 'o bot do número da casa lê o painel do site')
   assert.equal(outra.AURORA_SITE_TOKEN, undefined, 'bot de cliente nunca recebe o token do site')
 })
