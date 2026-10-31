@@ -219,10 +219,35 @@ test('ElevenLabs recusou (402, voz da biblioteca no plano grátis): vai pela Fis
   const voz = createVoz({ fetch, log: (m) => logs.push(m) })
   assert.ok(await voz.falar('oi tudo bem'))
   assert.match(urls[0], /elevenlabs/)
-  assert.match(urls[1], /fish\.audio/)
-  assert.match(logs[0], /402: Free users cannot use library voices[\s\S]*Fish Audio/)
+  assert.match(urls.at(-1), /fish\.audio/)
+  assert.ok(logs.some((l) => /402: Free users cannot use library voices[\s\S]*Fish Audio/.test(l)), logs.join(' | '))
   assert.ok(await voz.falar('oi de novo'))
-  assert.equal(urls.filter((u) => u.includes('elevenlabs')).length, 1, 'não insiste na ElevenLabs por 30 min')
+  assert.equal(urls.filter((u) => u.includes('elevenlabs.io/v1/text-to-speech')).length, 1, 'não insiste na ElevenLabs por 30 min')
   assert.equal(voz.vaiFalar({ pediu: true }), true, 'a Fish continua falando')
+  delete process.env.ELEVENLABS_API_KEY
+})
+
+test('plano grátis da ElevenLabs recusa voz da biblioteca: continua na ElevenLabs com uma voz liberada', async () => {
+  delete process.env.FISH_AUDIO_API_KEY
+  process.env.ELEVENLABS_API_KEY = 'chave-eleven'
+  const urls = []
+  const logs = []
+  const fetch = async (url) => {
+    urls.push(String(url))
+    if (String(url).endsWith('/v1/voices')) return new Response(JSON.stringify({ voices: [
+      { voice_id: 'NS7yU4WmAouJsg84X3Mg', name: 'Da biblioteca', category: 'professional', labels: { gender: 'female' } },
+      { voice_id: 'Premade0Male00000000', name: 'Adam', category: 'premade', labels: { gender: 'male' } },
+      { voice_id: 'Premade0Female000000', name: 'Sarah', category: 'premade', labels: { gender: 'female' } }
+    ] }), { status: 200 })
+    if (String(url).includes('NS7yU4WmAouJsg84X3Mg')) return new Response(JSON.stringify({ detail: { status: 'payment_required', message: 'Free users cannot use library voices via the API. Please upgrade your subscription to use this voice.' } }), { status: 402 })
+    return new Response(OGG, { status: 200 })
+  }
+  const voz = createVoz({ fetch, log: (m) => logs.push(m) })
+  assert.ok(await voz.falar('oi tudo bem'))
+  assert.match(urls.at(-1), /text-to-speech\/Premade0Female000000\?/)
+  assert.match(logs[0], /usando a "Sarah"/)
+  assert.ok(await voz.falar('oi de novo'))
+  assert.equal(urls.filter((u) => u.endsWith('/v1/voices')).length, 1, 'procura a voz liberada uma vez só')
+  assert.ok(!urls.some((u) => u.includes('fish')))
   delete process.env.ELEVENLABS_API_KEY
 })

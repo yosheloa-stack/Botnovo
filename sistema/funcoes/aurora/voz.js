@@ -63,8 +63,16 @@ export async function vozesEleven(fetchFn = globalThis.fetch) {
     const res = await fetchFn(`${ELEVEN_API}/voices`, { headers: { 'xi-api-key': chaveEleven() }, signal: AbortSignal.timeout(10_000) })
     if (!res.ok) return []
     const data = await res.json()
-    return (data?.voices || []).map((v) => ({ id: String(v.voice_id || ''), nome: String(v.name || '').slice(0, 40) })).filter((v) => v.id)
+    return (data?.voices || []).map((v) => ({ id: String(v.voice_id || ''), nome: String(v.name || '').slice(0, 40), categoria: String(v.category || ''), genero: String(v.labels?.gender || '') })).filter((v) => v.id)
   } catch { return [] }
+}
+
+// Uma voz que o plano grátis da ElevenLabs deixa usar pela API: as prontas
+// (premade) ou as que o criador fez na conta; de mulher, se tiver.
+export function vozGratis(vozes = []) {
+  const liberadas = vozes.filter((v) => ['premade', 'generated', 'cloned'].includes(v.categoria))
+  return liberadas.find((v) => /female|mulher|feminin/i.test(v.genero) && v.categoria !== 'premade') ||
+    liberadas.find((v) => /female|mulher|feminin/i.test(v.genero)) || liberadas[0] || null
 }
 
 // "manda um áudio", "fala em áudio", "responde por voz", "quero ouvir sua voz"
@@ -237,11 +245,11 @@ export function createVoz({ fetch: fetchFn = globalThis.fetch, converter = limpa
     }
   }
 
-  async function pedirEleven(texto, modelo) {
+  async function pedirEleven(texto, modelo, vozForcada = '') {
     const minha = escolha() || {}
     const velocidade = Math.min(1.2, Math.max(0.7, Number(minha.velocidade) || numeroEnv('ELEVENLABS_VELOCIDADE', 0.95)))
     const escolhida = ehIdEleven(minha.voz) ? minha.voz : ''
-    const voz = escolhida || String(process.env.ELEVENLABS_VOZ || '').trim() || ELEVEN_VOZ_PADRAO
+    const voz = vozForcada || escolhida || String(process.env.ELEVENLABS_VOZ || '').trim() || ELEVEN_VOZ_PADRAO
     const corpo = {
       text: falaPraEleven(texto, modelo),
       model_id: modelo,
@@ -272,12 +280,25 @@ export function createVoz({ fetch: fetchFn = globalThis.fetch, converter = limpa
   // multilingual v2, sem as marcações). Ela recusou (sem plano, sem crédito,
   // voz da biblioteca no plano grátis…)? Vai pela Fish Audio, se tiver a chave.
   let elevenParadaAte = 0
+  let substituta  // a voz liberada no plano grátis, quando a escolhida não é
   async function pedir(texto) {
     let r = { status: 0, motivo: 'sem chave de voz' }
     if (chaveEleven() && elevenParadaAte <= agora()) {
       const modelo = String(process.env.ELEVENLABS_MODELO || '').trim() || 'eleven_v3'
       r = await pedirEleven(texto, modelo)
       if (!r.audio && [400, 403, 404, 422].includes(r.status) && modelo !== 'eleven_multilingual_v2') r = await pedirEleven(texto, 'eleven_multilingual_v2')
+      // Plano grátis não usa voz da biblioteca pela API: continua na ElevenLabs
+      // com uma voz liberada da conta (e avisa uma vez qual).
+      if (!r.audio && r.status === 402 && /library voice/i.test(r.motivo)) {
+        if (substituta === undefined) {
+          substituta = vozGratis(await vozesEleven(fetchFn))
+          log(substituta ? `a voz escolhida é da biblioteca e o plano grátis da ElevenLabs não libera pela API; usando a "${substituta.nome}" da sua conta` : 'a voz escolhida é da biblioteca e a conta não tem outra voz liberada')
+        }
+        if (substituta) {
+          r = await pedirEleven(texto, modelo, substituta.id)
+          if (!r.audio && [400, 403, 404, 422].includes(r.status) && modelo !== 'eleven_multilingual_v2') r = await pedirEleven(texto, 'eleven_multilingual_v2', substituta.id)
+        }
+      }
       if (r.audio) return r
       log(`ElevenLabs respondeu ${r.status}${r.motivo ? ': ' + r.motivo : ''}${chaveFish() ? ' (vou pela Fish Audio)' : ''}`)
       if (r.status === 401 || r.status === 402) elevenParadaAte = agora() + 30 * 60_000
