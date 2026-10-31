@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { pediuAudio, fraseDoAudio, duracaoOgg, paraOgg, ofereceuAudio, topou, textoFalado, podeFalar, semTagsDeVoz, createVoz, ehOgg } from '../sistema/funcoes/aurora/voz.js'
 
-const OGG = new Uint8Array([0x4f, 0x67, 0x67, 0x53, 0, 2, 0, 0])
+const OGG = new Uint8Array([0x4f, 0x67, 0x67, 0x53, 0, 2, ...new Array(2000).fill(0)])
 
 test('pediuAudio: só quando pedem áudio de verdade', () => {
   assert.equal(pediuAudio('aurora manda um áudio'), true)
@@ -135,6 +135,8 @@ test('fraseDoAudio: "manda um áudio falando X" → X', () => {
   assert.equal(fraseDoAudio('manda um áudio falando que hoje tem sorteio'), 'hoje tem sorteio')
   assert.equal(fraseDoAudio('fala bom dia pro grupo em áudio'), 'bom dia pro grupo')
   assert.equal(fraseDoAudio('fala comigo por áudio'), '')
+  assert.equal(fraseDoAudio('Aurora manda áudio falando essa frase Você fica sentado aí... culpando a si mesmo o tempo todo." / "Você está sempre sentado, culpando a si mesmo.'), 'Você fica sentado aí... culpando a si mesmo o tempo todo. Você está sempre sentado, culpando a si mesmo.')
+  assert.equal(fraseDoAudio('manda um áudio " / "'), '')
   assert.equal(fraseDoAudio('manda um áudio'), '')
   assert.equal(fraseDoAudio('fala bom dia pro grupo'), '', 'sem pedir áudio, é conversa normal')
 })
@@ -150,4 +152,11 @@ test('o áudio sai com a duração certa (senão o WhatsApp mostra 0:00)', async
   const { fetch } = fishFalsa([{ status: 200, audio: ogg }])
   const r = await createVoz({ fetch }).falar('oi')
   assert.equal(r.seconds, 3)
+})
+
+test('áudio vazio (só cabeçalho) não vai pro zap: sai texto', async () => {
+  process.env.FISH_AUDIO_API_KEY = 'chave-falsa'
+  const { fetch } = fishFalsa([{ status: 200, audio: new Uint8Array([0x4f, 0x67, 0x67, 0x53, 0, 2, 0, 0]) }])
+  assert.equal(await createVoz({ fetch, converter: async () => null }).falar('oi tudo bem'), null)
+  assert.equal(await createVoz({ fetch: async () => { throw new Error('não devia chamar') } }).falar(' / '), null, 'sem fala, nem chama a Fish')
 })

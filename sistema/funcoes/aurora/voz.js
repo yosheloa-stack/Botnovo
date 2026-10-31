@@ -47,14 +47,24 @@ export const semTagsDeVoz = (texto = '') => String(texto).replace(/[ \t]*\[[a-z]
 export function fraseDoAudio(texto = '') {
   const t = String(texto).trim()
   if (!/(?<!\p{L})([aá]udio|voz)(?!\p{L})/iu.test(t)) return ''
-  const aspas = t.match(/["“”'‘’]([^"“”'‘’]{2,400})["“”'‘’]/)
-  if (aspas) return aspas[1].trim()
-  const depois = t.match(/\b(?:falando|dizendo|que diz|com a frase|repete|repita|fala|diz|falar|dizer)\b\s*(?:assim\s*)?(?::|que\s+|isso\s*:)?\s*([\s\S]{2,400})$/i)
-  if (!depois) return ''
-  const frase = depois[1].trim()
-  // "fala comigo por áudio" não é frase pra repetir.
-  if (/^(comigo|com (a gente|ele|ela|eles)|por [aá]udio|em [aá]udio|no [aá]udio|[aá]udio|algo|alguma coisa|qualquer coisa)\b/i.test(frase)) return ''
-  return frase.replace(/^[\s:,-]+/, '').replace(/[\s,]*(?:(?:em|por|no|num)\s+)?(?:um\s+)?[aá]udio[\s.!]*$/i, '').trim()
+  const QUOTES = /["“”‘’]/g
+  // Tira aspas soltas e o " / " entre frases; precisa sobrar fala de verdade.
+  const limpar = (f) => String(f).replace(QUOTES, ' ').replace(/\s+\/\s+/g, ' ').replace(/^[\s:,/-]+|[\s/,-]+$/g, '').replace(/\s{2,}/g, ' ').trim()
+  const temFala = (f) => (f.match(/\p{L}/gu) || []).length >= 2
+  const depois = t.match(/\b(?:falando|dizendo|que diz|com a frase|repete|repita|fala|diz|falar|dizer)\b([\s\S]{2,600})$/i)
+  if (depois) {
+    let frase = depois[1].trim()
+      .replace(/^(?:(?:em|por|no|num)\s+(?:um\s+)?[aá]udio\b[\s,:]*)/i, '')
+      .replace(/^(?:essa frase|esta frase|a frase|assim|isso)\b[\s,:]*/i, '')
+      .replace(/^(?::|que\s+)\s*/i, '')
+    // "fala comigo por áudio" não é frase pra repetir.
+    if (!/^(comigo|com (a gente|ele|ela|eles)|[aá]udio|algo|alguma coisa|qualquer coisa)?\s*$|^(comigo|com (a gente|ele|ela|eles)|algo|alguma coisa|qualquer coisa)\b/i.test(frase)) {
+      frase = limpar(frase.replace(/[\s,]*(?:(?:em|por|no|num)\s+)?(?:um\s+)?[aá]udio[\s.!]*$/i, ''))
+      if (temFala(frase)) return frase
+    }
+  }
+  const aspas = [...t.matchAll(/["“”]([^"“”]{2,600})["“”]/g)].map((m) => limpar(m[1])).filter(temFala)
+  return aspas.length ? limpar(aspas.join(' ')) : ''
 }
 
 // Ela ofereceu ("posso mandar um áudio?", "quer ouvir minha voz?") e a
@@ -167,7 +177,7 @@ export function createVoz({ fetch: fetchFn = globalThis.fetch, converter = paraO
 
   async function falar(resposta) {
     const texto = textoFalado(resposta).slice(0, 700)
-    if (!texto || !vozLigada()) return null
+    if ((semTagsDeVoz(texto).match(/\p{L}/gu) || []).length < 2 || !vozLigada()) return null
     try {
       const modelo = String(process.env.FISH_AUDIO_MODELO || '').trim()
       let r = await pedir(texto, modelo)
@@ -184,6 +194,8 @@ export function createVoz({ fetch: fetchFn = globalThis.fetch, converter = paraO
       const convertido = await converter(r.audio)
       const audio = convertido && ehOgg(convertido) ? convertido : ehOgg(r.audio) ? r.audio : null
       if (!audio) { log('o áudio da Fish Audio não veio em ogg/opus e não deu pra converter'); return null }
+      // Áudio vazio (só o cabeçalho) chega no zap como 0:00 e não toca.
+      if (audio.length < 1000) { log(`o áudio veio vazio (${audio.length} bytes)`); return null }
       usados++
       const seconds = duracaoOgg(audio)
       return { audio, mimetype: 'audio/ogg; codecs=opus', ...(seconds ? { seconds } : {}) }
