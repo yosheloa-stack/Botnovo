@@ -119,6 +119,7 @@ export function podeFalar(resposta = '', { pediu = false } = {}) {
 export const BLOCO_VOZ = `ESTA RESPOSTA VAI SAIR EM ÁUDIO (mensagem de voz com a sua voz). Você consegue mandar áudio: nunca diga que não manda.
 Escreva como quem grava um áudio de verdade pra amiga, falado e não lido:
 - Curto: 1 a 3 frases. Nada de emoji, link, lista, @ ou ID.
+- Português do Brasil, jeito brasileiro de falar ("você", "tá", "a gente"), nunca de Portugal (nada de "estás", "tu vais", "a falar").
 - Palavras inteiras e claras: "você", "porque", "também" (nada de vc, pq, tbm, cê).
 - Fala de gente: "ahh", "hmm", "tipo", "né", "olha", "nossa", "aí", uma vírgula onde você respiraria, reticências quando pensa.
 - Marcações de voz (em inglês, entre colchetes, fora do texto falado), no máximo 2 por áudio: emoção no começo da frase ([happy], [excited], [playful], [soft tone], [slightly sad], [whispering]) e som ou pausa no meio ([laughing], [chuckling], [sighing], [break], [long-break]).
@@ -142,7 +143,7 @@ export function blocoVoz(estilo = '') {
 // da Fish Audio no lugar certo pra soar no jeito escolhido.
 export function pedidoDeDirecao(frase = '', estilo = '') {
   return [
-    { role: 'system', content: `Você é diretor(a) de dublagem. Recebe uma fala em português e devolve A MESMA fala, palavra por palavra, só acrescentando marcações de voz da Fish Audio entre colchetes, em inglês, pra entonação ficar assim: ${String(estilo || '').trim() || 'natural, humana e expressiva, como gente de verdade falando'}.
+    { role: 'system', content: `Você é diretor(a) de dublagem. Recebe uma fala em português do Brasil e devolve A MESMA fala, palavra por palavra, só acrescentando marcações de voz da Fish Audio entre colchetes, em inglês, pra entonação ficar assim: ${String(estilo || '').trim() || 'natural, humana e expressiva, como gente de verdade falando'}.
 Marcações que funcionam: emoção ou tom no começo da frase ([soft tone], [whispering], [calm], [seductive], [sinister], [cold], [happy], [excited], [sad], [angry], [playful], [slightly mocking]) e som ou pausa no meio ([break], [long-break], [sighing], [chuckling], [laughing], [gasping]). Pode usar intensidade ([very], [slightly]).
 Regras: não troque, não tire e não acrescente nenhuma palavra; use de 2 a 6 marcações; responda só com a fala marcada, sem aspas e sem explicação.` },
     { role: 'user', content: String(frase).slice(0, 600) }
@@ -157,7 +158,7 @@ export function direcaoValida(frase = '', marcada = '') {
 
 // Faz o áudio. Devolve { audio: Uint8Array, mimetype } ou null (aí vai texto).
 // escolha(): { voz, velocidade } que o criador escolheu no zap (#auroravoz).
-export function createVoz({ fetch: fetchFn = globalThis.fetch, converter = paraOgg, agora = () => Date.now(), log = () => {}, escolha = () => ({}) } = {}) {
+export function createVoz({ fetch: fetchFn = globalThis.fetch, converter = limparAudio, agora = () => Date.now(), log = () => {}, escolha = () => ({}) } = {}) {
   let dia = ''
   let usados = 0
   let semCreditoAte = 0
@@ -172,7 +173,9 @@ export function createVoz({ fetch: fetchFn = globalThis.fetch, converter = paraO
     // Um pouco mais devagar e estável: a voz animada correndo fica difícil de entender.
     const minha = escolha() || {}
     const velocidade = Math.min(1.5, Math.max(0.6, Number(minha.velocidade) || numeroEnv('FISH_AUDIO_VELOCIDADE', VELOCIDADE_PADRAO)))
-    const corpo = { text: texto, format: 'opus', latency: 'normal', normalize: true, language: 'pt', temperature: 0.6, top_p: 0.7, prosody: { speed: velocidade } }
+    // O sotaque vem da voz; a dica no começo puxa pro português do Brasil.
+    const fala = /^\s*\[brazilian/i.test(texto) ? texto : `[Brazilian Portuguese accent] ${texto}`
+    const corpo = { text: fala, format: 'opus', opus_bitrate: 64000, latency: 'normal', normalize: true, language: 'pt-BR', temperature: 0.6, top_p: 0.7, prosody: { speed: velocidade } }
     corpo.reference_id = String(minha.voz || process.env.FISH_AUDIO_VOZ || '').trim() || VOZ_PADRAO
     const ctrl = new AbortController()
     const timer = setTimeout(() => ctrl.abort(), 30_000)
@@ -257,12 +260,18 @@ export function duracaoOgg(b) {
 
 export const ehOgg = (b) => b?.length > 4 && b[0] === 0x4f && b[1] === 0x67 && b[2] === 0x67 && b[3] === 0x53
 
+// Tira o chiado (filtro de ruído), corta o grave sujo e acerta o volume. Se o
+// ffmpeg do servidor não tiver o filtro, converte sem ele.
+export async function limparAudio(entrada) {
+  return (await paraOgg(entrada, { filtro: true })) || paraOgg(entrada)
+}
+
 // Qualquer áudio → ogg/opus de mensagem de voz (precisa do ffmpeg).
-export function paraOgg(entrada) {
+export function paraOgg(entrada, { filtro = false } = {}) {
   return new Promise((resolve) => {
     let p
     try {
-      p = spawn('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', 'pipe:0', '-vn', '-map_metadata', '-1', '-ac', '1', '-ar', '48000', '-c:a', 'libopus', '-b:a', '48k', '-vbr', 'on', '-application', 'voip', '-avoid_negative_ts', 'make_zero', '-f', 'ogg', 'pipe:1'])
+      p = spawn('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', 'pipe:0', '-vn', '-map_metadata', '-1', ...(filtro ? ['-af', 'highpass=f=70,afftdn=nf=-25,loudnorm=I=-16:TP=-1.5:LRA=11'] : []), '-ac', '1', '-ar', '48000', '-c:a', 'libopus', '-b:a', '48k', '-vbr', 'on', '-application', 'voip', '-avoid_negative_ts', 'make_zero', '-f', 'ogg', 'pipe:1'])
     } catch { return resolve(null) }
     const partes = []
     p.stdout.on('data', (c) => partes.push(c))

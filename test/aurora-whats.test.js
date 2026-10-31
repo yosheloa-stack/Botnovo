@@ -24,7 +24,7 @@ globalThis.fetch = async (url, opcoes = {}) => {
     return new Response(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: respostaIa } }] }), { status: 200 })
   }
   if (String(url).includes('api.fish.audio')) {
-    pedidosVoz.push(JSON.parse(opcoes.body).text)
+    pedidosVoz.push(JSON.parse(opcoes.body).text.replace(/^\[Brazilian Portuguese accent\] /, ''))
     return new Response(new Uint8Array([0x4f, 0x67, 0x67, 0x53, 0, 2, ...new Array(2000).fill(0)]), { status: 200 })
   }
   if (String(url).includes('/v1/info')) {

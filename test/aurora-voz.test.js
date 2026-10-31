@@ -3,7 +3,7 @@
 // texto como sempre quando a API falha. O fetch da Fish Audio é falso.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { pediuAudio, fraseDoAudio, blocoVoz, pedidoDeDirecao, direcaoValida, ESTILOS, duracaoOgg, paraOgg, ofereceuAudio, topou, textoFalado, podeFalar, semTagsDeVoz, createVoz, ehOgg } from '../sistema/funcoes/aurora/voz.js'
+import { limparAudio, pediuAudio, fraseDoAudio, blocoVoz, pedidoDeDirecao, direcaoValida, ESTILOS, duracaoOgg, paraOgg, ofereceuAudio, topou, textoFalado, podeFalar, semTagsDeVoz, createVoz, ehOgg } from '../sistema/funcoes/aurora/voz.js'
 
 const OGG = new Uint8Array([0x4f, 0x67, 0x67, 0x53, 0, 2, ...new Array(2000).fill(0)])
 
@@ -67,8 +67,9 @@ test('com chave: pediram áudio, vem ogg/opus com a voz escolhida', async () => 
   assert.equal(r.mimetype, 'audio/ogg; codecs=opus')
   assert.equal(pedidos[0].url, 'https://api.fish.audio/v1/tts')
   assert.equal(pedidos[0].headers.authorization, 'Bearer chave-falsa')
-  assert.deepEqual({ text: pedidos[0].corpo.text, ref: pedidos[0].corpo.reference_id, fmt: pedidos[0].corpo.format }, { text: 'oii tudo bem?', ref: 'voz123', fmt: 'opus' })
+  assert.deepEqual({ text: pedidos[0].corpo.text, ref: pedidos[0].corpo.reference_id, fmt: pedidos[0].corpo.format }, { text: '[Brazilian Portuguese accent] oii tudo bem?', ref: 'voz123', fmt: 'opus' })
   assert.equal(pedidos[0].corpo.prosody.speed, 0.85, 'um pouco mais devagar pra entender')
+  assert.equal(pedidos[0].corpo.language, 'pt-BR')
 })
 
 test('402 sem crédito: tenta o modelo grátis; falhou de novo: texto e pausa', async () => {
@@ -145,7 +146,7 @@ test('o áudio sai com a duração certa (senão o WhatsApp mostra 0:00)', async
   const { spawnSync } = await import('node:child_process')
   if (spawnSync('ffmpeg', ['-version']).status !== 0) return t.skip('sem ffmpeg aqui')
   const mp3 = spawnSync('ffmpeg', ['-loglevel', 'error', '-f', 'lavfi', '-i', 'sine=d=3', '-f', 'mp3', 'pipe:1']).stdout
-  const ogg = await paraOgg(mp3)
+  const ogg = await limparAudio(mp3)
   assert.equal(ehOgg(ogg), true)
   assert.equal(duracaoOgg(ogg), 3)
   process.env.FISH_AUDIO_API_KEY = 'chave-falsa'
