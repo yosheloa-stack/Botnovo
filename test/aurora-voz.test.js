@@ -3,7 +3,7 @@
 // texto como sempre quando a API falha. O fetch da Fish Audio é falso.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { pediuAudio, fraseDoAudio, ofereceuAudio, topou, textoFalado, podeFalar, semTagsDeVoz, createVoz, ehOgg } from '../sistema/funcoes/aurora/voz.js'
+import { pediuAudio, fraseDoAudio, duracaoOgg, paraOgg, ofereceuAudio, topou, textoFalado, podeFalar, semTagsDeVoz, createVoz, ehOgg } from '../sistema/funcoes/aurora/voz.js'
 
 const OGG = new Uint8Array([0x4f, 0x67, 0x67, 0x53, 0, 2, 0, 0])
 
@@ -137,4 +137,17 @@ test('fraseDoAudio: "manda um áudio falando X" → X', () => {
   assert.equal(fraseDoAudio('fala comigo por áudio'), '')
   assert.equal(fraseDoAudio('manda um áudio'), '')
   assert.equal(fraseDoAudio('fala bom dia pro grupo'), '', 'sem pedir áudio, é conversa normal')
+})
+
+test('o áudio sai com a duração certa (senão o WhatsApp mostra 0:00)', async (t) => {
+  const { spawnSync } = await import('node:child_process')
+  if (spawnSync('ffmpeg', ['-version']).status !== 0) return t.skip('sem ffmpeg aqui')
+  const mp3 = spawnSync('ffmpeg', ['-loglevel', 'error', '-f', 'lavfi', '-i', 'sine=d=3', '-f', 'mp3', 'pipe:1']).stdout
+  const ogg = await paraOgg(mp3)
+  assert.equal(ehOgg(ogg), true)
+  assert.equal(duracaoOgg(ogg), 3)
+  process.env.FISH_AUDIO_API_KEY = 'chave-falsa'
+  const { fetch } = fishFalsa([{ status: 200, audio: ogg }])
+  const r = await createVoz({ fetch }).falar('oi')
+  assert.equal(r.seconds, 3)
 })

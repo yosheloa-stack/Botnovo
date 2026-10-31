@@ -178,11 +178,15 @@ export function createVoz({ fetch: fetchFn = globalThis.fetch, converter = paraO
         if (r.status === 401 || r.status === 402) semCreditoAte = agora() + 30 * 60_000
         return null
       }
-      let audio = r.audio
-      if (!ehOgg(audio)) audio = await converter(audio)
-      if (!audio || !ehOgg(audio)) { log('o áudio da Fish Audio não veio em ogg/opus e não deu pra converter'); return null }
+      // O ogg que a Fish Audio manda vem "em streaming" (sem duração certa) e o
+      // WhatsApp mostra 0:00 ou não toca: passa pelo ffmpeg pra virar uma
+      // mensagem de voz certinha. Sem ffmpeg, vai o original se já for ogg.
+      const convertido = await converter(r.audio)
+      const audio = convertido && ehOgg(convertido) ? convertido : ehOgg(r.audio) ? r.audio : null
+      if (!audio) { log('o áudio da Fish Audio não veio em ogg/opus e não deu pra converter'); return null }
       usados++
-      return { audio, mimetype: 'audio/ogg; codecs=opus' }
+      const seconds = duracaoOgg(audio)
+      return { audio, mimetype: 'audio/ogg; codecs=opus', ...(seconds ? { seconds } : {}) }
     } catch (err) {
       log(`falhou ao gerar o áudio: ${err?.name === 'AbortError' ? 'demorou demais' : err?.message || err}`)
       return null
@@ -192,6 +196,22 @@ export function createVoz({ fetch: fetchFn = globalThis.fetch, converter = paraO
   return { vaiFalar, falar }
 }
 
+// Duração de um ogg/opus: a posição da última página menos o pre-skip, em 48 kHz.
+export function duracaoOgg(b) {
+  if (!ehOgg(b)) return 0
+  const buf = Buffer.from(b.buffer, b.byteOffset, b.byteLength)
+  // A maior posição válida entre as páginas (no streaming a última pode vir -1).
+  let granulo = 0
+  for (let i = buf.indexOf('OggS'); i >= 0 && i + 14 <= buf.length; i = buf.indexOf('OggS', i + 4)) {
+    const g = buf.readBigUInt64LE(i + 6)
+    if (g < 2n ** 40n && Number(g) > granulo) granulo = Number(g)
+  }
+  const cabeca = buf.indexOf('OpusHead')
+  const preSkip = cabeca >= 0 && cabeca + 12 <= buf.length ? buf.readUInt16LE(cabeca + 10) : 0
+  const s = (granulo - preSkip) / 48000
+  return Number.isFinite(s) && s > 0 && s < 3600 ? Math.max(1, Math.round(s)) : 0
+}
+
 export const ehOgg = (b) => b?.length > 4 && b[0] === 0x4f && b[1] === 0x67 && b[2] === 0x67 && b[3] === 0x53
 
 // Qualquer áudio → ogg/opus de mensagem de voz (precisa do ffmpeg).
@@ -199,7 +219,7 @@ export function paraOgg(entrada) {
   return new Promise((resolve) => {
     let p
     try {
-      p = spawn('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', 'pipe:0', '-ac', '1', '-ar', '48000', '-c:a', 'libopus', '-b:a', '32k', '-f', 'ogg', 'pipe:1'])
+      p = spawn('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', 'pipe:0', '-vn', '-map_metadata', '-1', '-ac', '1', '-ar', '48000', '-c:a', 'libopus', '-b:a', '48k', '-vbr', 'on', '-application', 'voip', '-avoid_negative_ts', 'make_zero', '-f', 'ogg', 'pipe:1'])
     } catch { return resolve(null) }
     const partes = []
     p.stdout.on('data', (c) => partes.push(c))

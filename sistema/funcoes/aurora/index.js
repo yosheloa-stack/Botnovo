@@ -298,7 +298,7 @@ async function falarFrase(system, texto, frase) {
   const fala = voz.vaiFalar({ pediu: true }) ? await voz.falar(frase) : null
   await digitando(system, 'paused')
   aurora.anotar(`${system.from}:${system.senderKey}`, `[${nomeDe(system)}] ${texto.slice(0, 800)}`, fala ? `(mandei um áudio falando: "${frase.slice(0, 300)}")` : '(não consegui gravar o áudio agora)')
-  if (fala) return system.reply({ type: 'audio', media: fala.audio, mimetype: fala.mimetype, ptt: true }, opcoes)
+  if (fala) return system.reply({ type: 'audio', media: fala.audio, mimetype: fala.mimetype, ptt: true, ...(fala.seconds ? { seconds: fala.seconds } : {}) }, opcoes)
   return system.reply('ai, não consegui gravar o áudio agora 😕 tenta daqui a pouco', opcoes)
 }
 
@@ -359,7 +359,7 @@ async function conversar(system, texto) {
     await digitando(system, 'recording')
     const fala = await voz.falar(resposta)
     await digitando(system, 'paused')
-    if (fala) return system.reply({ type: 'audio', media: fala.audio, mimetype: fala.mimetype, ptt: true }, opcoes)
+    if (fala) return system.reply({ type: 'audio', media: fala.audio, mimetype: fala.mimetype, ptt: true, ...(fala.seconds ? { seconds: fala.seconds } : {}) }, opcoes)
   }
   // Em texto, as marcações de voz ([laughing], [break]…) somem.
   await system.reply(semTagsDeVoz(resposta), mentions.length ? { ...opcoes, mentions } : opcoes)
