@@ -23,6 +23,13 @@ globalThis.fetch = async (url, opcoes = {}) => {
     pedidosIa.push(JSON.parse(opcoes.body))
     return new Response(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: respostaIa } }] }), { status: 200 })
   }
+  if (String(url).includes('api.elevenlabs.io/v1/voices')) {
+    return new Response(JSON.stringify({ voices: [{ voice_id: 'NS7yU4WmAouJsg84X3Mg', name: 'Aurora BR' }, { voice_id: 'XyZ0123456789abcdEFG', name: 'Luna Calma' }] }), { status: 200 })
+  }
+  if (String(url).includes('api.elevenlabs.io/v1/text-to-speech')) {
+    pedidosVoz.push('eleven:' + JSON.parse(opcoes.body).text)
+    return new Response(new Uint8Array([0x4f, 0x67, 0x67, 0x53, 0, 2, ...new Array(2000).fill(0)]), { status: 200 })
+  }
   if (String(url).includes('api.fish.audio')) {
     pedidosVoz.push(JSON.parse(opcoes.body).text.replace(/^\[Brazilian Portuguese accent\] /, ''))
     return new Response(new Uint8Array([0x4f, 0x67, 0x67, 0x53, 0, 2, ...new Array(2000).fill(0)]), { status: 200 })
@@ -329,4 +336,22 @@ test('a IA diz pro criador que "já processei o like": o bot manda de verdade', 
   const fim = Date.now() + 6000
   while (pedidosLike.length === inicio && Date.now() < fim) await new Promise((r) => setTimeout(r, 50))
   assert.equal(pedidosLike.at(-1), '8772807697', 'o criador: o bot manda de verdade o que ela disse que mandou')
+})
+
+test('ElevenLabs: #auroravoz lista as vozes da conta, escolhe pelo nome e o áudio sai por ela', async () => {
+  process.env.ELEVENLABS_API_KEY = 'chave-eleven'
+  banco.auroraCriador('5544911112222')
+  try {
+    assert.match((await respostaDe(mensagem('#auroravoz')))[0].conteudo.text, /ElevenLabs\): Aurora BR[\s\S]*#auroravoz Luna Calma/)
+    assert.match((await respostaDe(mensagem('#auroravoz luna')))[0].conteudo.text, /Luna Calma/)
+    assert.equal(banco.auroraVoz(), 'XyZ0123456789abcdEFG')
+    respostaIa = 'oii, tô aqui sim'
+    const saiu = await respostaDe(mensagem('aurora manda um áudio'))
+    assert.equal(saiu[0].conteudo.type, 'audio')
+    assert.equal(pedidosVoz.at(-1), 'eleven:oii, tô aqui sim')
+  } finally {
+    delete process.env.ELEVENLABS_API_KEY
+    banco.auroraVoz('')
+    respostaIa = 'oi, tô aqui 😌'
+  }
 })

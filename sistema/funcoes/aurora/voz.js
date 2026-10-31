@@ -1,7 +1,11 @@
 // A voz da Aurora: algumas respostas saem como mensagem de voz, feitas na
-// Fish Audio (POST /v1/tts). A chave fica no ambiente (FISH_AUDIO_API_KEY),
-// nunca no repositório. Deu ruim na API: a resposta sai em texto, como sempre.
+// ElevenLabs (com ELEVENLABS_API_KEY) ou na Fish Audio (FISH_AUDIO_API_KEY).
+// As chaves ficam no ambiente, nunca no repositório. Deu ruim na API: a
+// resposta sai em texto, como sempre.
 //
+// ELEVENLABS_API_KEY  chave da ElevenLabs (com ela, a ElevenLabs é quem fala)
+// ELEVENLABS_VOZ      ID da voz; vazio = a voz escolhida pelo criador (ELEVEN_VOZ_PADRAO)
+// ELEVENLABS_MODELO   eleven_v3 (padrão, entende [laughs], [whispers]…) ou eleven_multilingual_v2
 // FISH_AUDIO_API_KEY  chave da Fish Audio (sem ela, nada de áudio)
 // FISH_AUDIO_VOZ      ID do modelo de voz (reference_id); vazio = a "Loli" (VOZ_PADRAO)
 // FISH_AUDIO_MODELO   s2.1-pro (padrão), s2-pro, s1, s2.1-pro-free…
@@ -29,7 +33,39 @@ const numeroEnv = (nome, padrao) => {
   return process.env[nome] !== undefined && process.env[nome] !== '' && Number.isFinite(n) ? n : padrao
 }
 
-export const vozLigada = () => Boolean(String(process.env.FISH_AUDIO_API_KEY || '').trim())
+const chaveEleven = () => String(process.env.ELEVENLABS_API_KEY || '').trim()
+const chaveFish = () => String(process.env.FISH_AUDIO_API_KEY || '').trim()
+// A ElevenLabs ganha quando tem a chave dela.
+export const provedorVoz = () => chaveEleven() ? 'ElevenLabs' : chaveFish() ? 'Fish Audio' : ''
+export const vozLigada = () => Boolean(provedorVoz())
+
+// A voz que o criador escolheu pra ElevenLabs.
+export const ELEVEN_VOZ_PADRAO = 'NS7yU4WmAouJsg84X3Mg'
+const ELEVEN_API = 'https://api.elevenlabs.io/v1'
+// ID da Fish (32 hex) não serve na ElevenLabs e vice-versa.
+export const ehIdFish = (id = '') => /^[a-f0-9]{32}$/.test(String(id))
+export const ehIdEleven = (id = '') => /^[A-Za-z0-9]{16,32}$/.test(String(id)) && !ehIdFish(id)
+
+// As marcações da Fish viram as da ElevenLabs v3 ([laughs], [whispers]…); a
+// pausa vira reticências. Nos modelos sem marcação, elas saem.
+const PRA_ELEVEN = { laughing: 'laughs', chuckling: 'chuckles', sighing: 'sighs', whispering: 'whispers', gasping: 'gasps', 'soft tone': 'softly', 'slightly mocking': 'sarcastic' }
+export function falaPraEleven(texto = '', modelo = 'eleven_v3') {
+  let t = String(texto).replace(/\[(long-break|break)\]/gi, '…').replace(/…(\s*…)+/g, '…').replace(/\[brazilian[^\]]*\]\s*/gi, '')
+  if (!/v3/.test(modelo)) return semTagsDeVoz(t).replace(/…(\s*…)+/g, '…').trim()
+  t = t.replace(/\[([a-z][a-z' -]{1,30})\]/gi, (_, tag) => `[${PRA_ELEVEN[tag.toLowerCase()] || tag.toLowerCase()}]`)
+  return t.replace(/[ \t]{2,}/g, ' ').trim()
+}
+
+// As vozes da conta na ElevenLabs (pro #auroravoz listar e escolher pelo nome).
+export async function vozesEleven(fetchFn = globalThis.fetch) {
+  if (!chaveEleven()) return []
+  try {
+    const res = await fetchFn(`${ELEVEN_API}/voices`, { headers: { 'xi-api-key': chaveEleven() }, signal: AbortSignal.timeout(10_000) })
+    if (!res.ok) return []
+    const data = await res.json()
+    return (data?.voices || []).map((v) => ({ id: String(v.voice_id || ''), nome: String(v.name || '').slice(0, 40) })).filter((v) => v.id)
+  } catch { return [] }
+}
 
 // "manda um áudio", "fala em áudio", "responde por voz", "quero ouvir sua voz"
 export function pediuAudio(texto = '') {
@@ -169,21 +205,21 @@ export function createVoz({ fetch: fetchFn = globalThis.fetch, converter = limpa
     return usados < numeroEnv('AURORA_AUDIO_DIA', 80)
   }
 
-  async function pedir(texto, modelo) {
+  async function pedirFish(texto, modelo) {
     // Um pouco mais devagar e estável: a voz animada correndo fica difícil de entender.
     const minha = escolha() || {}
     const velocidade = Math.min(1.5, Math.max(0.6, Number(minha.velocidade) || numeroEnv('FISH_AUDIO_VELOCIDADE', VELOCIDADE_PADRAO)))
     // O sotaque vem da voz; a dica no começo puxa pro português do Brasil.
     const fala = /^\s*\[brazilian/i.test(texto) ? texto : `[Brazilian Portuguese accent] ${texto}`
     const corpo = { text: fala, format: 'opus', opus_bitrate: 64000, latency: 'normal', normalize: true, language: 'pt-BR', temperature: 0.6, top_p: 0.7, prosody: { speed: velocidade } }
-    corpo.reference_id = String(minha.voz || process.env.FISH_AUDIO_VOZ || '').trim() || VOZ_PADRAO
+    corpo.reference_id = (ehIdFish(minha.voz) ? minha.voz : '') || String(process.env.FISH_AUDIO_VOZ || '').trim() || VOZ_PADRAO
     const ctrl = new AbortController()
     const timer = setTimeout(() => ctrl.abort(), 30_000)
     try {
       const res = await fetchFn(API, {
         method: 'POST',
         headers: {
-          authorization: `Bearer ${String(process.env.FISH_AUDIO_API_KEY).trim()}`,
+          authorization: `Bearer ${chaveFish()}`,
           'content-type': 'application/json',
           ...(modelo ? { model: modelo } : {})
         },
@@ -201,6 +237,53 @@ export function createVoz({ fetch: fetchFn = globalThis.fetch, converter = limpa
     }
   }
 
+  async function pedirEleven(texto, modelo) {
+    const minha = escolha() || {}
+    const velocidade = Math.min(1.2, Math.max(0.7, Number(minha.velocidade) || numeroEnv('ELEVENLABS_VELOCIDADE', 0.95)))
+    const escolhida = ehIdEleven(minha.voz) ? minha.voz : ''
+    const voz = escolhida || String(process.env.ELEVENLABS_VOZ || '').trim() || ELEVEN_VOZ_PADRAO
+    const corpo = {
+      text: falaPraEleven(texto, modelo),
+      model_id: modelo,
+      voice_settings: { stability: 0.45, similarity_boost: 0.8, style: 0.35, use_speaker_boost: true, speed: velocidade }
+    }
+    if (/v3|flash|turbo/.test(modelo)) corpo.language_code = 'pt'
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), 40_000)
+    try {
+      const res = await fetchFn(`${ELEVEN_API}/text-to-speech/${encodeURIComponent(voz)}?output_format=opus_48000_64`, {
+        method: 'POST',
+        headers: { 'xi-api-key': chaveEleven(), 'content-type': 'application/json', accept: 'audio/ogg' },
+        body: JSON.stringify(corpo),
+        signal: ctrl.signal
+      })
+      if (!res.ok) {
+        let motivo = ''
+        try { const d = (await res.json())?.detail; motivo = typeof d === 'string' ? d : d?.message || d?.status || '' } catch {}
+        return { status: res.status, motivo: String(motivo) }
+      }
+      return { audio: new Uint8Array(await res.arrayBuffer()) }
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+
+  // Pede pro provedor da vez. Na ElevenLabs, se o modelo v3 não estiver
+  // liberado na conta, tenta o multilingual v2 (sem as marcações).
+  async function pedir(texto) {
+    if (provedorVoz() === 'ElevenLabs') {
+      const modelo = String(process.env.ELEVENLABS_MODELO || '').trim() || 'eleven_v3'
+      const r = await pedirEleven(texto, modelo)
+      if (!r.audio && [400, 403, 404, 422].includes(r.status) && modelo !== 'eleven_multilingual_v2') return pedirEleven(texto, 'eleven_multilingual_v2')
+      return r
+    }
+    const modelo = String(process.env.FISH_AUDIO_MODELO || '').trim()
+    const r = await pedirFish(texto, modelo)
+    // Sem crédito no plano pago (402): tenta o modelo do plano grátis uma vez.
+    if (r.status === 402 && modelo !== 's2.1-pro-free') return pedirFish(texto, 's2.1-pro-free')
+    return r
+  }
+
   // Decide antes da IA responder, pra ela já escrever pensando na voz.
   // sorte: 0 a 1 (Math.random), só conta quando não pediram.
   function vaiFalar({ pediu = false, sorte = Math.random() } = {}) {
@@ -213,21 +296,18 @@ export function createVoz({ fetch: fetchFn = globalThis.fetch, converter = limpa
     const texto = textoFalado(resposta).slice(0, 700)
     if ((semTagsDeVoz(texto).match(/\p{L}/gu) || []).length < 2 || !vozLigada()) return null
     try {
-      const modelo = String(process.env.FISH_AUDIO_MODELO || '').trim()
-      let r = await pedir(texto, modelo)
-      // Sem crédito no plano pago (402): tenta o modelo do plano grátis uma vez.
-      if (r.status === 402 && modelo !== 's2.1-pro-free') r = await pedir(texto, 's2.1-pro-free')
+      const r = await pedir(texto)
       if (!r.audio) {
-        log(`Fish Audio respondeu ${r.status}${r.motivo ? ': ' + r.motivo : ''}`)
+        log(`${provedorVoz()} respondeu ${r.status}${r.motivo ? ': ' + r.motivo : ''}`)
         if (r.status === 401 || r.status === 402) semCreditoAte = agora() + 30 * 60_000
         return null
       }
-      // O ogg que a Fish Audio manda vem "em streaming" (sem duração certa) e o
+      // O ogg que a API manda vem "em streaming" (sem duração certa) e o
       // WhatsApp mostra 0:00 ou não toca: passa pelo ffmpeg pra virar uma
       // mensagem de voz certinha. Sem ffmpeg, vai o original se já for ogg.
       const convertido = await converter(r.audio)
       const audio = convertido && ehOgg(convertido) ? convertido : ehOgg(r.audio) ? r.audio : null
-      if (!audio) { log('o áudio da Fish Audio não veio em ogg/opus e não deu pra converter'); return null }
+      if (!audio) { log(`o áudio da ${provedorVoz()} não veio em ogg/opus e não deu pra converter`); return null }
       // Áudio vazio (só o cabeçalho) chega no zap como 0:00 e não toca.
       if (audio.length < 1000) { log(`o áudio veio vazio (${audio.length} bytes)`); return null }
       usados++

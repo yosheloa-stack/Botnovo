@@ -11,6 +11,7 @@ Bot de WhatsApp do Aurora System. O aluguel de grupos pode ser ativado automatic
 - `AURORA_RENTAL_TOKEN` — segredo compartilhado apenas entre Kasane e Aurora para os aluguéis automáticos.
 - `SQUARECLOUD_API_KEY` — liga a Aurora com IA. É a API key da conta da Square Cloud com a permissão `ai:chat` (a mesma do suporte com IA do site).
 - `AURORA_MAX_DIA` — opcional, quantas respostas da IA por dia (padrão 300). O limite do plano da Square Cloud é dividido com o site.
+- `ELEVENLABS_API_KEY` — opcional, liga a voz da Aurora pela ElevenLabs (ganha da Fish Audio quando as duas estão). `ELEVENLABS_VOZ` (padrão `NS7yU4WmAouJsg84X3Mg`), `ELEVENLABS_MODELO` (padrão `eleven_v3`; sem ele na conta, cai pro `eleven_multilingual_v2`) e `ELEVENLABS_VELOCIDADE` (padrão 0.95) são opcionais; o `#auroravoz` lista as vozes da conta e escolhe pelo nome.
 - `FISH_AUDIO_API_KEY` — opcional, liga a voz da Aurora (Fish Audio). Quando pedem áudio ela responde com mensagem de voz, e às vezes manda áudio sozinha em respostas curtas. Link, @, ID e lista ficam sempre no texto; se a Fish Audio falhar, sai texto.
 - `FISH_AUDIO_VOZ` — opcional, o ID da voz escolhida no fish.audio (vazio = a "Loli", `97630cc4349d4a169bf242b8c819081c`). `FISH_AUDIO_MODELO` (padrão `s2.1-pro`), `FISH_AUDIO_VELOCIDADE` (padrão 0.88, 1 = normal), `AURORA_AUDIO_CHANCE` (padrão 0.2) e `AURORA_AUDIO_DIA` (padrão 80 áudios por dia) também são opcionais.
 

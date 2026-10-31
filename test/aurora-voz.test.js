@@ -3,7 +3,7 @@
 // texto como sempre quando a API falha. O fetch da Fish Audio é falso.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { limparAudio, pediuAudio, fraseDoAudio, blocoVoz, pedidoDeDirecao, direcaoValida, ESTILOS, duracaoOgg, paraOgg, ofereceuAudio, topou, textoFalado, podeFalar, semTagsDeVoz, createVoz, ehOgg } from '../sistema/funcoes/aurora/voz.js'
+import { falaPraEleven, provedorVoz, limparAudio, pediuAudio, fraseDoAudio, blocoVoz, pedidoDeDirecao, direcaoValida, ESTILOS, duracaoOgg, paraOgg, ofereceuAudio, topou, textoFalado, podeFalar, semTagsDeVoz, createVoz, ehOgg } from '../sistema/funcoes/aurora/voz.js'
 
 const OGG = new Uint8Array([0x4f, 0x67, 0x67, 0x53, 0, 2, ...new Array(2000).fill(0)])
 
@@ -171,4 +171,37 @@ test('jeito de falar: vai pra IA e o diretor de voz não pode mexer nas palavras
   assert.equal(direcaoValida(frase, '[soft tone] Você fica parado aí culpando a si mesmo o tempo todo.'), '', 'trocou palavra')
   assert.equal(direcaoValida(frase, frase), '', 'sem marcação nenhuma')
   assert.equal(direcaoValida(frase, ''), '')
+})
+
+test('ElevenLabs: com a chave dela, é ela quem fala, com a voz escolhida e o v3', async () => {
+  process.env.FISH_AUDIO_API_KEY = 'chave-fish'
+  process.env.ELEVENLABS_API_KEY = 'chave-eleven'
+  assert.equal(provedorVoz(), 'ElevenLabs')
+  const pedidos = []
+  const fetch = async (url, opcoes) => {
+    pedidos.push({ url, headers: opcoes.headers, corpo: JSON.parse(opcoes.body) })
+    if (pedidos.length === 2) return new Response(JSON.stringify({ detail: { status: 'model_not_found', message: 'sem v3' } }), { status: 400 })
+    return new Response(OGG, { status: 200 })
+  }
+  const voz = createVoz({ fetch, escolha: () => ({ voz: '24522123b5804bf691a8450d9187f03e' }) })
+  const r = await voz.falar('[playful] oii kkk... tô aqui')
+  assert.ok(r)
+  assert.equal(pedidos[0].url, 'https://api.elevenlabs.io/v1/text-to-speech/NS7yU4WmAouJsg84X3Mg?output_format=opus_48000_64', 'ID da Fish não serve: usa a padrão')
+  assert.equal(pedidos[0].headers['xi-api-key'], 'chave-eleven')
+  assert.equal(pedidos[0].corpo.model_id, 'eleven_v3')
+  assert.equal(pedidos[0].corpo.language_code, 'pt')
+  assert.equal(pedidos[0].corpo.text, '[playful] oii [laughs] ha ha… tô aqui')
+  // v3 não liberado na conta: tenta o multilingual v2, sem as marcações
+  await createVoz({ fetch, escolha: () => ({ voz: 'AbCdEfGhIjKlMnOpQrSt' }) }).falar('[sighing] ai ai… [break] tá bom')
+  assert.match(pedidos[1].url, /text-to-speech\/AbCdEfGhIjKlMnOpQrSt\?/)
+  assert.equal(pedidos[2].corpo.model_id, 'eleven_multilingual_v2')
+  assert.equal(pedidos[2].corpo.text, 'ai ai… tá bom')
+  assert.equal(pedidos[2].corpo.language_code, undefined)
+  delete process.env.ELEVENLABS_API_KEY
+  assert.equal(provedorVoz(), 'Fish Audio')
+})
+
+test('falaPraEleven: marcações da Fish viram as da ElevenLabs', () => {
+  assert.equal(falaPraEleven('[Brazilian Portuguese accent] [whispering] oi [break] [chuckling] tudo?'), '[whispers] oi … [chuckles] tudo?')
+  assert.equal(falaPraEleven('[soft tone] oi [long-break] tchau', 'eleven_multilingual_v2'), 'oi… tchau')
 })
