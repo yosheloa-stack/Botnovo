@@ -44,7 +44,7 @@ test('outro número não manda aviso de venda', async () => {
   const s = site('5567981517686'), b = bot('5511999998888@s.whatsapp.net')
   await createAvisoCompra({ client: b.client, config: {}, api: s.api })()
   assert.deepEqual(b.enviados, [])
-  assert.equal(s.chamadas.length, 1, 'marcou como entregue um aviso que não saiu')
+  assert.equal(s.chamadas.filter(([c]) => c.includes('/entregues')).length, 0, 'marcou como entregue um aviso que não saiu')
 })
 
 test('o bot da casa conecta sempre no número fixo; o da cliente não', () => {

@@ -13,7 +13,8 @@ import { NUMERO_BOT_DA_CASA } from '../funcoes/config.js'
 import { motivoDaFalha, pedirAoSite, respostaEstranha } from '../funcoes/rede.js'
 
 // Pede a um processo do bot (casa ou cliente) pra mandar um texto.
-export function enviarPorIpc(filho, para, texto, timeoutMs = 60_000) {
+// `cliente`: aviso de entrega pro cliente (o bot confere se o número tem WhatsApp).
+export function enviarPorIpc(filho, para, texto, timeoutMs = 60_000, { cliente = false } = {}) {
   return new Promise((resolve, reject) => {
     const id = randomUUID()
     const fim = (erro) => {
@@ -23,12 +24,12 @@ export function enviarPorIpc(filho, para, texto, timeoutMs = 60_000) {
       if (erro) reject(erro)
       else resolve()
     }
-    const ouvir = (m) => { if (m?.tipo === 'aviso_venda_ok' && m.id === id) fim(m.ok ? null : new Error(m.erro || 'o bot não conseguiu mandar')) }
+    const ouvir = (m) => { if (m?.tipo === 'aviso_venda_ok' && m.id === id) fim(m.ok ? null : Object.assign(new Error(m.erro || 'o bot não conseguiu mandar'), { semWhatsapp: !!m.sem_whatsapp })) }
     const saiu = () => fim(new Error('o bot desligou antes de mandar'))
     const prazo = setTimeout(() => fim(new Error('o bot não respondeu em ' + Math.round(timeoutMs / 1000) + ' s')), timeoutMs)
     filho.on('message', ouvir)
     filho.once('exit', saiu)
-    try { filho.send({ tipo: 'aviso_venda', id, para, texto }) } catch (err) { fim(err) }
+    try { filho.send({ tipo: 'aviso_venda', id, para, texto, ...(cliente ? { cliente: true } : {}) }) } catch (err) { fim(err) }
   })
 }
 
@@ -58,6 +59,7 @@ export function criarAvisosVenda({ site, canais, intervaloMs = 15_000, fetchImpl
     config: {}, api,
     meuNumero: () => atual?.numero || '',
     enviar: (numero, texto) => enviarImpl(atual.filho, numero, texto),
+    enviarCliente: (numero, texto) => enviarImpl(atual.filho, numero, texto, 60_000, { cliente: true }),
     // O dono pode trocar no admin o número que manda: vale na volta seguinte.
     aoSaberRemetente: (n) => { remetente = n },
     // Quem recebe os avisos é o criador: o bot do número fixo fica sabendo

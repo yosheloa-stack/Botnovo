@@ -35,15 +35,94 @@ export async function destino(client, numero) {
   return `${numero}@s.whatsapp.net`
 }
 
+// O NÚMERO DO CLIENTE (avisos de entrega): igual ao `destino`, mas quando o
+// WhatsApp RESPONDE que o número não tem conta, devolve null — o site tira o
+// aviso da fila em vez de tentar pra sempre. Sem a consulta, manda como veio.
+export async function destinoCliente(client, numero) {
+  if (jidPorNumero.has(numero)) return jidPorNumero.get(numero)
+  if (typeof client?.profile?.getLidsByPhoneNumbers !== 'function') return `${numero}@s.whatsapp.net`
+  const candidatos = [numero]
+  const br = numero.match(/^55(\d{2})(\d{8,9})$/)
+  if (br) candidatos.push(br[2].length === 9 && br[2].startsWith('9') ? `55${br[1]}${br[2].slice(1)}` : `55${br[1]}9${br[2]}`)
+  let respondeu = false
+  for (const n of candidatos) {
+    try {
+      const [r] = await client.profile.getLidsByPhoneNumbers([n])
+      respondeu = true
+      if (r?.exists && clean(r.phoneJid)) {
+        jidPorNumero.set(numero, clean(r.phoneJid))
+        return clean(r.phoneJid)
+      }
+    } catch {}
+  }
+  return respondeu ? null : `${numero}@s.whatsapp.net`
+}
+export const erroSemWhatsapp = () => Object.assign(new Error('esse número não tem WhatsApp'), { semWhatsapp: true })
+
 // `meuNumero` e `enviar` mudam conforme quem manda: o bot da casa usa o
 // próprio WhatsApp; o launcher (avisosVenda.js) usa o bot de cliente que
 // estiver conectado no número fixo. `enviar(numero, texto)` manda um aviso.
-export function createAvisoCompra({ client, config, api, meuNumero, enviar, aoSaberRemetente, aoSaberDestino }) {
+// `enviarCliente(numero, texto)` manda um aviso de entrega pro cliente e lança
+// um erro com `semWhatsapp` quando o número não tem WhatsApp.
+export function createAvisoCompra({ client, config, api, meuNumero, enviar, enviarCliente, aoSaberRemetente, aoSaberDestino, pausaClienteMs = 3000 }) {
   let pausaAte = 0, ultimoErro = ''
   let avisouOutro = false
   meuNumero = meuNumero || (() => digits(String(client.getCredentials?.()?.meJid || '').split(/[:@]/)[0]) || digits(config?.connection?.number))
   enviar = enviar || (async (numero, texto) => client.message.send(await destino(client, numero), { type: 'text', text: texto }))
+  enviarCliente = enviarCliente || (async (numero, texto) => {
+    const jid = await destinoCliente(client, numero)
+    if (!jid) throw erroSemWhatsapp()
+    return client.message.send(jid, { type: 'text', text: texto })
+  })
+
+  // AVISOS PRO CLIENTE (entregas e plano acabando). Cada aviso vem com o
+  // número do cliente, já com o código do país (Brasil ou de fora). O site
+  // só entrega esta fila para o bot no número fixo, igual à de compras.
+  let pausaClienteAte = 0, ultimoErroCliente = ''
+  async function avisosDeClientes() {
+    if (Date.now() < pausaClienteAte) return
+    let data
+    try {
+      data = await api(config, '/api/bot/avisos-cliente/pendentes?bot=' + encodeURIComponent(meuNumero()))
+    } catch (err) {
+      const message = clean(err?.message || err)
+      pausaClienteAte = Date.now() + (/404|not found|não encontrad/i.test(message) ? 10 * 60_000 : 60_000)
+      if (message !== ultimoErroCliente && !/não configurada/i.test(message)) console.warn('[ AURORA AVISO AO CLIENTE ] Fila indisponível:', message)
+      ultimoErroCliente = message
+      return
+    }
+    ultimoErroCliente = ''
+    const avisos = Array.isArray(data?.avisos) ? data.avisos : []
+    const entregues = [], semWhatsapp = []
+    for (const aviso of avisos) {
+      const id = clean(aviso?.id), texto = clean(aviso?.texto), numero = digits(aviso?.numero)
+      if (!id || !texto || numero.length < 8) continue
+      try {
+        await enviarCliente(numero, texto)
+        entregues.push(id)
+        console.log('[ AURORA AVISO AO CLIENTE ] Enviado:', id)
+      } catch (err) {
+        if (err?.semWhatsapp) { semWhatsapp.push(id); console.warn('[ AURORA AVISO AO CLIENTE ] Sem WhatsApp:', id); continue }
+        console.error('[ AURORA AVISO AO CLIENTE ] Falha ao enviar', id, '-', err?.message || err)
+        break
+      }
+      // devagar: muita mensagem seguida pra números diferentes é o que o
+      // WhatsApp mais bloqueia
+      await sleep(pausaClienteMs)
+    }
+    if (!entregues.length && !semWhatsapp.length) return
+    try {
+      await api(config, '/api/bot/avisos-cliente/entregues', { method: 'POST', body: { ids: entregues, sem_whatsapp: semWhatsapp } })
+    } catch (err) {
+      console.error('[ AURORA AVISO AO CLIENTE ] Não confirmou no site:', err?.message || err)
+    }
+  }
+
   return async function avisosDeCompra() {
+    // as compras primeiro (o dono), depois os clientes; uma falha não segura a outra
+    try { await avisosDoDono() } finally { await avisosDeClientes() }
+  }
+  async function avisosDoDono() {
     if (Date.now() < pausaAte) return
     let data
     try {
