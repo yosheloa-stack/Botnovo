@@ -85,3 +85,11 @@ test('veio em outro formato: converte; não deu pra converter: texto', async () 
   assert.equal(await createVoz({ fetch: b.fetch, converter: async () => null }).falar('oi'), null)
   assert.equal(ehOgg(OGG), true)
 })
+
+test('sem FISH_AUDIO_VOZ: usa a voz padrão (Garota fofa)', async () => {
+  process.env.FISH_AUDIO_API_KEY = 'chave-falsa'
+  delete process.env.FISH_AUDIO_VOZ
+  const { fetch, pedidos } = fishFalsa([{ status: 200, audio: OGG }])
+  await createVoz({ fetch }).falar('oi')
+  assert.equal(pedidos[0].corpo.reference_id, '24522123b5804bf691a8450d9187f03e')
+})

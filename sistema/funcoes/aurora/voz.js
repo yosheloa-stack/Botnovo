@@ -3,7 +3,7 @@
 // nunca no repositório. Deu ruim na API: a resposta sai em texto, como sempre.
 //
 // FISH_AUDIO_API_KEY  chave da Fish Audio (sem ela, nada de áudio)
-// FISH_AUDIO_VOZ      ID do modelo de voz (reference_id); vazio = voz padrão
+// FISH_AUDIO_VOZ      ID do modelo de voz (reference_id); vazio = a "Garota fofa" (VOZ_PADRAO)
 // FISH_AUDIO_MODELO   s2.1-pro (padrão), s2-pro, s1, s2.1-pro-free…
 // AURORA_AUDIO_CHANCE chance (0 a 1) de uma resposta curta sair em áudio sem pedirem (padrão 0.2)
 // AURORA_AUDIO_DIA    teto de áudios por dia (padrão 80)
@@ -11,6 +11,8 @@ import { spawn } from 'node:child_process'
 import { semAcento } from './ia.js'
 
 const API = 'https://api.fish.audio/v1/tts'
+// "Garota fofa" no fish.audio: moça brasileira, conversa leve e natural.
+export const VOZ_PADRAO = '24522123b5804bf691a8450d9187f03e'
 const numeroEnv = (nome, padrao) => {
   const n = Number(process.env[nome])
   return process.env[nome] !== undefined && process.env[nome] !== '' && Number.isFinite(n) ? n : padrao
@@ -66,8 +68,7 @@ export function createVoz({ fetch: fetchFn = globalThis.fetch, converter = paraO
 
   async function pedir(texto, modelo) {
     const corpo = { text: texto, format: 'opus', latency: 'balanced', normalize: true, language: 'pt' }
-    const voz = String(process.env.FISH_AUDIO_VOZ || '').trim()
-    if (voz) corpo.reference_id = voz
+    corpo.reference_id = String(process.env.FISH_AUDIO_VOZ || '').trim() || VOZ_PADRAO
     const ctrl = new AbortController()
     const timer = setTimeout(() => ctrl.abort(), 30_000)
     try {
