@@ -68,7 +68,7 @@ test('com chave: pediram áudio, vem ogg/opus com a voz escolhida', async () => 
   assert.equal(pedidos[0].url, 'https://api.fish.audio/v1/tts')
   assert.equal(pedidos[0].headers.authorization, 'Bearer chave-falsa')
   assert.deepEqual({ text: pedidos[0].corpo.text, ref: pedidos[0].corpo.reference_id, fmt: pedidos[0].corpo.format }, { text: 'oii tudo bem?', ref: 'voz123', fmt: 'opus' })
-  assert.equal(pedidos[0].corpo.prosody.speed, 0.88, 'um pouco mais devagar pra entender')
+  assert.equal(pedidos[0].corpo.prosody.speed, 0.85, 'um pouco mais devagar pra entender')
 })
 
 test('402 sem crédito: tenta o modelo grátis; falhou de novo: texto e pausa', async () => {
@@ -99,4 +99,19 @@ test('sem FISH_AUDIO_VOZ: usa a voz padrão (Loli)', async () => {
   const { fetch, pedidos } = fishFalsa([{ status: 200, audio: OGG }])
   await createVoz({ fetch }).falar('oi')
   assert.equal(pedidos[0].corpo.reference_id, '97630cc4349d4a169bf242b8c819081c')
+})
+
+test('a voz e a velocidade escolhidas no zap (#auroravoz) ganham do padrão', async () => {
+  process.env.FISH_AUDIO_API_KEY = 'chave-falsa'
+  process.env.FISH_AUDIO_VOZ = 'da-variavel'
+  const { fetch, pedidos } = fishFalsa([{ status: 200, audio: OGG }, { status: 200, audio: OGG }])
+  let escolha = { voz: '24522123b5804bf691a8450d9187f03e', velocidade: 0.75 }
+  const voz = createVoz({ fetch, escolha: () => escolha })
+  await voz.falar('oi')
+  assert.equal(pedidos[0].corpo.reference_id, '24522123b5804bf691a8450d9187f03e')
+  assert.equal(pedidos[0].corpo.prosody.speed, 0.75)
+  escolha = {}
+  await voz.falar('oi')
+  assert.equal(pedidos[1].corpo.reference_id, 'da-variavel')
+  delete process.env.FISH_AUDIO_VOZ
 })

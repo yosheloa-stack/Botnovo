@@ -5,7 +5,7 @@
 // FISH_AUDIO_API_KEY  chave da Fish Audio (sem ela, nada de áudio)
 // FISH_AUDIO_VOZ      ID do modelo de voz (reference_id); vazio = a "Loli" (VOZ_PADRAO)
 // FISH_AUDIO_MODELO   s2.1-pro (padrão), s2-pro, s1, s2.1-pro-free…
-// FISH_AUDIO_VELOCIDADE velocidade da fala, 0.6 a 1.5 (padrão 0.88; 1 = normal)
+// FISH_AUDIO_VELOCIDADE velocidade da fala, 0.6 a 1.5 (padrão 0.85; 1 = normal). O #auroravoz no zap ganha dos dois.
 // AURORA_AUDIO_CHANCE chance (0 a 1) de uma resposta curta sair em áudio sem pedirem (padrão 0.2)
 // AURORA_AUDIO_DIA    teto de áudios por dia (padrão 80)
 import { spawn } from 'node:child_process'
@@ -14,6 +14,15 @@ import { semAcento } from './ia.js'
 const API = 'https://api.fish.audio/v1/tts'
 // "Loli" no fish.audio: voz jovem, animada e brincalhona, em português.
 export const VOZ_PADRAO = '97630cc4349d4a169bf242b8c819081c'
+export const VELOCIDADE_PADRAO = 0.85
+// As vozes que dá pra escolher pelo nome no #auroravoz.
+export const VOZES = {
+  loli: { id: '97630cc4349d4a169bf242b8c819081c', nome: 'Loli', jeito: 'jovem, animada e brincalhona' },
+  fofa: { id: '24522123b5804bf691a8450d9187f03e', nome: 'Garota fofa', jeito: 'moça nova, calma e clara' },
+  isabela: { id: '5661bf8cb97740fcb10d2f756abf7779', nome: 'Isabela', jeito: 'suave, meio sussurrada' },
+  sunny: { id: 'b7105f831b9644f28b0a92e004d9fd94', nome: 'Sunny', jeito: 'animada, jeito de tiktoker' },
+  madura: { id: 'ca0326921a254a7295650b2cf85fe098', nome: 'Mulher de 30', jeito: 'calma e acolhedora' }
+}
 const numeroEnv = (nome, padrao) => {
   const n = Number(process.env[nome])
   return process.env[nome] !== undefined && process.env[nome] !== '' && Number.isFinite(n) ? n : padrao
@@ -79,7 +88,8 @@ Escreva como quem grava um áudio de verdade pra amiga, falado e não lido:
 - Exemplo: [playful] ahh para, kkk... [break] tô aqui sim, ué. [chuckling] fala, o que você quer?`
 
 // Faz o áudio. Devolve { audio: Uint8Array, mimetype } ou null (aí vai texto).
-export function createVoz({ fetch: fetchFn = globalThis.fetch, converter = paraOgg, agora = () => Date.now(), log = () => {} } = {}) {
+// escolha(): { voz, velocidade } que o criador escolheu no zap (#auroravoz).
+export function createVoz({ fetch: fetchFn = globalThis.fetch, converter = paraOgg, agora = () => Date.now(), log = () => {}, escolha = () => ({}) } = {}) {
   let dia = ''
   let usados = 0
   let semCreditoAte = 0
@@ -92,9 +102,10 @@ export function createVoz({ fetch: fetchFn = globalThis.fetch, converter = paraO
 
   async function pedir(texto, modelo) {
     // Um pouco mais devagar e estável: a voz animada correndo fica difícil de entender.
-    const velocidade = Math.min(1.5, Math.max(0.6, numeroEnv('FISH_AUDIO_VELOCIDADE', 0.88)))
+    const minha = escolha() || {}
+    const velocidade = Math.min(1.5, Math.max(0.6, Number(minha.velocidade) || numeroEnv('FISH_AUDIO_VELOCIDADE', VELOCIDADE_PADRAO)))
     const corpo = { text: texto, format: 'opus', latency: 'normal', normalize: true, language: 'pt', temperature: 0.6, top_p: 0.7, prosody: { speed: velocidade } }
-    corpo.reference_id = String(process.env.FISH_AUDIO_VOZ || '').trim() || VOZ_PADRAO
+    corpo.reference_id = String(minha.voz || process.env.FISH_AUDIO_VOZ || '').trim() || VOZ_PADRAO
     const ctrl = new AbortController()
     const timer = setTimeout(() => ctrl.abort(), 30_000)
     try {

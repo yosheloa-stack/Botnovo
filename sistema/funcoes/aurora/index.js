@@ -15,7 +15,7 @@ import { extractText } from '../../core/contexto.js'
 import { contextInfoFromMessage, quotedInfo, quotedTarget } from '../mensagem.js'
 import { autoSystem } from '../auto.js'
 import { pedirAoSite } from '../rede.js'
-import { auroraIaLigada, auroraNoGrupo, auroraCriador, auroraEsposa, tokenAluguelSalvo, numeroDoLid, aluguelOk, getDonoAluguel, hasCmd, hasGcmd } from '../banco.js'
+import { auroraIaLigada, auroraNoGrupo, auroraCriador, auroraEsposa, auroraVoz, auroraVelocidade, tokenAluguelSalvo, numeroDoLid, aluguelOk, getDonoAluguel, hasCmd, hasGcmd } from '../banco.js'
 import likeCmd from '../../comandos/ff/like.js'
 import infoCmd from '../../comandos/ff/info.js'
 import { modoCliente } from '../cliente.js'
@@ -288,7 +288,7 @@ function pedidoDeMarcar(pedido, alvo) {
 }
 
 // Algumas respostas saem em áudio (Fish Audio); se falhar, vai o texto.
-const voz = createVoz({ log: (m) => console.warn('[ AURORA VOZ ]', m) })
+const voz = createVoz({ log: (m) => console.warn('[ AURORA VOZ ]', m), escolha: () => ({ voz: auroraVoz(), velocidade: auroraVelocidade() }) })
 
 async function conversar(system, texto) {
   const conversa = `${system.from}:${system.senderKey}`

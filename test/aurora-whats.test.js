@@ -260,3 +260,17 @@ test('pediram áudio: a resposta sai como mensagem de voz; sem a chave, sai text
   assert.match(pedidosIa.at(-1).messages[0].content, /^(?![\s\S]*VAI SAIR EM ÁUDIO)/, 'sem chave, ela nem pensa em áudio')
   assert.equal(texto[0].conteudo.text, 'oii, tô aqui sim kkk 😌', 'em texto as marcações de voz somem')
 })
+
+test('#auroravoz: só o criador troca a voz e a velocidade', async () => {
+  const { default: cmd } = await import(path.join(raiz, 'sistema/comandos/dono/auroravoz.js'))
+  comandos.set('auroravoz', cmd)
+  banco.auroraCriador('5544900001111')
+  assert.match((await respostaDe(mensagem('#auroravoz fofa')))[0].conteudo.text, /Só o criador/)
+  banco.auroraCriador('5544911112222')
+  assert.match((await respostaDe(mensagem('#auroravoz')))[0].conteudo.text, /Loli[\s\S]*#auroravoz fofa/)
+  assert.match((await respostaDe(mensagem('#auroravoz fofa')))[0].conteudo.text, /Garota fofa/)
+  assert.equal(banco.auroraVoz(), '24522123b5804bf691a8450d9187f03e')
+  await respostaDe(mensagem('#auroravoz lenta'))
+  assert.equal(banco.auroraVelocidade(), 0.75)
+  assert.match((await respostaDe(mensagem('#auroravoz xpto')))[0].conteudo.text, /Não conheço/)
+})

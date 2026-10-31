@@ -532,6 +532,16 @@ export function auroraEsposa(value) {
   const v = getCfg('aurora_esposa', null)
   return String(v === null ? '5568984111797' : v || '').replace(/\D/g, '')
 }
+// A voz da Aurora escolhida pelo criador no zap (#auroravoz): ID da voz na
+// Fish Audio e velocidade. Vazio = o padrão do bot.
+export function auroraVoz(value) {
+  if (value !== undefined) setCfg('aurora_voz', String(value || '').replace(/[^a-f0-9]/gi, '').toLowerCase())
+  return String(getCfg('aurora_voz', '') || '')
+}
+export function auroraVelocidade(value) {
+  if (value !== undefined) setCfg('aurora_velocidade', Number(value) || 0)
+  return Number(getCfg('aurora_velocidade', 0)) || 0
+}
 export function auroraNoGrupo(gp, value) {
   const k = 'aurora:grupo:' + txt(gp)
   if (value !== undefined) setKv(k, value ? 1 : 0)
