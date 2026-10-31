@@ -27,14 +27,26 @@ export function pediuAudio(texto = '') {
   return /\b(em|por|num|no|um|uns|outro)\s+(audio|audios|audiozinho|voz)\b|\b(manda|mande|envia|grava|grave|fala|responde|quero ouvir|ouvir)\w*\b.{0,25}\b(audio|audiozinho|voz|vozinha)\b|\bsua voz\b/.test(t)
 }
 
-// O que vai pra voz: sem emoji, sem link, sem marcação e sem *negrito*.
+// As marcações de fala da Fish Audio (S2): [break], [laughing], [sighing],
+// [excited]… Em texto elas somem.
+export const semTagsDeVoz = (texto = '') => String(texto).replace(/[ \t]*\[[a-z][a-z' -]{1,30}\][ \t]*/gi, ' ').replace(/ +([,.!?…])/g, '$1').replace(/[ \t]{2,}/g, ' ').trim()
+
+// O que vai pra voz: sem link, sem marcação e sem *negrito*. Risada e
+// reticências viram risada e pausa de verdade; o resto dos emojis some.
 export function textoFalado(resposta = '') {
   return String(resposta)
     .replace(/https?:\/\/\S+/g, '')
     .replace(/@\d{6,20}/g, '')
     .replace(/[*_~`]/g, '')
-    .replace(/\p{Extended_Pictographic}|\p{Emoji_Modifier}|‍|️/gu, '')
+    .replace(/(^|\s)(k{3,}|(ha){2,}h?|(he){2,}h?|(ks){2,}|rs(rs)*)(?=[\s.,!?]|$)/gi, (_, a) => `${a}[laughing] ha ha `)
+    .replace(/(😂|🤣)+/gu, ' [laughing] ')
+    .replace(/(😅|😆|😁)+/gu, ' [chuckling] ')
+    .replace(/(😮‍💨|😔|😞|🥲)+/gu, ' [sighing] ')
+    .replace(/(\.\.\.|…)(?!\s*\[)/g, '… [break]')
+    .replace(/\p{Extended_Pictographic}|\p{Emoji_Modifier}|\u200d|\ufe0f/gu, '')
+    .replace(/(\[[a-z' -]+\])(\s*\1)+/gi, '$1')
     .replace(/[ \t]+/g, ' ')
+    .replace(/ +([,.!?…])/g, '$1')
     .replace(/\s*\n\s*/g, '\n')
     .trim()
 }
@@ -47,12 +59,17 @@ export function podeFalar(resposta = '', { pediu = false } = {}) {
   if (/https?:\/\/|www\.|\.com\b|@\d{6,}|\d{8,}/i.test(r)) return false
   if (/^\s*([-•*]|\d+[.)])\s/m.test(r)) return false
   if (/(^|\s)[#/!.][a-z]{2,}\b/i.test(r)) return false
-  const falado = textoFalado(r)
+  const falado = semTagsDeVoz(textoFalado(r))
   if (falado.length < 2) return false
   return falado.length <= (pediu ? 600 : 220) && (pediu || !/r\$/i.test(r))
 }
 
-export const BLOCO_VOZ = 'ESTA RESPOSTA VAI SAIR EM ÁUDIO (mensagem de voz com a sua voz): você consegue mandar áudio, então nunca diga que não manda. Fale como quem grava um áudio pra amiga: curto (até 3 frases), natural, sem emoji, sem link, sem lista, sem @ e sem ID.'
+export const BLOCO_VOZ = `ESTA RESPOSTA VAI SAIR EM ÁUDIO (mensagem de voz com a sua voz). Você consegue mandar áudio: nunca diga que não manda.
+Escreva como quem grava um áudio de verdade pra amiga, falado e não lido:
+- Curto: 1 a 3 frases. Nada de emoji, link, lista, @ ou ID.
+- Fala de gente: "ahh", "hmm", "tipo", "né", "olha", "nossa", "aí", uma vírgula onde você respiraria, reticências quando pensa.
+- Marcações de voz (em inglês, entre colchetes, fora do texto falado), no máximo 2 por áudio: emoção no começo da frase ([happy], [excited], [playful], [soft tone], [slightly sad], [whispering]) e som ou pausa no meio ([laughing], [chuckling], [sighing], [break], [long-break]).
+- Exemplo: [playful] ahh para, kkk... [break] tô aqui sim, ué. [chuckling] fala, o que cê quer?`
 
 // Faz o áudio. Devolve { audio: Uint8Array, mimetype } ou null (aí vai texto).
 export function createVoz({ fetch: fetchFn = globalThis.fetch, converter = paraOgg, agora = () => Date.now(), log = () => {} } = {}) {
@@ -67,7 +84,7 @@ export function createVoz({ fetch: fetchFn = globalThis.fetch, converter = paraO
   }
 
   async function pedir(texto, modelo) {
-    const corpo = { text: texto, format: 'opus', latency: 'balanced', normalize: true, language: 'pt' }
+    const corpo = { text: texto, format: 'opus', latency: 'normal', normalize: true, language: 'pt' }
     corpo.reference_id = String(process.env.FISH_AUDIO_VOZ || '').trim() || VOZ_PADRAO
     const ctrl = new AbortController()
     const timer = setTimeout(() => ctrl.abort(), 30_000)
@@ -93,11 +110,12 @@ export function createVoz({ fetch: fetchFn = globalThis.fetch, converter = paraO
     }
   }
 
-  // sorte: 0 a 1 (Math.random), só pra decidir quando não pediram.
-  function querFalar({ resposta, pediu = false, sorte = Math.random() }) {
+  // Decide antes da IA responder, pra ela já escrever pensando na voz.
+  // sorte: 0 a 1 (Math.random), só conta quando não pediram.
+  function vaiFalar({ pediu = false, sorte = Math.random() } = {}) {
     if (!vozLigada() || semCreditoAte > agora()) return false
     if (!pediu && sorte >= numeroEnv('AURORA_AUDIO_CHANCE', 0.2)) return false
-    return podeFalar(resposta, { pediu }) && cabeHoje()
+    return cabeHoje()
   }
 
   async function falar(resposta) {
@@ -124,7 +142,7 @@ export function createVoz({ fetch: fetchFn = globalThis.fetch, converter = paraO
     }
   }
 
-  return { querFalar, falar }
+  return { vaiFalar, falar }
 }
 
 export const ehOgg = (b) => b?.length > 4 && b[0] === 0x4f && b[1] === 0x67 && b[2] === 0x67 && b[3] === 0x53

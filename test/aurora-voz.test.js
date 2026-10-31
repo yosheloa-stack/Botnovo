@@ -3,7 +3,7 @@
 // texto como sempre quando a API falha. O fetch da Fish Audio é falso.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { pediuAudio, textoFalado, podeFalar, createVoz, ehOgg } from '../sistema/funcoes/aurora/voz.js'
+import { pediuAudio, textoFalado, podeFalar, semTagsDeVoz, createVoz, ehOgg } from '../sistema/funcoes/aurora/voz.js'
 
 const OGG = new Uint8Array([0x4f, 0x67, 0x67, 0x53, 0, 2, 0, 0])
 
@@ -19,6 +19,10 @@ test('pediuAudio: só quando pedem áudio de verdade', () => {
 
 test('textoFalado e podeFalar: link, marcação, ID e lista ficam no texto', () => {
   assert.equal(textoFalado('oi *amor* 😍💜 tudo bem?'), 'oi amor tudo bem?')
+  assert.equal(textoFalado('para kkkk... tô aqui 😂'), 'para [laughing] ha ha… [break] tô aqui [laughing]')
+  assert.equal(textoFalado('[playful] ahh para [break] tô aqui'), '[playful] ahh para [break] tô aqui')
+  assert.equal(semTagsDeVoz('[playful] ahh para, [break] tô aqui [chuckling].'), 'ahh para, tô aqui.')
+  assert.equal(semTagsDeVoz('oi [Yosh] tudo'), 'oi tudo')
   assert.equal(podeFalar('oii, tô bem sim e você? 😌'), true)
   assert.equal(podeFalar('entra em https://autolikesystem.com.br'), false)
   assert.equal(podeFalar('olha o @5544911112222 aí'), false)
@@ -44,7 +48,7 @@ function fishFalsa(respostas) {
 test('sem chave: nada de áudio', async () => {
   delete process.env.FISH_AUDIO_API_KEY
   const voz = createVoz({ fetch: async () => { throw new Error('não devia chamar') } })
-  assert.equal(voz.querFalar({ resposta: 'oi', pediu: true }), false)
+  assert.equal(voz.vaiFalar({ pediu: true }), false)
   assert.equal(await voz.falar('oi'), null)
 })
 
@@ -53,9 +57,9 @@ test('com chave: pediram áudio, vem ogg/opus com a voz escolhida', async () => 
   process.env.FISH_AUDIO_VOZ = 'voz123'
   const { fetch, pedidos } = fishFalsa([{ status: 200, audio: OGG }])
   const voz = createVoz({ fetch })
-  assert.equal(voz.querFalar({ resposta: 'oii 😌', pediu: true }), true)
-  assert.equal(voz.querFalar({ resposta: 'oii 😌', sorte: 0.99 }), false, 'sem pedir, só às vezes')
-  assert.equal(voz.querFalar({ resposta: 'oii 😌', sorte: 0.01 }), true)
+  assert.equal(voz.vaiFalar({ pediu: true }), true)
+  assert.equal(voz.vaiFalar({ sorte: 0.99 }), false, 'sem pedir, só às vezes')
+  assert.equal(voz.vaiFalar({ sorte: 0.01 }), true)
   const r = await voz.falar('oii *tudo* bem? 😌')
   assert.deepEqual([...r.audio], [...OGG])
   assert.equal(r.mimetype, 'audio/ogg; codecs=opus')
@@ -73,7 +77,7 @@ test('402 sem crédito: tenta o modelo grátis; falhou de novo: texto e pausa', 
   const ruim = fishFalsa([{ status: 402 }, { status: 402 }])
   const voz2 = createVoz({ fetch: ruim.fetch })
   assert.equal(await voz2.falar('oi'), null)
-  assert.equal(voz2.querFalar({ resposta: 'oi', pediu: true }), false, 'pausa um tempo sem crédito')
+  assert.equal(voz2.vaiFalar({ pediu: true }), false, 'pausa um tempo sem crédito')
 })
 
 test('veio em outro formato: converte; não deu pra converter: texto', async () => {

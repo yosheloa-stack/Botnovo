@@ -10,7 +10,7 @@
 // (ou SQUARECLOUD_AI_KEY). Nunca no config.json.
 
 import { createAurora, deveResponder, chamouAurora, trocarMarcacoes, textoPrecos, textoClima, acaoDoCriador, acharId, FRASES_LIKE, FRASES_INFO, blocoMembros, acharMarcacoes, SEM_MEMBROS, pediuMarcar, acharMembro, garantirMarcacao, LIMITES } from './ia.js'
-import { createVoz, vozLigada, pediuAudio, BLOCO_VOZ } from './voz.js'
+import { createVoz, vozLigada, pediuAudio, podeFalar, semTagsDeVoz, BLOCO_VOZ } from './voz.js'
 import { extractText } from '../../core/contexto.js'
 import { contextInfoFromMessage, quotedInfo, quotedTarget } from '../mensagem.js'
 import { autoSystem } from '../auto.js'
@@ -297,6 +297,7 @@ async function conversar(system, texto) {
   // "marca o dylan aí": acha o membro pelo nome e a marcação sai de verdade.
   const pedido = system.isGroup ? pediuMarcar(texto) : ''
   const pediuVoz = vozLigada() && pediuAudio(texto)
+  const emAudio = voz.vaiFalar({ pediu: pediuVoz })
   const alvo = pedido ? acharMembro(pedido, membros) : null
   texto = trocarMarcacoes(texto, marcadosNa(system, membros))
   if (system.isGroup) console.log('[ AURORA IA ] membros que ela vê:', membros.length, `(${membros.filter((m) => m.nome).length} com nome) |`, system.from)
@@ -319,7 +320,7 @@ async function conversar(system, texto) {
       prefixo: system.prefix,
       membros: system.isGroup ? (blocoMembros(membros) ? blocoMembros(membros) + pedidoDeMarcar(pedido, alvo) : SEM_MEMBROS) : '',
       erro: errosRecentes.get(system.from) || null,
-      voz: pediuVoz ? BLOCO_VOZ : ''
+      voz: emAudio ? BLOCO_VOZ : ''
     })
     if (resposta) {
       const falta = Math.min(4_000, 800 + resposta.length * 25) - (Date.now() - inicio)
@@ -335,13 +336,14 @@ async function conversar(system, texto) {
   const opcoes = modoCliente ? { semMarca: true } : {}
   resposta = garantirMarcacao(resposta, alvo)
   const mentions = acharMarcacoes(resposta, membros)
-  if (!mentions.length && voz.querFalar({ resposta, pediu: pediuVoz })) {
+  if (emAudio && !mentions.length && podeFalar(resposta, { pediu: true })) {
     await digitando(system, 'recording')
     const fala = await voz.falar(resposta)
     await digitando(system, 'paused')
     if (fala) return system.reply({ type: 'audio', media: fala.audio, mimetype: fala.mimetype, ptt: true }, opcoes)
   }
-  await system.reply(resposta, mentions.length ? { ...opcoes, mentions } : opcoes)
+  // Em texto, as marcações de voz ([laughing], [break]…) somem.
+  await system.reply(semTagsDeVoz(resposta), mentions.length ? { ...opcoes, mentions } : opcoes)
 }
 
 // Devolve true quando a mensagem é da Aurora (o handler para por aqui).

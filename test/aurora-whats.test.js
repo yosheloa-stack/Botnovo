@@ -246,16 +246,17 @@ test('"marca o tropa aí": ela acha pelo nome e a marcação sai de verdade', as
 })
 
 test('pediram áudio: a resposta sai como mensagem de voz; sem a chave, sai texto', async () => {
-  respostaIa = 'oii, tô aqui sim 😌'
+  respostaIa = '[playful] oii, tô aqui sim kkk 😌'
   process.env.FISH_AUDIO_API_KEY = 'chave-falsa'
   const saiu = await respostaDe(mensagem('aurora manda um áudio'))
   assert.match(pedidosIa.at(-1).messages[0].content, /ESTA RESPOSTA VAI SAIR EM ÁUDIO/)
   assert.equal(saiu[0].conteudo.type, 'audio')
   assert.equal(saiu[0].conteudo.ptt, true)
   assert.equal(saiu[0].conteudo.mimetype, 'audio/ogg; codecs=opus')
-  assert.equal(pedidosVoz.at(-1), 'oii, tô aqui sim')
+  assert.equal(pedidosVoz.at(-1), '[playful] oii, tô aqui sim [laughing] ha ha')
   delete process.env.FISH_AUDIO_API_KEY
   const texto = await respostaDe(mensagem('aurora manda um áudio'))
   respostaIa = 'oi, tô aqui 😌'
-  assert.equal(texto[0].conteudo.text, 'oii, tô aqui sim 😌')
+  assert.match(pedidosIa.at(-1).messages[0].content, /^(?![\s\S]*VAI SAIR EM ÁUDIO)/, 'sem chave, ela nem pensa em áudio')
+  assert.equal(texto[0].conteudo.text, 'oii, tô aqui sim kkk 😌', 'em texto as marcações de voz somem')
 })
