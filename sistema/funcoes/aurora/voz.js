@@ -260,6 +260,10 @@ export function duracaoOgg(b) {
 
 export const ehOgg = (b) => b?.length > 4 && b[0] === 0x4f && b[1] === 0x67 && b[2] === 0x67 && b[3] === 0x53
 
+// Isola a voz: só a faixa da fala (90 Hz a 9,5 kHz), tira o chiado, corta o
+// ruído entre as palavras, realça a presença da voz e acerta o volume.
+const FILTRO_VOZ = 'highpass=f=90,lowpass=f=9500,afftdn=nf=-30:nr=15:tn=1,agate=threshold=0.015:ratio=3:attack=5:release=200,equalizer=f=3000:t=q:w=1:g=2,acompressor=threshold=-20dB:ratio=3:attack=10:release=150,loudnorm=I=-16:TP=-1.5:LRA=11'
+
 // Tira o chiado (filtro de ruído), corta o grave sujo e acerta o volume. Se o
 // ffmpeg do servidor não tiver o filtro, converte sem ele.
 export async function limparAudio(entrada) {
@@ -271,7 +275,7 @@ export function paraOgg(entrada, { filtro = false } = {}) {
   return new Promise((resolve) => {
     let p
     try {
-      p = spawn('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', 'pipe:0', '-vn', '-map_metadata', '-1', ...(filtro ? ['-af', 'highpass=f=70,afftdn=nf=-25,loudnorm=I=-16:TP=-1.5:LRA=11'] : []), '-ac', '1', '-ar', '48000', '-c:a', 'libopus', '-b:a', '48k', '-vbr', 'on', '-application', 'voip', '-avoid_negative_ts', 'make_zero', '-f', 'ogg', 'pipe:1'])
+      p = spawn('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', 'pipe:0', '-vn', '-map_metadata', '-1', ...(filtro ? ['-af', FILTRO_VOZ] : []), '-ac', '1', '-ar', '48000', '-c:a', 'libopus', '-b:a', '48k', '-vbr', 'on', '-application', 'voip', '-avoid_negative_ts', 'make_zero', '-f', 'ogg', 'pipe:1'])
     } catch { return resolve(null) }
     const partes = []
     p.stdout.on('data', (c) => partes.push(c))
