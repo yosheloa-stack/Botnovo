@@ -10,7 +10,7 @@
 // (ou SQUARECLOUD_AI_KEY). Nunca no config.json.
 
 import { createAurora, deveResponder, chamouAurora, trocarMarcacoes, textoPrecos, textoClima, acaoDoCriador, acharId, FRASES_LIKE, FRASES_INFO, blocoMembros, acharMarcacoes, SEM_MEMBROS, pediuMarcar, acharMembro, garantirMarcacao, LIMITES } from './ia.js'
-import { createVoz, vozLigada, pediuAudio, ofereceuAudio, topou, podeFalar, semTagsDeVoz, BLOCO_VOZ } from './voz.js'
+import { createVoz, vozLigada, pediuAudio, fraseDoAudio, ofereceuAudio, topou, podeFalar, semTagsDeVoz, BLOCO_VOZ } from './voz.js'
 import { extractText } from '../../core/contexto.js'
 import { contextInfoFromMessage, quotedInfo, quotedTarget } from '../mensagem.js'
 import { autoSystem } from '../auto.js'
@@ -290,6 +290,18 @@ function pedidoDeMarcar(pedido, alvo) {
 // Algumas respostas saem em áudio (Fish Audio); se falhar, vai o texto.
 const voz = createVoz({ log: (m) => console.warn('[ AURORA VOZ ]', m), escolha: () => ({ voz: auroraVoz(), velocidade: auroraVelocidade() }) })
 
+// O criador pediu um áudio com uma frase: ela fala a frase igualzinha, sem
+// passar pela IA. Não deu pra gravar: avisa em texto.
+async function falarFrase(system, texto, frase) {
+  const opcoes = modoCliente ? { semMarca: true } : {}
+  await digitando(system, 'recording')
+  const fala = voz.vaiFalar({ pediu: true }) ? await voz.falar(frase) : null
+  await digitando(system, 'paused')
+  aurora.anotar(`${system.from}:${system.senderKey}`, `[${nomeDe(system)}] ${texto.slice(0, 800)}`, fala ? `(mandei um áudio falando: "${frase.slice(0, 300)}")` : '(não consegui gravar o áudio agora)')
+  if (fala) return system.reply({ type: 'audio', media: fala.audio, mimetype: fala.mimetype, ptt: true }, opcoes)
+  return system.reply('ai, não consegui gravar o áudio agora 😕 tenta daqui a pouco', opcoes)
+}
+
 // A última coisa que ela disse na conversa (no grupo, a memória é do grupo).
 function ultimaFalaDela(conversa) {
   const msgs = aurora._memoria(conversa) || []
@@ -384,6 +396,8 @@ export function handleAurora(system, { forcado = false, texto } = {}) {
   const bloqueado = (c) => hasGcmd(c) || (system.isGroup && hasCmd(system.from, c))
   const tarefa = (async () => {
     await conhecerPessoas(system)
+    const frase = ehCriador(system) && vozLigada() ? fraseDoAudio(t) : ''
+    if (frase) return falarFrase(system, t, frase)
     const acao = ehCriador(system) ? acaoDoCriador(t, textoCitado(system)) : null
     const uid = acao?.comando && !bloqueado(acao.comando) ? acao.uid || aurora.ultimoId(`${system.from}:${system.senderKey}`) : ''
     return uid ? executar(system, t, acao.comando, uid) : conversar(system, t)

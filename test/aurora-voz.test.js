@@ -3,7 +3,7 @@
 // texto como sempre quando a API falha. O fetch da Fish Audio é falso.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { pediuAudio, ofereceuAudio, topou, textoFalado, podeFalar, semTagsDeVoz, createVoz, ehOgg } from '../sistema/funcoes/aurora/voz.js'
+import { pediuAudio, fraseDoAudio, ofereceuAudio, topou, textoFalado, podeFalar, semTagsDeVoz, createVoz, ehOgg } from '../sistema/funcoes/aurora/voz.js'
 
 const OGG = new Uint8Array([0x4f, 0x67, 0x67, 0x53, 0, 2, 0, 0])
 
@@ -126,4 +126,15 @@ test('ela ofereceu áudio e a pessoa topou: conta como pedido', () => {
   assert.equal(topou('não precisa'), false)
   assert.equal(topou('pode não'), false)
   assert.equal(topou('sim, mas antes me fala quanto custa o plano mensal do bot e como pago'), false)
+})
+
+test('fraseDoAudio: "manda um áudio falando X" → X', () => {
+  assert.equal(fraseDoAudio('Aurora manda um áudio falando eu te amo Hemi'), 'eu te amo Hemi')
+  assert.equal(fraseDoAudio('manda áudio dizendo: bom dia grupo, bora de like'), 'bom dia grupo, bora de like')
+  assert.equal(fraseDoAudio('aurora fala em áudio "o Yosh é o melhor"'), 'o Yosh é o melhor')
+  assert.equal(fraseDoAudio('manda um áudio falando que hoje tem sorteio'), 'hoje tem sorteio')
+  assert.equal(fraseDoAudio('fala bom dia pro grupo em áudio'), 'bom dia pro grupo')
+  assert.equal(fraseDoAudio('fala comigo por áudio'), '')
+  assert.equal(fraseDoAudio('manda um áudio'), '')
+  assert.equal(fraseDoAudio('fala bom dia pro grupo'), '', 'sem pedir áudio, é conversa normal')
 })

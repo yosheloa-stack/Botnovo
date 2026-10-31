@@ -284,3 +284,14 @@ test('ela ofereceu áudio, o criador respondeu "S pode": sai áudio de verdade',
   assert.equal(saiu[0].conteudo.type, 'audio')
   assert.equal(pedidosVoz.at(-1), '[happy] Yosh, você é demais, viu?')
 })
+
+test('o criador pede "manda um áudio falando X": ela fala X igualzinho, sem a IA', async () => {
+  process.env.FISH_AUDIO_API_KEY = 'chave-falsa'
+  banco.auroraCriador('5544911112222')
+  const antes = pedidosIa.length
+  const saiu = await respostaDe(mensagem('aurora manda um áudio falando bom dia grupo, bora de like'))
+  delete process.env.FISH_AUDIO_API_KEY
+  assert.equal(saiu[0].conteudo.type, 'audio')
+  assert.equal(pedidosVoz.at(-1), 'bom dia grupo, bora de like')
+  assert.equal(pedidosIa.length, antes, 'não gastou a IA')
+})

@@ -42,6 +42,21 @@ export function pediuAudio(texto = '') {
 // [excited]… Em texto elas somem.
 export const semTagsDeVoz = (texto = '') => String(texto).replace(/[ \t]*\[[a-z][a-z' -]{1,30}\][ \t]*/gi, ' ').replace(/ +([,.!?…])/g, '$1').replace(/[ \t]{2,}/g, ' ').trim()
 
+// "manda um áudio falando: bom dia grupo" → "bom dia grupo" (ela fala igual).
+// Com aspas vale o que está entre aspas.
+export function fraseDoAudio(texto = '') {
+  const t = String(texto).trim()
+  if (!/(?<!\p{L})([aá]udio|voz)(?!\p{L})/iu.test(t)) return ''
+  const aspas = t.match(/["“”'‘’]([^"“”'‘’]{2,400})["“”'‘’]/)
+  if (aspas) return aspas[1].trim()
+  const depois = t.match(/\b(?:falando|dizendo|que diz|com a frase|repete|repita|fala|diz|falar|dizer)\b\s*(?:assim\s*)?(?::|que\s+|isso\s*:)?\s*([\s\S]{2,400})$/i)
+  if (!depois) return ''
+  const frase = depois[1].trim()
+  // "fala comigo por áudio" não é frase pra repetir.
+  if (/^(comigo|com (a gente|ele|ela|eles)|por [aá]udio|em [aá]udio|no [aá]udio|[aá]udio|algo|alguma coisa|qualquer coisa)\b/i.test(frase)) return ''
+  return frase.replace(/^[\s:,-]+/, '').replace(/[\s,]*(?:(?:em|por|no|num)\s+)?(?:um\s+)?[aá]udio[\s.!]*$/i, '').trim()
+}
+
 // Ela ofereceu ("posso mandar um áudio?", "quer ouvir minha voz?") e a
 // pessoa topou ("s pode", "manda", "sim"): conta como pedido de áudio.
 export function ofereceuAudio(textoDela = '') {
