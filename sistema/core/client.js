@@ -132,8 +132,20 @@ process.exit(0)
 }
 }
 
+// O WhatsApp limita pedidos de código (429 rate-overlimit). Pedir de novo a
+// cada 20 s mantém o limite ativo pra sempre: espera 15 min, depois 30, até 1 h.
+let pausaCodigoAte = 0
+let pausasCodigo = 0
+let avisouPausa = 0
 const requestCode = async () => {
 if (pairingRequested) return
+if (Date.now() < pausaCodigoAte) {
+if (Date.now() - avisouPausa > 5 * 60_000) {
+avisouPausa = Date.now()
+console.warn(`[ AURORA CONEXÃO ] O WhatsApp limitou os pedidos de código de conexão. Tento de novo às ${new Date(pausaCodigoAte).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })}.`)
+}
+return
+}
 pairingRequested = true
 const number = digits(config.connection?.number)
 || digits(String(client.getCredentials?.()?.meJid || '').split(/[:@]/)[0])
@@ -160,9 +172,19 @@ return
 try {
 const code = await client.auth.requestPairingCode(number)
 showPairingCode(code)
+pausasCodigo = 0
 } catch (err) {
 pairingRequested = false
-console.error(chalk.redBright('[ ERRO ] Não foi possível gerar o código de pareamento.'), err?.message ?? err)
+const msg = String(err?.message ?? err)
+if (/429|rate-?overlimit/i.test(msg)) {
+const minutos = Math.min(60, 15 * 2 ** pausasCodigo)
+pausasCodigo++
+pausaCodigoAte = Date.now() + minutos * 60_000
+avisouPausa = Date.now()
+console.error(chalk.redBright(`[ ERRO ] O WhatsApp limitou os pedidos de código de conexão (429). Vou esperar ${minutos} min antes de pedir outro; não reinicie o app nesse meio tempo.`))
+return
+}
+console.error(chalk.redBright('[ ERRO ] Não foi possível gerar o código de pareamento.'), msg)
 }
 }
 
