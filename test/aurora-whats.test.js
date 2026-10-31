@@ -307,3 +307,22 @@ test('o criador pede "manda um áudio falando X": ela fala X igualzinho, só com
   assert.equal(trocou[0].conteudo.type, 'audio')
   assert.equal(pedidosIa.length, antes + 2, 'uma chamada de direção por áudio')
 })
+
+test('o criador diz "Envia novamente ID": o bot manda o like de verdade, sem a IA', async () => {
+  banco.auroraCriador('5544911112222')
+  const antes = pedidosIa.length
+  const inicio = pedidosLike.length
+  await handler(mensagem('aurora envia novamente 8772807697'))
+  const fim = Date.now() + 6000
+  while (pedidosLike.length === inicio && Date.now() < fim) await new Promise((r) => setTimeout(r, 50))
+  assert.equal(pedidosLike.at(-1), '8772807697', JSON.stringify(enviados.slice(-3).map((e) => e.conteudo.text)))
+  assert.equal(pedidosIa.length, antes, 'não gastou a IA')
+})
+
+test('a IA diz que "já mandei like" sem o bot rodar: sai o comando certo', async () => {
+  banco.auroraCriador('5544911112222')
+  respostaIa = 'Já mandei like pro ID 8772807697 🔥 220 likes voando agora 💨'
+  const saiu = await respostaDe(mensagem('aurora como tá o like?'))
+  respostaIa = 'oi, tô aqui 😌'
+  assert.match(saiu[0].conteudo.text, /pra eu mandar de verdade/)
+})

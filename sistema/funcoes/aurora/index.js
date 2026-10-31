@@ -9,7 +9,7 @@
 // mesma do suporte com IA do site. Vem SÓ do ambiente: SQUARECLOUD_API_KEY
 // (ou SQUARECLOUD_AI_KEY). Nunca no config.json.
 
-import { createAurora, deveResponder, chamouAurora, trocarMarcacoes, textoPrecos, textoClima, acaoDoCriador, acharId, FRASES_LIKE, FRASES_INFO, blocoMembros, acharMarcacoes, SEM_MEMBROS, pediuMarcar, acharMembro, garantirMarcacao, LIMITES } from './ia.js'
+import { createAurora, deveResponder, chamouAurora, trocarMarcacoes, textoPrecos, textoClima, acaoDoCriador, acharId, FRASES_LIKE, FRASES_INFO, blocoMembros, acharMarcacoes, SEM_MEMBROS, pediuMarcar, acharMembro, garantirMarcacao, fingiuExecutar, SEM_FINGIR, LIMITES } from './ia.js'
 import { createVoz, vozLigada, pediuAudio, fraseDoAudio, blocoVoz, pedidoDeDirecao, direcaoValida, ofereceuAudio, topou, podeFalar, semTagsDeVoz } from './voz.js'
 import { extractText } from '../../core/contexto.js'
 import { contextInfoFromMessage, quotedInfo, quotedTarget } from '../mensagem.js'
@@ -244,6 +244,8 @@ const textoCitado = (system) => { const q = quotedInfo(system.event); return q ?
 // (mesmos limites e mensagens do comando). Não gasta chamada da IA.
 // O criador mandou ela fazer (like ou info): ela responde no jeito dela e o
 // bot roda o mesmo comando, com as mesmas mensagens. Não gasta chamada da IA.
+// O último comando que ela rodou em cada conversa (pro "de novo").
+const ultimoComando = new Map()
 const ACOES = { like: { cmd: likeCmd, frases: FRASES_LIKE }, info: { cmd: infoCmd, frases: FRASES_INFO } }
 async function executar(system, texto, comando, uid) {
   const { cmd, frases } = ACOES[comando]
@@ -251,6 +253,8 @@ async function executar(system, texto, comando, uid) {
   const frase = frases[Math.floor(Math.random() * frases.length)](uid)
   await system.reply(frase, modoCliente ? { semMarca: true } : {})
   aurora.anotar(conversa, `[${nomeDe(system)}] ${texto.slice(0, 800)}`, frase + ` (o bot rodou ${system.prefix}${comando} ${uid})`)
+  ultimoComando.set(conversa, comando)
+  if (ultimoComando.size > 500) ultimoComando.delete(ultimoComando.keys().next().value)
   system.command = comando
   system.args = [uid]
   system.q = uid
@@ -366,6 +370,10 @@ async function conversar(system, texto) {
   // senão "Aurora" vira o nome do bot e o endereço do site some da resposta.
   if (!resposta) return
   const opcoes = modoCliente ? { semMarca: true } : {}
+  if (fingiuExecutar(resposta)) {
+    console.log('[ AURORA IA ] ela disse que mandou like/info sem o bot rodar nada; troquei pelo comando |', system.from)
+    resposta = SEM_FINGIR(system.prefix, ehCriador(system))
+  }
   resposta = garantirMarcacao(resposta, alvo)
   const mentions = acharMarcacoes(resposta, membros)
   if (emAudio && !mentions.length && podeFalar(resposta, { pediu: true })) {
@@ -411,7 +419,7 @@ export function handleAurora(system, { forcado = false, texto } = {}) {
     await conhecerPessoas(system)
     const frase = ehCriador(system) && vozLigada() ? fraseDoAudio(t) : ''
     if (frase) return falarFrase(system, t, frase)
-    const acao = ehCriador(system) ? acaoDoCriador(t, textoCitado(system)) : null
+    const acao = ehCriador(system) ? acaoDoCriador(t, textoCitado(system), ultimoComando.get(`${system.from}:${system.senderKey}`)) : null
     const uid = acao?.comando && !bloqueado(acao.comando) ? acao.uid || aurora.ultimoId(`${system.from}:${system.senderKey}`) : ''
     return uid ? executar(system, t, acao.comando, uid) : conversar(system, t)
   })()

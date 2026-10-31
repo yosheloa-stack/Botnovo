@@ -81,7 +81,7 @@ export function pediuLike(texto = '') {
 // O que o CRIADOR mandou ela fazer: like ou info, com o ID da mensagem, da
 // mensagem citada (ex.: ela sugeriu "/info 1052…" e ele respondeu "faz aí")
 // ou nenhum (aí quem chama usa o último ID da conversa).
-export function acaoDoCriador(texto = '', citado = '') {
+export function acaoDoCriador(texto = '', citado = '', ultimo = '') {
   const t = semAcento(texto)
   const sugerido = String(citado).match(/(?:^|\s)[\/#!.]?(like|info)\s+(\d{8,12})(?!\d)/i)
   const fazer = /\b(faz|faca|fazer|executa\w*|roda|rodar|usa|use|manda ver|vai la|pode ir|bora|vai)\b/.test(t) && !/\b(como|nao)\b/.test(t)
@@ -90,8 +90,25 @@ export function acaoDoCriador(texto = '', citado = '') {
     return { comando: 'info', uid: acharId(texto) || sugerido?.[2] || acharId(citado) }
   }
   if (fazer && sugerido) return { comando: sugerido[1].toLowerCase(), uid: sugerido[2] }
+  // "envia novamente 8772807697", "manda pro 123…": mandar pra um ID é like.
+  // "de novo" / "outra vez" sem ID repete o último comando (ou like).
+  const pergunta = /\b(como|quando|quanto|qual|porque|por que|pq|nao)\b/.test(t)
+  const envio = /\b(envi[ae]\w*|reenvi\w*|mand[ae]\w*|solt[ae]\w*|dispar[ae]\w*)\b/.test(t)
+  const deNovo = /\b(de novo|denovo|novamente|outra vez|mais uma vez|repete|repita)\b/.test(t)
+  if (!pergunta && envio && acharId(texto)) return { comando: 'like', uid: acharId(texto) }
+  if (!pergunta && deNovo && (envio || fazer || /^\s*(de novo|denovo|novamente|outra vez|repete|repita)\b/.test(t))) return { comando: ultimo || 'like', uid: acharId(texto) || acharId(citado) }
   return { comando: '', uid: '' }
 }
+
+// A IA disse que mandou like/info, mas quem manda é o bot (e aqui ele não
+// rodou nada): troca a mentira pelo comando certo.
+export function fingiuExecutar(resposta = '') {
+  const t = semAcento(resposta)
+  return /\b(ja )?(mandei|enviei|soltei|disparei|puxei|consultei|ja foi|ja foram|ja mandou|ja enviou)\b[^.!?\n]{0,50}\b(likes?|info|perfil)\b|\blikes? (voando|a caminho|indo|chegando|enviados?)\b/.test(t)
+}
+export const SEM_FINGIR = (prefixo = '#', criador = false) => criador
+  ? `pra eu mandar de verdade fala "manda like" com o ID (ou ${prefixo}like ID) 😉`
+  : `manda ${prefixo}like ID que o bot envia na hora 😉`
 
 export const FRASES_INFO = [
   (uid) => `bora, puxando o perfil do ${uid} 🔍`,
