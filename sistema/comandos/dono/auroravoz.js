@@ -1,20 +1,29 @@
-import { auroraVoz, auroraVelocidade } from '../../funcoes/banco.js'
+import { auroraVoz, auroraVelocidade, auroraEstilo } from '../../funcoes/banco.js'
 import { ehCriador, conhecerPessoas, iaNesteBot } from '../../funcoes/aurora/index.js'
-import { VOZES, VOZ_PADRAO, VELOCIDADE_PADRAO } from '../../funcoes/aurora/voz.js'
+import { VOZES, ESTILOS, VOZ_PADRAO, VELOCIDADE_PADRAO } from '../../funcoes/aurora/voz.js'
 
 // #auroravoz fofa → troca a voz dos áudios da Aurora. #auroravoz lenta /
-// rapida / normal muda a velocidade. Só o criador muda; fica salvo no bot.
+// rapida / normal muda a velocidade. #auroravoz estilo sombria (ou um texto
+// livre) muda o jeito de falar: tom, emoção e ritmo dos áudios. Só o criador muda; fica salvo no bot.
 const VELOCIDADES = { lenta: 0.75, devagar: 0.75, normal: VELOCIDADE_PADRAO, rapida: 1, rápida: 1 }
 export default {name: 'auroravoz',aliases: ['vozaurora'],category: 'dono',description: 'Escolhe a voz dos áudios da Aurora',async run(system){
 if (!iaNesteBot()) return system.reply('Comando indisponível neste bot.')
 await conhecerPessoas(system)
 if (!ehCriador(system)) return system.reply('Só o criador pode mudar isso.')
 const arg = String(system.args[0] || '').toLowerCase()
+if (arg === 'estilo' || arg === 'jeito') {
+const resto = system.args.slice(1).join(' ').trim()
+const prontos = Object.keys(ESTILOS).map((k) => `${system.prefix}auroravoz estilo ${k}`).join('\n')
+if (!resto) return system.reply(`🎭 Jeito de falar: ${auroraEstilo() || 'natural'}\n\n${prontos}\n\nOu escreva do seu jeito: ${system.prefix}auroravoz estilo calma, sussurrando, com risada no fim\n${system.prefix}auroravoz estilo 0 volta pro natural`, { semMarca: true })
+if (resto === '0') { auroraEstilo(''); return system.reply('Pronto 🎭 ela volta a falar no jeito natural.', { semMarca: true }) }
+auroraEstilo(ESTILOS[resto.toLowerCase()] || resto)
+return system.reply(`Pronto 🎭 nos áudios ela agora fala assim: ${auroraEstilo()}`, { semMarca: true })
+}
 const p = system.prefix
 const atual = Object.values(VOZES).find((v) => v.id === (auroraVoz() || VOZ_PADRAO))
 if (!arg) {
 const lista = Object.entries(VOZES).map(([k, v]) => `• ${p}auroravoz ${k} — ${v.nome} (${v.jeito})`).join('\n')
-return system.reply(`🎙️ Voz da Aurora: ${atual?.nome || auroraVoz()} | velocidade ${auroraVelocidade() || VELOCIDADE_PADRAO}\n\n${lista}\n\nVelocidade: ${p}auroravoz lenta / normal / rapida`, { semMarca: true })
+return system.reply(`🎙️ Voz da Aurora: ${atual?.nome || auroraVoz()} | velocidade ${auroraVelocidade() || VELOCIDADE_PADRAO}\n\n${lista}\n\nVelocidade: ${p}auroravoz lenta / normal / rapida\nJeito de falar: ${p}auroravoz estilo`, { semMarca: true })
 }
 if (VELOCIDADES[arg]) {
 auroraVelocidade(VELOCIDADES[arg])

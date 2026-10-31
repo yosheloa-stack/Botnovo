@@ -10,12 +10,12 @@
 // (ou SQUARECLOUD_AI_KEY). Nunca no config.json.
 
 import { createAurora, deveResponder, chamouAurora, trocarMarcacoes, textoPrecos, textoClima, acaoDoCriador, acharId, FRASES_LIKE, FRASES_INFO, blocoMembros, acharMarcacoes, SEM_MEMBROS, pediuMarcar, acharMembro, garantirMarcacao, LIMITES } from './ia.js'
-import { createVoz, vozLigada, pediuAudio, fraseDoAudio, ofereceuAudio, topou, podeFalar, semTagsDeVoz, BLOCO_VOZ } from './voz.js'
+import { createVoz, vozLigada, pediuAudio, fraseDoAudio, blocoVoz, pedidoDeDirecao, direcaoValida, ofereceuAudio, topou, podeFalar, semTagsDeVoz } from './voz.js'
 import { extractText } from '../../core/contexto.js'
 import { contextInfoFromMessage, quotedInfo, quotedTarget } from '../mensagem.js'
 import { autoSystem } from '../auto.js'
 import { pedirAoSite } from '../rede.js'
-import { auroraIaLigada, auroraNoGrupo, auroraCriador, auroraEsposa, auroraVoz, auroraVelocidade, tokenAluguelSalvo, numeroDoLid, aluguelOk, getDonoAluguel, hasCmd, hasGcmd } from '../banco.js'
+import { auroraIaLigada, auroraNoGrupo, auroraCriador, auroraEsposa, auroraVoz, auroraVelocidade, auroraEstilo, tokenAluguelSalvo, numeroDoLid, aluguelOk, getDonoAluguel, hasCmd, hasGcmd } from '../banco.js'
 import likeCmd from '../../comandos/ff/like.js'
 import infoCmd from '../../comandos/ff/info.js'
 import { modoCliente } from '../cliente.js'
@@ -290,12 +290,25 @@ function pedidoDeMarcar(pedido, alvo) {
 // Algumas respostas saem em áudio (Fish Audio); se falhar, vai o texto.
 const voz = createVoz({ log: (m) => console.warn('[ AURORA VOZ ]', m), escolha: () => ({ voz: auroraVoz(), velocidade: auroraVelocidade() }) })
 
+// Antes de gravar, a IA marca na frase onde sussurra, ri, pausa e muda o
+// tom (no jeito do #auroravoz estilo). Falhou ou mexeu nas palavras: vai a frase pura.
+async function dirigir(frase) {
+  if (!chaveIa()) return frase
+  try {
+    const r = await chamar(pedidoDeDirecao(frase, auroraEstilo()))
+    return direcaoValida(frase, r?.data?.choices?.[0]?.message?.content) || frase
+  } catch (err) {
+    console.warn('[ AURORA VOZ ] não deu pra dirigir a fala:', err?.message || err)
+    return frase
+  }
+}
+
 // O criador pediu um áudio com uma frase: ela fala a frase igualzinha, sem
 // passar pela IA. Não deu pra gravar: avisa em texto.
 async function falarFrase(system, texto, frase) {
   const opcoes = modoCliente ? { semMarca: true } : {}
   await digitando(system, 'recording')
-  const fala = voz.vaiFalar({ pediu: true }) ? await voz.falar(frase) : null
+  const fala = voz.vaiFalar({ pediu: true }) ? await voz.falar(await dirigir(frase)) : null
   await digitando(system, 'paused')
   aurora.anotar(`${system.from}:${system.senderKey}`, `[${nomeDe(system)}] ${texto.slice(0, 800)}`, fala ? `(mandei um áudio falando: "${frase.slice(0, 300)}")` : '(não consegui gravar o áudio agora)')
   if (fala) return system.reply({ type: 'audio', media: fala.audio, mimetype: fala.mimetype, ptt: true, ...(fala.seconds ? { seconds: fala.seconds } : {}) }, opcoes)
@@ -339,7 +352,7 @@ async function conversar(system, texto) {
       prefixo: system.prefix,
       membros: system.isGroup ? (blocoMembros(membros) ? blocoMembros(membros) + pedidoDeMarcar(pedido, alvo) : SEM_MEMBROS) : '',
       erro: errosRecentes.get(system.from) || null,
-      voz: emAudio ? BLOCO_VOZ : ''
+      voz: emAudio ? blocoVoz(auroraEstilo()) : ''
     })
     if (resposta) {
       const falta = Math.min(4_000, 800 + resposta.length * 25) - (Date.now() - inicio)

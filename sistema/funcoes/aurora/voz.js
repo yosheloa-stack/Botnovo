@@ -124,6 +124,37 @@ Escreva como quem grava um áudio de verdade pra amiga, falado e não lido:
 - Marcações de voz (em inglês, entre colchetes, fora do texto falado), no máximo 2 por áudio: emoção no começo da frase ([happy], [excited], [playful], [soft tone], [slightly sad], [whispering]) e som ou pausa no meio ([laughing], [chuckling], [sighing], [break], [long-break]).
 - Exemplo: [playful] ahh para, kkk... [break] tô aqui sim, ué. [chuckling] fala, o que você quer?`
 
+// Jeitos de falar prontos pro #auroravoz estilo NOME.
+export const ESTILOS = {
+  sombria: 'doce, educada e calma por fora, falando devagar e baixinho, meio sedutora; de repente o tom fica frio, sombrio e ameaçador, com um sussurro ou uma risadinha sinistra no fim',
+  fofa: 'meiga, carinhosa e alegre, voz leve, sorrindo enquanto fala, risadinhas curtas',
+  animada: 'empolgada, rápida e expressiva, rindo fácil, como quem conta novidade pra amiga',
+  calma: 'tranquila, acolhedora e serena, falando devagar, com pausas pra respirar'
+}
+
+// O bloco de áudio da IA, com o jeito de falar que o criador escolheu.
+export function blocoVoz(estilo = '') {
+  const e = String(estilo || '').trim()
+  return e ? `${BLOCO_VOZ}\nJEITO DE FALAR NOS SEUS ÁUDIOS: ${e}. As palavras e as marcações têm que deixar a entonação exatamente assim.` : BLOCO_VOZ
+}
+
+// Diretor de voz: a mesma frase, palavra por palavra, só com as marcações
+// da Fish Audio no lugar certo pra soar no jeito escolhido.
+export function pedidoDeDirecao(frase = '', estilo = '') {
+  return [
+    { role: 'system', content: `Você é diretor(a) de dublagem. Recebe uma fala em português e devolve A MESMA fala, palavra por palavra, só acrescentando marcações de voz da Fish Audio entre colchetes, em inglês, pra entonação ficar assim: ${String(estilo || '').trim() || 'natural, humana e expressiva, como gente de verdade falando'}.
+Marcações que funcionam: emoção ou tom no começo da frase ([soft tone], [whispering], [calm], [seductive], [sinister], [cold], [happy], [excited], [sad], [angry], [playful], [slightly mocking]) e som ou pausa no meio ([break], [long-break], [sighing], [chuckling], [laughing], [gasping]). Pode usar intensidade ([very], [slightly]).
+Regras: não troque, não tire e não acrescente nenhuma palavra; use de 2 a 6 marcações; responda só com a fala marcada, sem aspas e sem explicação.` },
+    { role: 'user', content: String(frase).slice(0, 600) }
+  ]
+}
+const soLetras = (t = '') => semAcento(semTagsDeVoz(t)).replace(/[^a-z0-9]+/g, '')
+// A IA mexeu nas palavras? Então não vale: vai a frase como estava.
+export function direcaoValida(frase = '', marcada = '') {
+  const m = String(marcada || '').trim().replace(/^["“]|["”]$/g, '')
+  return m && /\[[a-z]/i.test(m) && soLetras(m) === soLetras(frase) ? m : ''
+}
+
 // Faz o áudio. Devolve { audio: Uint8Array, mimetype } ou null (aí vai texto).
 // escolha(): { voz, velocidade } que o criador escolheu no zap (#auroravoz).
 export function createVoz({ fetch: fetchFn = globalThis.fetch, converter = paraOgg, agora = () => Date.now(), log = () => {}, escolha = () => ({}) } = {}) {

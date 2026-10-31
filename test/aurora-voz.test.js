@@ -3,7 +3,7 @@
 // texto como sempre quando a API falha. O fetch da Fish Audio é falso.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { pediuAudio, fraseDoAudio, duracaoOgg, paraOgg, ofereceuAudio, topou, textoFalado, podeFalar, semTagsDeVoz, createVoz, ehOgg } from '../sistema/funcoes/aurora/voz.js'
+import { pediuAudio, fraseDoAudio, blocoVoz, pedidoDeDirecao, direcaoValida, ESTILOS, duracaoOgg, paraOgg, ofereceuAudio, topou, textoFalado, podeFalar, semTagsDeVoz, createVoz, ehOgg } from '../sistema/funcoes/aurora/voz.js'
 
 const OGG = new Uint8Array([0x4f, 0x67, 0x67, 0x53, 0, 2, ...new Array(2000).fill(0)])
 
@@ -159,4 +159,15 @@ test('áudio vazio (só cabeçalho) não vai pro zap: sai texto', async () => {
   const { fetch } = fishFalsa([{ status: 200, audio: new Uint8Array([0x4f, 0x67, 0x67, 0x53, 0, 2, 0, 0]) }])
   assert.equal(await createVoz({ fetch, converter: async () => null }).falar('oi tudo bem'), null)
   assert.equal(await createVoz({ fetch: async () => { throw new Error('não devia chamar') } }).falar(' / '), null, 'sem fala, nem chama a Fish')
+})
+
+test('jeito de falar: vai pra IA e o diretor de voz não pode mexer nas palavras', () => {
+  assert.match(blocoVoz(ESTILOS.sombria), /JEITO DE FALAR NOS SEUS ÁUDIOS: doce, educada/)
+  assert.doesNotMatch(blocoVoz(''), /JEITO DE FALAR/)
+  assert.match(pedidoDeDirecao('oi', ESTILOS.sombria)[0].content, /sombrio/)
+  const frase = 'Você fica sentado aí... culpando a si mesmo o tempo todo.'
+  assert.equal(direcaoValida(frase, '[soft tone] Você fica sentado aí... [break] [sinister] culpando a si mesmo o tempo todo.'), '[soft tone] Você fica sentado aí... [break] [sinister] culpando a si mesmo o tempo todo.')
+  assert.equal(direcaoValida(frase, '[soft tone] Você fica parado aí culpando a si mesmo o tempo todo.'), '', 'trocou palavra')
+  assert.equal(direcaoValida(frase, frase), '', 'sem marcação nenhuma')
+  assert.equal(direcaoValida(frase, ''), '')
 })

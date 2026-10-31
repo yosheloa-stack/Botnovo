@@ -538,6 +538,11 @@ export function auroraVoz(value) {
   if (value !== undefined) setCfg('aurora_voz', String(value || '').replace(/[^a-f0-9]/gi, '').toLowerCase())
   return String(getCfg('aurora_voz', '') || '')
 }
+// O jeito de falar nos áudios (#auroravoz estilo …): tom, emoção, ritmo.
+export function auroraEstilo(value) {
+  if (value !== undefined) setCfg('aurora_estilo', String(value || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 400))
+  return String(getCfg('aurora_estilo', '') || '')
+}
 export function auroraVelocidade(value) {
   if (value !== undefined) setCfg('aurora_velocidade', Number(value) || 0)
   return Number(getCfg('aurora_velocidade', 0)) || 0

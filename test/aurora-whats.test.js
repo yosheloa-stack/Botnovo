@@ -273,6 +273,12 @@ test('#auroravoz: só o criador troca a voz e a velocidade', async () => {
   await respostaDe(mensagem('#auroravoz lenta'))
   assert.equal(banco.auroraVelocidade(), 0.75)
   assert.match((await respostaDe(mensagem('#auroravoz xpto')))[0].conteudo.text, /Não conheço/)
+  assert.match((await respostaDe(mensagem('#auroravoz estilo sombria')))[0].conteudo.text, /sombrio/)
+  assert.match(banco.auroraEstilo(), /sombrio/)
+  await respostaDe(mensagem('#auroravoz estilo calma e sussurrando'))
+  assert.equal(banco.auroraEstilo(), 'calma e sussurrando')
+  await respostaDe(mensagem('#auroravoz estilo 0'))
+  assert.equal(banco.auroraEstilo(), '')
 })
 
 test('ela ofereceu áudio, o criador respondeu "S pode": sai áudio de verdade', async () => {
@@ -285,13 +291,19 @@ test('ela ofereceu áudio, o criador respondeu "S pode": sai áudio de verdade',
   assert.equal(pedidosVoz.at(-1), '[happy] Yosh, você é demais, viu?')
 })
 
-test('o criador pede "manda um áudio falando X": ela fala X igualzinho, sem a IA', async () => {
+test('o criador pede "manda um áudio falando X": ela fala X igualzinho, só com a entonação marcada', async () => {
   process.env.FISH_AUDIO_API_KEY = 'chave-falsa'
   banco.auroraCriador('5544911112222')
   const antes = pedidosIa.length
+  respostaIa = '[excited] bom dia grupo, [break] bora de like'
   const saiu = await respostaDe(mensagem('aurora manda um áudio falando bom dia grupo, bora de like'))
+  respostaIa = '[excited] bom dia gente, bora'
+  const trocou = await respostaDe(mensagem('aurora manda um áudio falando bom dia grupo, bora de like'))
   delete process.env.FISH_AUDIO_API_KEY
+  respostaIa = 'oi, tô aqui 😌'
   assert.equal(saiu[0].conteudo.type, 'audio')
-  assert.equal(pedidosVoz.at(-1), 'bom dia grupo, bora de like')
-  assert.equal(pedidosIa.length, antes, 'não gastou a IA')
+  assert.equal(pedidosVoz.at(-2), '[excited] bom dia grupo, [break] bora de like', 'a IA só marcou a entonação')
+  assert.equal(pedidosVoz.at(-1), 'bom dia grupo, bora de like', 'a IA mexeu nas palavras: vai a frase pura')
+  assert.equal(trocou[0].conteudo.type, 'audio')
+  assert.equal(pedidosIa.length, antes + 2, 'uma chamada de direção por áudio')
 })
