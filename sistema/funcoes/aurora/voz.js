@@ -253,7 +253,10 @@ export function createVoz({ fetch: fetchFn = globalThis.fetch, converter = limpa
     const corpo = {
       text: falaPraEleven(texto, modelo),
       model_id: modelo,
-      voice_settings: { stability: 0.45, similarity_boost: 0.8, style: 0.35, use_speaker_boost: true, speed: velocidade }
+      // v3: estabilidade 0.5 é o "Natural" (0 = criativo demais, 1 = robótico).
+      voice_settings: /v3/.test(modelo)
+        ? { stability: 0.5, similarity_boost: 0.8, use_speaker_boost: true, speed: velocidade }
+        : { stability: 0.4, similarity_boost: 0.75, style: 0.25, use_speaker_boost: true, speed: velocidade }
     }
     if (/v3|flash|turbo/.test(modelo)) corpo.language_code = 'pt'
     const ctrl = new AbortController()
@@ -299,7 +302,7 @@ export function createVoz({ fetch: fetchFn = globalThis.fetch, converter = limpa
           if (!r.audio && [400, 403, 404, 422].includes(r.status) && modelo !== 'eleven_multilingual_v2') r = await pedirEleven(texto, 'eleven_multilingual_v2', substituta.id)
         }
       }
-      if (r.audio) return r
+      if (r.audio) return { ...r, provedor: 'ElevenLabs' }
       log(`ElevenLabs respondeu ${r.status}${r.motivo ? ': ' + r.motivo : ''}${chaveFish() ? ' (vou pela Fish Audio)' : ''}`)
       if (r.status === 401 || r.status === 402) elevenParadaAte = agora() + 30 * 60_000
     }
@@ -332,7 +335,7 @@ export function createVoz({ fetch: fetchFn = globalThis.fetch, converter = limpa
       // O ogg que a API manda vem "em streaming" (sem duração certa) e o
       // WhatsApp mostra 0:00 ou não toca: passa pelo ffmpeg pra virar uma
       // mensagem de voz certinha. Sem ffmpeg, vai o original se já for ogg.
-      const convertido = await converter(r.audio)
+      const convertido = await converter(r.audio, r.provedor)
       const audio = convertido && ehOgg(convertido) ? convertido : ehOgg(r.audio) ? r.audio : null
       if (!audio) { log(`o áudio da ${provedorVoz()} não veio em ogg/opus e não deu pra converter`); return null }
       // Áudio vazio (só o cabeçalho) chega no zap como 0:00 e não toca.
@@ -373,16 +376,21 @@ const FILTRO_VOZ = 'highpass=f=90,lowpass=f=9500,afftdn=nf=-30:nr=15:tn=1,agate=
 
 // Tira o chiado (filtro de ruído), corta o grave sujo e acerta o volume. Se o
 // ffmpeg do servidor não tiver o filtro, converte sem ele.
-export async function limparAudio(entrada) {
-  return (await paraOgg(entrada, { filtro: true })) || paraOgg(entrada)
+// A voz da ElevenLabs já vem limpa: o filtro de ruído aprendia o "ruído" no
+// começo da fala e deixava o início robótico. Nela só entra um respiro de
+// 150 ms no começo, pro WhatsApp não comer a primeira sílaba.
+const FILTRO_LEVE = 'adelay=150:all=1'
+export async function limparAudio(entrada, provedor = '') {
+  const filtro = provedor === 'ElevenLabs' ? FILTRO_LEVE : FILTRO_VOZ
+  return (await paraOgg(entrada, { filtro })) || paraOgg(entrada)
 }
 
 // Qualquer áudio → ogg/opus de mensagem de voz (precisa do ffmpeg).
-export function paraOgg(entrada, { filtro = false } = {}) {
+export function paraOgg(entrada, { filtro = '' } = {}) {
   return new Promise((resolve) => {
     let p
     try {
-      p = spawn('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', 'pipe:0', '-vn', '-map_metadata', '-1', ...(filtro ? ['-af', FILTRO_VOZ] : []), '-ac', '1', '-ar', '48000', '-c:a', 'libopus', '-b:a', '48k', '-vbr', 'on', '-application', 'voip', '-avoid_negative_ts', 'make_zero', '-f', 'ogg', 'pipe:1'])
+      p = spawn('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', 'pipe:0', '-vn', '-map_metadata', '-1', ...(filtro ? ['-af', filtro === true ? FILTRO_VOZ : filtro] : []), '-ac', '1', '-ar', '48000', '-c:a', 'libopus', '-b:a', '48k', '-vbr', 'on', '-application', 'voip', '-avoid_negative_ts', 'make_zero', '-f', 'ogg', 'pipe:1'])
     } catch { return resolve(null) }
     const partes = []
     p.stdout.on('data', (c) => partes.push(c))

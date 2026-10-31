@@ -251,3 +251,19 @@ test('plano grátis da ElevenLabs recusa voz da biblioteca: continua na ElevenLa
   assert.ok(!urls.some((u) => u.includes('fish')))
   delete process.env.ELEVENLABS_API_KEY
 })
+
+test('ElevenLabs: sem o filtro de ruído (que deixava o começo robótico), só o respiro no início', async () => {
+  const { spawnSync } = await import('node:child_process')
+  process.env.ELEVENLABS_API_KEY = 'chave-eleven'
+  const vistos = []
+  const fetch = async () => new Response(OGG, { status: 200 })
+  const r = await createVoz({ fetch, converter: async (a, provedor) => { vistos.push(provedor); return null } }).falar('oi')
+  assert.ok(r)
+  assert.deepEqual(vistos, ['ElevenLabs'])
+  delete process.env.ELEVENLABS_API_KEY
+  if (spawnSync('ffmpeg', ['-version']).status !== 0) return
+  const mp3 = spawnSync('ffmpeg', ['-loglevel', 'error', '-f', 'lavfi', '-i', 'sine=d=2', '-f', 'mp3', 'pipe:1']).stdout
+  const ogg = await limparAudio(mp3, 'ElevenLabs')
+  assert.equal(ehOgg(ogg), true)
+  assert.equal(duracaoOgg(ogg), 2)
+})
