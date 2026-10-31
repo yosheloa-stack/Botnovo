@@ -101,10 +101,14 @@ export function acaoDoCriador(texto = '', citado = '', ultimo = '') {
 }
 
 // A IA disse que mandou like/info, mas quem manda é o bot (e aqui ele não
-// rodou nada): troca a mentira pelo comando certo.
+// rodou nada). Pro criador o bot faz de verdade; pros outros vira o comando.
+export function oQueFingiu(resposta = '') {
+  const t = semAcento(resposta)
+  return /\b(info|perfil|consult\w*|puxei)\b/.test(t) && !/\b(likes?|curtidas?)\b/.test(t) ? 'info' : 'like'
+}
 export function fingiuExecutar(resposta = '') {
   const t = semAcento(resposta)
-  return /\b(ja )?(mandei|enviei|soltei|disparei|puxei|consultei|ja foi|ja foram|ja mandou|ja enviou)\b[^.!?\n]{0,50}\b(likes?|info|perfil)\b|\blikes? (voando|a caminho|indo|chegando|enviados?)\b/.test(t)
+  return /\b(mandei|enviei|soltei|disparei|puxei|consultei|processei|executei|rodei|fiz|liberei|coloquei|joguei|botei|ativei|ja foi|ja foram|ja mandou|ja enviou|ja saiu|ja entrou|ta (indo|saindo|caindo|entrando))\b[^.!?\n]{0,50}\b(likes?|info|perfil|curtidas?)\b|\b(likes?|curtidas?) (voando|a caminho|indo|chegando|caindo|saindo|enviados?|processados?|liberados?|entregues?)\b|\b(o )?like (ja )?(foi|saiu|entrou|caiu)\b/.test(t)
 }
 export const SEM_FINGIR = (prefixo = '#', criador = false) => criador
   ? `pra eu mandar de verdade fala "manda like" com o ID (ou ${prefixo}like ID) 😉`

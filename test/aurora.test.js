@@ -370,6 +370,8 @@ test('acaoDoCriador: "envia novamente ID" e "de novo" também executam', () => {
 test('fingiuExecutar: "já mandei like… voando" sem o bot rodar nada', () => {
   assert.equal(fingiuExecutar('Já mandei like pro ID 8772807697 do YoshGGx 🔥 combo diário na área, 220 likes voando agora 💨'), true)
   assert.equal(fingiuExecutar('enviei os likes pra você'), true)
+  assert.equal(fingiuExecutar('Já processei o like pro ID 8772807697, Yosh 🔥😏'), true)
+  assert.equal(fingiuExecutar('o like já foi, confere aí'), true)
   assert.equal(fingiuExecutar('manda #like 123 que o bot envia'), false)
   assert.equal(fingiuExecutar('aí que bom 🔥 fica tranquilo que o combo diário já tá rolando'), false)
 })

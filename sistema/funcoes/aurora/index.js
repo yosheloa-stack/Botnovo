@@ -9,7 +9,7 @@
 // mesma do suporte com IA do site. Vem SÓ do ambiente: SQUARECLOUD_API_KEY
 // (ou SQUARECLOUD_AI_KEY). Nunca no config.json.
 
-import { createAurora, deveResponder, chamouAurora, trocarMarcacoes, textoPrecos, textoClima, acaoDoCriador, acharId, FRASES_LIKE, FRASES_INFO, blocoMembros, acharMarcacoes, SEM_MEMBROS, pediuMarcar, acharMembro, garantirMarcacao, fingiuExecutar, SEM_FINGIR, LIMITES } from './ia.js'
+import { createAurora, deveResponder, chamouAurora, trocarMarcacoes, textoPrecos, textoClima, acaoDoCriador, acharId, FRASES_LIKE, FRASES_INFO, blocoMembros, acharMarcacoes, SEM_MEMBROS, pediuMarcar, acharMembro, garantirMarcacao, fingiuExecutar, oQueFingiu, SEM_FINGIR, LIMITES } from './ia.js'
 import { createVoz, vozLigada, pediuAudio, fraseDoAudio, blocoVoz, pedidoDeDirecao, direcaoValida, ofereceuAudio, topou, podeFalar, semTagsDeVoz } from './voz.js'
 import { extractText } from '../../core/contexto.js'
 import { contextInfoFromMessage, quotedInfo, quotedTarget } from '../mensagem.js'
@@ -244,6 +244,8 @@ const textoCitado = (system) => { const q = quotedInfo(system.event); return q ?
 // (mesmos limites e mensagens do comando). Não gasta chamada da IA.
 // O criador mandou ela fazer (like ou info): ela responde no jeito dela e o
 // bot roda o mesmo comando, com as mesmas mensagens. Não gasta chamada da IA.
+const comandoBloqueado = (system, c) => hasGcmd(c) || (system.isGroup && hasCmd(system.from, c))
+
 // O último comando que ela rodou em cada conversa (pro "de novo").
 const ultimoComando = new Map()
 const ACOES = { like: { cmd: likeCmd, frases: FRASES_LIKE }, info: { cmd: infoCmd, frases: FRASES_INFO } }
@@ -371,7 +373,11 @@ async function conversar(system, texto) {
   if (!resposta) return
   const opcoes = modoCliente ? { semMarca: true } : {}
   if (fingiuExecutar(resposta)) {
-    console.log('[ AURORA IA ] ela disse que mandou like/info sem o bot rodar nada; troquei pelo comando |', system.from)
+    // Pro criador, o que ela disse que fez o bot faz de verdade agora.
+    const comando = oQueFingiu(resposta)
+    const uid = ehCriador(system) && !comandoBloqueado(system, comando) ? acharId(resposta) || acharId(texto) || aurora.ultimoId(conversa) : ''
+    console.log('[ AURORA IA ] ela disse que mandou', comando, 'sem o bot rodar nada;', uid ? `rodando ${comando} ${uid} de verdade` : 'troquei pelo comando', '|', system.from)
+    if (uid) return executar(system, texto, comando, uid)
     resposta = SEM_FINGIR(system.prefix, ehCriador(system))
   }
   resposta = garantirMarcacao(resposta, alvo)
@@ -414,7 +420,7 @@ export function handleAurora(system, { forcado = false, texto } = {}) {
     if (decisao.motivo) console.log('[ AURORA IA ] ignorou:', decisao.motivo, '|', system.from)
     return false
   }
-  const bloqueado = (c) => hasGcmd(c) || (system.isGroup && hasCmd(system.from, c))
+  const bloqueado = (c) => comandoBloqueado(system, c)
   const tarefa = (async () => {
     await conhecerPessoas(system)
     const frase = ehCriador(system) && vozLigada() ? fraseDoAudio(t) : ''
