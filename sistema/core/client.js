@@ -15,7 +15,7 @@ import { installCanalGlobal } from '../funcoes/canal.js'
 import { createAluguelWorker } from '../funcoes/aluguel.js'
 import { installMarcaAluguel } from '../funcoes/marcaAluguel.js'
 import { avisarGerente, marcaCliente, modoCliente } from '../funcoes/cliente.js'
-import { destino } from '../funcoes/avisoCompra.js'
+import { destino, destinoCliente } from '../funcoes/avisoCompra.js'
 import { textoBoasVindas } from '../funcoes/boasVindas.js'
 import { criarLoggerZapo } from '../funcoes/registro.js'
 
@@ -222,7 +222,11 @@ if (msg?.tipo !== 'aviso_venda') return
 const responder = (r) => avisarLauncher({ tipo: 'aviso_venda_ok', id: msg.id, ...r })
 if (!connectionOpen) return responder({ ok: false, erro: 'WhatsApp desconectado' })
 try {
-await client.message.send(await destino(client, String(msg.para || '').replace(/\D/g, '')), { type: 'text', text: String(msg.texto || '') }, { semMarca: true })
+const para = String(msg.para || '').replace(/\D/g, '')
+// aviso de entrega pro cliente: número sem WhatsApp volta como tal (o site tira da fila)
+const jid = msg.cliente ? await destinoCliente(client, para) : await destino(client, para)
+if (!jid) return responder({ ok: false, sem_whatsapp: true, erro: 'esse número não tem WhatsApp' })
+await client.message.send(jid, { type: 'text', text: String(msg.texto || '') }, { semMarca: true })
 responder({ ok: true })
 } catch (err) { responder({ ok: false, erro: String(err?.message || err) }) }
 })
