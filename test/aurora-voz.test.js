@@ -21,6 +21,8 @@ test('textoFalado e podeFalar: link, marcação, ID e lista ficam no texto', () 
   assert.equal(textoFalado('oi *amor* 😍💜 tudo bem?'), 'oi amor tudo bem?')
   assert.equal(textoFalado('para kkkk... tô aqui 😂'), 'para [laughing] ha ha… [break] tô aqui [laughing]')
   assert.equal(textoFalado('[playful] ahh para [break] tô aqui'), '[playful] ahh para [break] tô aqui')
+  assert.equal(textoFalado('vc sabe pq? q nada, tbm n sei'), 'você sabe porque? que nada, também não sei')
+  assert.equal(textoFalado('Vc é top'), 'você é top')
   assert.equal(semTagsDeVoz('[playful] ahh para, [break] tô aqui [chuckling].'), 'ahh para, tô aqui.')
   assert.equal(semTagsDeVoz('oi [Yosh] tudo'), 'oi tudo')
   assert.equal(podeFalar('oii, tô bem sim e você? 😌'), true)
@@ -66,6 +68,7 @@ test('com chave: pediram áudio, vem ogg/opus com a voz escolhida', async () => 
   assert.equal(pedidos[0].url, 'https://api.fish.audio/v1/tts')
   assert.equal(pedidos[0].headers.authorization, 'Bearer chave-falsa')
   assert.deepEqual({ text: pedidos[0].corpo.text, ref: pedidos[0].corpo.reference_id, fmt: pedidos[0].corpo.format }, { text: 'oii tudo bem?', ref: 'voz123', fmt: 'opus' })
+  assert.equal(pedidos[0].corpo.prosody.speed, 0.88, 'um pouco mais devagar pra entender')
 })
 
 test('402 sem crédito: tenta o modelo grátis; falhou de novo: texto e pausa', async () => {

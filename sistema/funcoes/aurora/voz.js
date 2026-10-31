@@ -5,6 +5,7 @@
 // FISH_AUDIO_API_KEY  chave da Fish Audio (sem ela, nada de áudio)
 // FISH_AUDIO_VOZ      ID do modelo de voz (reference_id); vazio = a "Loli" (VOZ_PADRAO)
 // FISH_AUDIO_MODELO   s2.1-pro (padrão), s2-pro, s1, s2.1-pro-free…
+// FISH_AUDIO_VELOCIDADE velocidade da fala, 0.6 a 1.5 (padrão 0.88; 1 = normal)
 // AURORA_AUDIO_CHANCE chance (0 a 1) de uma resposta curta sair em áudio sem pedirem (padrão 0.2)
 // AURORA_AUDIO_DIA    teto de áudios por dia (padrão 80)
 import { spawn } from 'node:child_process'
@@ -31,6 +32,10 @@ export function pediuAudio(texto = '') {
 // [excited]… Em texto elas somem.
 export const semTagsDeVoz = (texto = '') => String(texto).replace(/[ \t]*\[[a-z][a-z' -]{1,30}\][ \t]*/gi, ' ').replace(/ +([,.!?…])/g, '$1').replace(/[ \t]{2,}/g, ' ').trim()
 
+// Abreviação de zap a voz lê errado: "vc" vira "vê cê".
+const POR_EXTENSO = { vc: 'você', vcs: 'vocês', pq: 'porque', tb: 'também', tbm: 'também', mds: 'meu Deus', blz: 'beleza', msm: 'mesmo', q: 'que', n: 'não', oq: 'o que', cmg: 'comigo', td: 'tudo', hj: 'hoje', vlw: 'valeu', tmj: 'tamo junto', pfv: 'por favor', pf: 'por favor', obg: 'obrigada', dps: 'depois', agr: 'agora', ngm: 'ninguém', qnd: 'quando', ctz: 'certeza', sla: 'sei lá', bjs: 'beijos', bj: 'beijo', mto: 'muito', mt: 'muito', tlgd: 'tá ligado', slk: 'sério' }
+const ABREVIACAO = new RegExp(`(?<![\\p{L}\\d])(${Object.keys(POR_EXTENSO).join('|')})(?![\\p{L}\\d])`, 'giu')
+
 // O que vai pra voz: sem link, sem marcação e sem *negrito*. Risada e
 // reticências viram risada e pausa de verdade; o resto dos emojis some.
 export function textoFalado(resposta = '') {
@@ -38,6 +43,7 @@ export function textoFalado(resposta = '') {
     .replace(/https?:\/\/\S+/g, '')
     .replace(/@\d{6,20}/g, '')
     .replace(/[*_~`]/g, '')
+    .replace(ABREVIACAO, (a) => POR_EXTENSO[a.toLowerCase()])
     .replace(/(^|\s)(k{3,}|(ha){2,}h?|(he){2,}h?|(ks){2,}|rs(rs)*)(?=[\s.,!?]|$)/gi, (_, a) => `${a}[laughing] ha ha `)
     .replace(/(😂|🤣)+/gu, ' [laughing] ')
     .replace(/(😅|😆|😁)+/gu, ' [chuckling] ')
@@ -67,9 +73,10 @@ export function podeFalar(resposta = '', { pediu = false } = {}) {
 export const BLOCO_VOZ = `ESTA RESPOSTA VAI SAIR EM ÁUDIO (mensagem de voz com a sua voz). Você consegue mandar áudio: nunca diga que não manda.
 Escreva como quem grava um áudio de verdade pra amiga, falado e não lido:
 - Curto: 1 a 3 frases. Nada de emoji, link, lista, @ ou ID.
+- Palavras inteiras e claras: "você", "porque", "também" (nada de vc, pq, tbm, cê).
 - Fala de gente: "ahh", "hmm", "tipo", "né", "olha", "nossa", "aí", uma vírgula onde você respiraria, reticências quando pensa.
 - Marcações de voz (em inglês, entre colchetes, fora do texto falado), no máximo 2 por áudio: emoção no começo da frase ([happy], [excited], [playful], [soft tone], [slightly sad], [whispering]) e som ou pausa no meio ([laughing], [chuckling], [sighing], [break], [long-break]).
-- Exemplo: [playful] ahh para, kkk... [break] tô aqui sim, ué. [chuckling] fala, o que cê quer?`
+- Exemplo: [playful] ahh para, kkk... [break] tô aqui sim, ué. [chuckling] fala, o que você quer?`
 
 // Faz o áudio. Devolve { audio: Uint8Array, mimetype } ou null (aí vai texto).
 export function createVoz({ fetch: fetchFn = globalThis.fetch, converter = paraOgg, agora = () => Date.now(), log = () => {} } = {}) {
@@ -84,7 +91,9 @@ export function createVoz({ fetch: fetchFn = globalThis.fetch, converter = paraO
   }
 
   async function pedir(texto, modelo) {
-    const corpo = { text: texto, format: 'opus', latency: 'normal', normalize: true, language: 'pt' }
+    // Um pouco mais devagar e estável: a voz animada correndo fica difícil de entender.
+    const velocidade = Math.min(1.5, Math.max(0.6, numeroEnv('FISH_AUDIO_VELOCIDADE', 0.88)))
+    const corpo = { text: texto, format: 'opus', latency: 'normal', normalize: true, language: 'pt', temperature: 0.6, top_p: 0.7, prosody: { speed: velocidade } }
     corpo.reference_id = String(process.env.FISH_AUDIO_VOZ || '').trim() || VOZ_PADRAO
     const ctrl = new AbortController()
     const timer = setTimeout(() => ctrl.abort(), 30_000)
