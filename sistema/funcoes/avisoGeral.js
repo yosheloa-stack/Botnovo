@@ -36,7 +36,8 @@ export function textoDoAviso(texto, prefixo = '#') {
 export async function avisoGeral({ base, token, fetchImpl = fetch, prefixo = '#' }, acao = {}) {
   if (!token) throw new Error('falta o token do site no bot (AURORA_RENTAL_TOKEN ou #tokenaluguel)')
   const url = String(base || '').replace(/\/+$/, '') + '/api/bot/avisos-cliente/geral'
-  const corpo = acao.cancelar ? { cancelar: true } : acao.texto ? { texto: acao.texto, de: acao.de || '' } : null
+  const corpo = acao.cancelar ? { cancelar: true } : acao.pausar ? { pausar: true, motivo: 'pausado pelo dono' } : acao.retomar ? { retomar: true }
+    : acao.texto ? { texto: acao.texto, de: acao.de || '' } : null
   let r
   try {
     r = await pedirAoSite(url, {
@@ -53,11 +54,18 @@ export async function avisoGeral({ base, token, fetchImpl = fetch, prefixo = '#'
   if (acao.cancelar) {
     return d.cancelados ? `🛑 Aviso cancelado: ${plural(d.cancelados, 'cliente não vai', 'clientes não vão')} receber.` : 'Não tinha aviso esperando na fila.'
   }
+  if (acao.pausar) return `⏸️ Aviso pausado. ${plural(d.geral?.na_fila || 0, 'cliente espera', 'clientes esperam')} na fila.\n\n${prefixo}aviso continuar → volta a mandar • ${prefixo}aviso cancelar → apaga a fila`
+  if (acao.retomar) {
+    const g = d.geral || {}
+    if (!g.na_fila) return 'Não tem aviso esperando na fila.'
+    return [`▶️ Aviso voltando: ${plural(g.na_fila, 'cliente falta', 'clientes faltam')}.`, `Sai um de cada vez, a cada ~${g.espaco_s || 90} s.`,
+      g.termina_em ? `Deve terminar por volta das ${hora(g.termina_em)} (${dia(g.termina_em)}).` : ''].filter(Boolean).join('\n')
+  }
   if (corpo) {
     if (!d.total) return 'Nenhum cliente com WhatsApp cadastrado no site pra receber o aviso.'
     return [
       `📢 Aviso na fila pra ${plural(d.total, 'cliente', 'clientes')}.`,
-      `Sai um de cada vez, a cada ~${d.espaco_s || 40} s, pro WhatsApp não bloquear o número.`,
+      `Sai um de cada vez, a cada ~${d.espaco_s || 90} s, pro WhatsApp não bloquear o número.`,
       d.termina_em ? `Deve terminar por volta das ${hora(d.termina_em)} (${dia(d.termina_em)}).` : '',
       '',
       `${prefixo}aviso mostra o andamento • ${prefixo}aviso cancelar para o que falta`
@@ -69,9 +77,11 @@ export async function avisoGeral({ base, token, fetchImpl = fetch, prefixo = '#'
     '📢 *Aviso pra todos os clientes*',
     u ? `Último: "${u.texto}" (${dia(u.criado)} ${hora(u.criado)}, ${plural(u.total, 'cliente', 'clientes')})` : 'Nenhum aviso mandado ainda.',
     u ? `${g.enviados || 0} enviados • ${g.na_fila || 0} na fila • ${(g.sem_whatsapp || 0) + (g.recusados || 0)} sem WhatsApp ou recusados` : '',
+    g.pausado ? `⏸️ *Pausado* (${g.pausado.motivo}). Mande ${prefixo}aviso continuar pra voltar ou ${prefixo}aviso cancelar pra apagar a fila.` : '',
     g.na_fila && g.termina_em ? `Termina por volta das ${hora(g.termina_em)}.` : '',
     '',
     `${prefixo}aviso texto → manda pra todos com número no site`,
+    `${prefixo}aviso pausar / ${prefixo}aviso continuar → segura e solta a fila`,
     `${prefixo}aviso cancelar → para o que ainda não saiu`
   ].filter(Boolean).join('\n')
 }

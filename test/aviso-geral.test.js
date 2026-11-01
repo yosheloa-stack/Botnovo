@@ -53,3 +53,23 @@ test('erro do site e falta de token viram uma frase clara', async () => {
   await assert.rejects(avisoGeral({ base, token: 'tk', fetchImpl: e.fetchImpl }, { texto: 'x' }), /já mandou/)
   await assert.rejects(avisoGeral({ base, token: '', fetchImpl: e.fetchImpl }, { texto: 'x' }), /token/)
 })
+
+test('#aviso pausar e #aviso continuar; o andamento mostra quando está pausado', async () => {
+  const p = siteFalso({ ok: true, pausado: true, geral: { na_fila: 40, pausado: { motivo: 'pausado pelo dono' } } })
+  const rp = await avisoGeral({ base, token: 'tk', fetchImpl: p.fetchImpl, prefixo: '#' }, { pausar: true })
+  assert.deepEqual(p.chamadas[0].corpo, { pausar: true, motivo: 'pausado pelo dono' })
+  assert.match(rp, /pausado/i)
+  assert.match(rp, /40 clientes/)
+  assert.match(rp, /#aviso continuar/)
+  const c = siteFalso({ ok: true, retomado: true, geral: { na_fila: 40, espaco_s: 90, termina_em: '2026-11-01T08:00:00.000Z' } })
+  const rc = await avisoGeral({ base, token: 'tk', fetchImpl: c.fetchImpl }, { retomar: true })
+  assert.deepEqual(c.chamadas[0].corpo, { retomar: true })
+  assert.match(rc, /40 clientes faltam/)
+  assert.match(rc, /90 s/)
+  const a = siteFalso({ ok: true, geral: { na_fila: 40, enviados: 1, pausado: { motivo: 'o WhatsApp desconectou o bot GGx' },
+    ultimo: { texto: 'Promoção!', criado: '2026-11-01T07:00:00.000Z', total: 41 } } })
+  const st = await avisoGeral({ base, token: 'tk', fetchImpl: a.fetchImpl, prefixo: '#' }, {})
+  assert.match(st, /Pausado/)
+  assert.match(st, /desconectou o bot GGx/)
+  assert.match(st, /#aviso continuar/)
+})
