@@ -56,11 +56,30 @@ return null
 }
 }
 
+// A IMAGEM DA IA YOSH (/v1/yosh/arquivo/...): os bytes, ou null.
+async function arquivo(url) {
+try {
+const response = await pedirAoSite(new URL(url), { headers: { Accept: 'image/*' }, timeoutMs: 40_000 })
+if (!response.ok || !/^image\//.test(response.headers?.get?.('content-type') || '')) return null
+const bytes = new Uint8Array(await response.arrayBuffer())
+return bytes.length ? bytes : null
+} catch (err) {
+console.warn('[ AURORA API ] imagem da Yosh não veio:', motivoDaFalha(err))
+return null
+}
+}
+
 export const autoSystem = {
 info: (config, uid) => request(config, '/v1/info', { uid }),
 banner,
 like: (config, uid, qtd) => request(config, '/v1/like', { uid, qtd }),
 add: (config, uid, options = {}) => request(config, '/v1/autolike/add', { uid, ...options }),
 list: (config) => request(config, '/v1/autolike/list'),
-remove: (config, uid) => request(config, '/v1/autolike/remove', { uid })
+remove: (config, uid) => request(config, '/v1/autolike/remove', { uid }),
+// IA Yosh (a API de IA do site, paga pelo saldo da key da Yosh)
+yosh: (config, params) => request(config, '/v1/yosh', params),
+yoshImagem: (config, params) => request(config, '/v1/yosh/imagem', params),
+yoshModelos: (config) => request(config, '/v1/yosh/modelos'),
+yoshReset: (config, conversa) => request(config, '/v1/yosh/reset', { conversa }),
+yoshArquivo: arquivo
 }
