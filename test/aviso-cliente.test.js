@@ -98,3 +98,29 @@ test('pelo launcher: o bot do número fixo manda, e número sem WhatsApp volta c
   assert.deepEqual(enviados.map((m) => [m.para, m.cliente]), [['19175551234', true], ['525500000000', true]])
   assert.deepEqual(chamadas.at(-1), ['/api/bot/avisos-cliente/entregues', { ids: ['c2'], sem_whatsapp: ['c3'] }])
 })
+
+test('WhatsApp recusou (ack com erro): tenta pelo LID e, se recusar de novo, avisa o site sem contar como entregue', async () => {
+  const s = site([{ id: 'r1', numero: '5582991062601', texto: 'oi' }, { id: 'r2', numero: '5511988887777', texto: 'oi' }])
+  const enviados = []
+  const client = {
+    getCredentials: () => ({ meJid: '5567981517686:3@s.whatsapp.net' }),
+    profile: { getLidsByPhoneNumbers: async ([n]) => [{ exists: true, phoneJid: `${n}@s.whatsapp.net`, lidJid: `${n.slice(-6)}@lid` }] },
+    message: { send: async (jid) => { enviados.push(jid); return { ack: jid.startsWith('55829') || jid === '062601@lid' ? { error: 463 } : {} } } }
+  }
+  const ow = console.warn, ol = console.log; console.warn = () => {}; console.log = () => {}
+  try { await createAvisoCompra({ client, config: {}, api: s.api, pausaClienteMs: 0 })() } finally { console.warn = ow; console.log = ol }
+  assert.deepEqual(enviados, ['5582991062601@s.whatsapp.net', '062601@lid', '5511988887777@s.whatsapp.net'])
+  assert.deepEqual(s.chamadas.at(-1), ['/api/bot/avisos-cliente/entregues', { ids: ['r2'], sem_whatsapp: [], recusados: [{ id: 'r1', erro: 463 }] }])
+})
+
+test('recusa pelo LID resolve: conta como entregue', async () => {
+  const s = site([{ id: 'l1', numero: '5521977776666', texto: 'oi' }])
+  const client = {
+    getCredentials: () => ({ meJid: '5567981517686:3@s.whatsapp.net' }),
+    profile: { getLidsByPhoneNumbers: async ([n]) => [{ exists: true, phoneJid: `${n}@s.whatsapp.net`, lidJid: '999@lid' }] },
+    message: { send: async (jid) => ({ ack: jid.endsWith('@lid') ? {} : { error: 463 } }) }
+  }
+  const ol = console.log; console.log = () => {}
+  try { await createAvisoCompra({ client, config: {}, api: s.api, pausaClienteMs: 0 })() } finally { console.log = ol }
+  assert.deepEqual(s.chamadas.at(-1), ['/api/bot/avisos-cliente/entregues', { ids: ['l1'], sem_whatsapp: [] }])
+})
