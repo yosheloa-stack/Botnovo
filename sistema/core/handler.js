@@ -1,5 +1,5 @@
 import { makeSystem, extractText, messageKind } from './contexto.js'
-import { db, groupState, saveState, hasCmd, hasGcmd, isVipCmd, isBanGp, aluguelOn, aluguelOk, getLimiteFF, setLimiteFF, consultarCotaFF, consumirCotaFF, getIdiomaGrupo, setIdiomaGrupo } from '../funcoes/banco.js'
+import { db, groupState, saveState, hasCmd, hasGcmd, isVipCmd, isBanGp, aluguelOn, aluguelOk, consultarCotaFF, consumirCotaFF, getIdiomaGrupo, setIdiomaGrupo } from '../funcoes/banco.js'
 import { showCommand } from '../funcoes/terminal.js'
 import messages from '../funcoes/global.js'
 import { handleTicTacToe } from '../funcoes/velha.js'
@@ -11,7 +11,8 @@ import { verifiedSendOptions } from '../funcoes/meta.js'
 import { necessarios as currentNecessarios } from '../funcoes/necessarios.js'
 import { handleSoli } from '../funcoes/soli.js'
 import { marcaCliente, modoCliente } from '../funcoes/cliente.js'
-import { handleAurora, anotarErro } from '../funcoes/aurora/index.js'
+import { handleAurora, anotarErro, mencionouBot, citouBot } from '../funcoes/aurora/index.js'
+import { configurarFF } from '../funcoes/configFF.js'
 import { chamouAurora } from '../funcoes/aurora/ia.js'
 
 const missingRentalLogs = new Map()
@@ -298,17 +299,13 @@ if (!sent) return system.reply(text)
 return
 }
 
-// Configuração local do Free Fire: não altera nenhum outro grupo.
+// Configuração do Free Fire: só deste bot, neste grupo (ver funcoes/configFF.js).
+// Num grupo com vários bots todos recebem o comando; cada um só muda pelo dono
+// dele ou quando o ADM marca/responde aquele bot.
 if (system.command === 'configurarff' || system.command === 'configff') {
-  if (!system.isGroup) return system.reply(msgIdioma(system, '⚠️ Use este comando dentro do grupo.', '⚠️ Usa este comando dentro del grupo.', '⚠️ Use this command in a group.'))
-  if (!system.isOwner && !system.isAdmin) return system.reply(msgIdioma(system, '🔒 Somente o dono ou administrador deste grupo pode configurar o Free Fire.', '🔒 Solo el dueño o un administrador puede configurar Free Fire.', '🔒 Only the group owner or an admin can configure Free Fire.'))
-  const argumento = String(text).trim().split(/\s+/).slice(1)[0]
-  const atual = getLimiteFF(system.from)
-  if (!argumento) return system.reply('🎮 *Configurações Free Fire*\n\nLimite atual: *' + (atual ? atual + ' IDs por usuário/dia' : 'sem limite') + '*\n\nPara alterar: *' + system.prefix + 'configurarff 3*\nSem limite: *' + system.prefix + 'configurarff 0*\n\nA configuração vale somente para este grupo.')
-  const n = Number(argumento)
-  if (!Number.isInteger(n) || n < 0 || n > 100) return system.reply(msgIdioma(system, 'Informe um limite de 1 a 100 IDs por dia, ou 0 para sem limite.', 'Indica un límite de 1 a 100 IDs por día, o 0 para sin límite.', 'Enter a limit from 1 to 100 IDs per day, or 0 for no limit.'))
-  setLimiteFF(system.from, n)
-  return system.reply(n ? '✅ Limite de Free Fire configurado: *' + n + ' IDs por usuário/dia*.\nSomente neste grupo.' : '✅ Free Fire *sem limite* de IDs neste grupo.')
+  const idioma = system.isGroup ? getIdiomaGrupo(system.from) : (marcaCliente()?.idioma || 'pt')
+  const mirouEsteBot = Boolean(system.isGroup && (mencionouBot(system) || citouBot(system)))
+  return system.reply(configurarFF(system, { mirouEsteBot, nomeBot: marcaCliente()?.nome || 'Aurora', idioma }))
 }
 
 const plugin = registry.commands.get(system.command)

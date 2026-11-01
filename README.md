@@ -51,3 +51,13 @@ vez, a cada ~40 s com variação, pro número não ser bloqueado. Os avisos de
 entrega continuam saindo na hora. `#aviso` mostra o andamento e
 `#aviso cancelar` para o que ainda não saiu. O mesmo texto duas vezes em 30 min
 é recusado (engano).
+
+## Limite de IDs por pessoa (#configurarff)
+
+`#configurarff 3` limita quantos `#like` cada pessoa manda por dia no grupo
+(`#configurarff 0` = sem limite; grupo que nunca configurou fica sem limite).
+Vale só pro bot que recebeu, naquele grupo: cada bot tem o próprio banco. Num
+grupo com vários bots, só muda o bot do dono que mandou (dona, subdono ou quem
+alugou o grupo). ADM do grupo que não é dono muda um bot marcando ele junto
+(`#configurarff 3 @bot`) ou respondendo uma mensagem dele. O dono do bot e
+quem alugou o grupo não entram no limite, e like que não entrou não gasta.
