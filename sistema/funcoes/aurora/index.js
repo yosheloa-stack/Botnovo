@@ -95,6 +95,9 @@ async function buscarClima(cidade) {
 // número da casa recebe pelo gerente, em AURORA_SITE_TOKEN). 1 min de cache.
 let painelCache = { at: 0, d: null }
 const tokenSite = () => String(process.env.AURORA_SITE_TOKEN || process.env.AURORA_RENTAL_TOKEN || configAtual?.autoSystem?.rentalToken || (() => { try { return tokenAluguelSalvo() } catch { return '' } })() || '').trim()
+// O #aviso (comandos/dono/aviso.js) fala com o site pelo mesmo endereço e token.
+export const tokenDoSite = () => tokenSite()
+export const enderecoDoSite = (config) => { if (config) configAtual = config; return siteBase() }
 async function buscarPainel() {
   if (painelCache.d && Date.now() - painelCache.at < 60_000) return painelCache.d
   const token = tokenSite()
