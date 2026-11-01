@@ -56,6 +56,14 @@ return traduzirSubmenu(`┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･�
 ┃╎୨୧ 👁️ ${prefix}revelar
 ┃╰╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╯
 ┃
+┣━〔 • 𝒀𝑶𝑺𝑯 𝑰𝑨 • 🤖 〕
+┃
+┃╭╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╮
+┃╎୨୧ 🤖 ${prefix}yosh texto
+┃╎୨୧ 🎨 ${prefix}yosh imagem texto
+┃╎୨୧ ❔ ${prefix}yosh ajuda
+┃╰╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╯
+┃
 ┣━〔 • 𝑨𝑼𝑹𝑶𝑹𝑨 • 💚 〕
 ┃╎୨୧ ✰ۣۜۜ͜͡ ${NomeDoBot.toUpperCase()}
 ┃╎୨୧ ᴅᴇᴠ: YoshiGGX

@@ -42,6 +42,21 @@ marca (continua "Aurora" e com o endereço do site).
   (dono: liga/desliga no bot inteiro e mostra como ela está) e `#auroravoz` (criador: troca a voz dos áudios pelo nome de uma voz da conta na ElevenLabs (`#auroravoz padrao` volta pra padrão) e a velocidade: lenta/normal/rapida; `#auroravoz estilo sombria|fofa|animada|calma` ou um texto livre muda o jeito de falar nos áudios).
 - **Personalidade e conhecimento:** `sistema/funcoes/aurora/conhecimento.js`.
 
+## IA Yosh (#yosh)
+
+Uma IA separada da Aurora, com o nome Yosh: conversa e cria imagens. Quem
+responde é a API da Yosh no site (`/v1/yosh`), paga pelo **saldo da key da
+Yosh** da conta dona do `AUTOSYSTEM_TOKEN` deste bot (recarregado no site, aba
+IA Yosh, só com pagamento na hora). Não precisa de variável nova no bot. A
+resposta sai no idioma do grupo (`#idioma`), e cada grupo tem a sua conversa.
+
+- `#yosh texto` conversa; `#yosh imagem descrição 16:9` gera imagem (auto,
+  1:1, 16:9, 9:16, 4:3, 3:4); `#yosh modelos`; `#yosh criar fast texto`
+  começa conversa nova com outro modelo (max, lite, fast); `#yosh chat nome
+  texto` fala numa conversa com nome; `#yosh reset` apaga a memória;
+  `#yosh ajuda`. Também atende por `#yoshia` e `#iayosh`.
+- Freio: 6 mensagens por minuto e 2 imagens a cada 5 minutos por pessoa.
+
 ## Aviso pra todos os clientes (#aviso)
 
 `#aviso texto` (só o criador, ou o dono do bot da casa) manda o texto pra todo
