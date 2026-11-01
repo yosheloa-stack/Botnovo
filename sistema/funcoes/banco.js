@@ -407,10 +407,11 @@ export function getPersonalizacaoAluguel(gp) {
 }
 
 
-// Limites de Free Fire isolados por grupo alugado e usuário.
-// Limite de IDs por usuário/dia. 0 = sem limite. No bot da cliente o limite
-// é opcional (ela liga pelo #configurarff); no bot da casa o padrão é 3.
-const LIMITE_FF_PADRAO = modoCliente ? 0 : 3
+// Limites de Free Fire isolados por bot (cada bot tem o próprio banco), por
+// grupo e por usuário. Limite de IDs por usuário/dia. 0 = sem limite. O
+// limite é opcional: só vale no grupo onde o dono ligou pelo #configurarff
+// (antes o bot da casa mostrava 3, mas nada contava esse limite).
+const LIMITE_FF_PADRAO = 0
 export function getLimiteFF(gp) {
   const n = Number(getKv('ff:limite:' + txt(gp), LIMITE_FF_PADRAO))
   return Number.isInteger(n) && n >= 0 && n <= 100 ? n : LIMITE_FF_PADRAO
@@ -429,6 +430,15 @@ export function consumirCotaFF(gp, usuario) {
   if (limite && usado >= limite) return { ok: false, usado, limite, restante: 0 }
   setKv(chave, usado + 1)
   return { ok: true, usado: usado + 1, limite, restante: limite - usado - 1 }
+}
+
+// #like: guarda a vaga antes de pedir à API (dois pedidos juntos não passam
+// do limite) e devolve se o envio não deu certo.
+export function devolverCotaFF(gp, usuario) {
+  const dia = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
+  const chave = 'ff:uso:' + txt(gp) + ':' + txt(usuario) + ':' + dia
+  const usado = Number(getKv(chave, 0)) || 0
+  if (usado > 0) setKv(chave, usado - 1)
 }
 
 export function consultarCotaFF(gp, usuario) {
