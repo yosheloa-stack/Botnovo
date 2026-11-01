@@ -35,28 +35,41 @@ export async function destino(client, numero) {
   return `${numero}@s.whatsapp.net`
 }
 
-// O NÚMERO DO CLIENTE (avisos de entrega): igual ao `destino`, mas quando o
-// WhatsApp RESPONDE que o número não tem conta, devolve null — o site tira o
-// aviso da fila em vez de tentar pra sempre. Sem a consulta, manda como veio.
+// O NÚMERO DO CLIENTE (avisos de entrega): igual ao `destino`, mas diz
+// também se o WhatsApp confirmou a conta. A consulta NÃO é a palavra final:
+// ela volta "não existe" também quando o WhatsApp limita as consultas
+// (rate-overlimit) ou não ecoa o número, e por isso o aviso do Craft Land de
+// uma cliente com número certo foi largado como "sem WhatsApp" (01/11). Sem
+// confirmação, manda mesmo assim para o jeito que o WhatsApp guarda o número.
 export async function destinoCliente(client, numero) {
-  if (jidPorNumero.has(numero)) return jidPorNumero.get(numero)
-  if (typeof client?.profile?.getLidsByPhoneNumbers !== 'function') return `${numero}@s.whatsapp.net`
-  const candidatos = [numero]
-  const br = numero.match(/^55(\d{2})(\d{8,9})$/)
-  if (br) candidatos.push(br[2].length === 9 && br[2].startsWith('9') ? `55${br[1]}${br[2].slice(1)}` : `55${br[1]}9${br[2]}`)
-  let respondeu = false
-  for (const n of candidatos) {
-    try {
-      const [r] = await client.profile.getLidsByPhoneNumbers([n])
-      respondeu = true
-      if (r?.exists && clean(r.phoneJid)) {
-        jidPorNumero.set(numero, clean(r.phoneJid))
-        if (clean(r.lidJid)) lidPorNumero.set(numero, clean(r.lidJid))
-        return clean(r.phoneJid)
-      }
-    } catch {}
+  if (jidPorNumero.has(numero)) return { jid: jidPorNumero.get(numero), confirmado: true }
+  const candidatos = candidatosBr(numero)
+  if (typeof client?.profile?.getLidsByPhoneNumbers === 'function') {
+    for (const n of candidatos) {
+      try {
+        const [r] = await client.profile.getLidsByPhoneNumbers([n])
+        if (r?.exists && clean(r.phoneJid)) {
+          jidPorNumero.set(numero, clean(r.phoneJid))
+          if (clean(r.lidJid)) lidPorNumero.set(numero, clean(r.lidJid))
+          return { jid: clean(r.phoneJid), confirmado: true }
+        }
+        if (clean(r?.lidJid) && !lidPorNumero.has(numero)) lidPorNumero.set(numero, clean(r.lidJid))
+      } catch {}
+    }
   }
-  return respondeu ? null : `${numero}@s.whatsapp.net`
+  return { jid: `${candidatos[0]}@s.whatsapp.net`, confirmado: false }
+}
+// Celular do Brasil: o WhatsApp guarda COM o nono dígito os DDDs 11 a 28 e SEM
+// ele os outros (31 em diante). O jeito provável vem primeiro.
+function candidatosBr(numero) {
+  const br = numero.match(/^55(\d{2})(\d{8,9})$/)
+  if (!br) return [numero]
+  const ddd = Number(br[1])
+  const com = br[2].length === 9 ? br[2] : '9' + br[2]
+  const sem = br[2].length === 9 && br[2].startsWith('9') ? br[2].slice(1) : br[2]
+  if (!/^[6-9]/.test(sem)) return [numero]  // fixo: não tem nono dígito
+  const lista = ddd <= 28 ? [com, sem] : [sem, com]
+  return lista.map((x) => `55${br[1]}${x}`)
 }
 const lidPorNumero = new Map()
 export const erroSemWhatsapp = () => Object.assign(new Error('esse número não tem WhatsApp'), { semWhatsapp: true })
@@ -64,17 +77,20 @@ export const erroSemWhatsapp = () => Object.assign(new Error('esse número não 
 // MANDA O AVISO PRO CLIENTE E CONFERE O ACK. O WhatsApp pode RECUSAR a
 // mensagem sem dar erro no envio (ack com erro, ex.: 463 pra quem nunca falou
 // com o bot): sem esta conferência o aviso contava como entregue e sumia.
-// Recusou pelo número de telefone: tenta uma vez pelo endereço LID do contato.
+// Recusou: tenta pelo endereço LID do contato e, sem a conta confirmada, pelo
+// outro jeito do número (com/sem o nono dígito).
 export async function mandarAoCliente(client, numero, texto, opcoes) {
-  const jid = await destinoCliente(client, numero)
-  if (!jid) throw erroSemWhatsapp()
+  const { jid, confirmado } = await destinoCliente(client, numero)
+  if (!confirmado) console.warn('[ AURORA AVISO AO CLIENTE ] O WhatsApp não confirmou a conta de', numero, '— mandando assim mesmo para', jid)
   const manda = (para) => client.message.send(para, { type: 'text', text: texto }, opcoes)
-  let r = await manda(jid)
-  let erro = r?.ack?.error
-  const lid = lidPorNumero.get(numero)
-  if (erro && lid && lid !== jid) { r = await manda(lid); erro = r?.ack?.error }
-  if (erro) throw Object.assign(new Error('o WhatsApp recusou a mensagem (erro ' + erro + ')'), { recusado: erro })
-  return r
+  const tentativas = [jid, lidPorNumero.get(numero), ...(confirmado ? [] : candidatosBr(numero).map((n) => `${n}@s.whatsapp.net`))]
+  let r, erro
+  for (const para of [...new Set(tentativas.filter(Boolean))]) {
+    r = await manda(para); erro = r?.ack?.error
+    if (!erro) return r
+  }
+  if (!confirmado) throw erroSemWhatsapp()
+  throw Object.assign(new Error('o WhatsApp recusou a mensagem (erro ' + erro + ')'), { recusado: erro })
 }
 
 // `meuNumero` e `enviar` mudam conforme quem manda: o bot da casa usa o

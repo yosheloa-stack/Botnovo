@@ -23,7 +23,8 @@ const site = (avisos = FILA) => {
   }
   return { api, chamadas }
 }
-// O WhatsApp de mentira: 525500000000 não tem conta.
+// O WhatsApp de mentira: 525500000000 não tem conta (a consulta diz que não e
+// o envio volta com erro).
 const bot = () => {
   const enviados = []
   return {
@@ -31,14 +32,15 @@ const bot = () => {
     client: {
       getCredentials: () => ({ meJid: '5567981517686:3@s.whatsapp.net' }),
       profile: { getLidsByPhoneNumbers: async ([n]) => [n.startsWith('5255') ? { exists: false } : { exists: true, phoneJid: `${n}@s.whatsapp.net` }] },
-      message: { send: async (jid, m) => { enviados.push([jid, m.text]) } }
+      message: { send: async (jid, m) => { if (jid.startsWith('5255')) return { ack: { error: 404 } }; enviados.push([jid, m.text]) } }
     }
   }
 }
 
 test('manda cada aviso pro número do cliente, de qualquer país, e devolve o que saiu', async () => {
   const s = site(), b = bot()
-  await createAvisoCompra({ client: b.client, config: {}, api: s.api, pausaClienteMs: 0 })()
+  const ow = console.warn; console.warn = () => {}
+  try { await createAvisoCompra({ client: b.client, config: {}, api: s.api, pausaClienteMs: 0 })() } finally { console.warn = ow }
   assert.ok(s.chamadas.some(([c]) => c === '/api/bot/avisos-cliente/pendentes?bot=5567981517686'))
   assert.deepEqual(b.enviados, [
     ['5511988887777@s.whatsapp.net', '*Craft Land entregue*'],
@@ -109,7 +111,8 @@ test('WhatsApp recusou (ack com erro): tenta pelo LID e, se recusar de novo, avi
   }
   const ow = console.warn, ol = console.log; console.warn = () => {}; console.log = () => {}
   try { await createAvisoCompra({ client, config: {}, api: s.api, pausaClienteMs: 0 })() } finally { console.warn = ow; console.log = ol }
-  assert.deepEqual(enviados, ['5582991062601@s.whatsapp.net', '062601@lid', '5511988887777@s.whatsapp.net'])
+  // DDD 82: o WhatsApp guarda sem o nono dígito, então a consulta começa por ele
+  assert.deepEqual(enviados, ['558291062601@s.whatsapp.net', '062601@lid', '5511988887777@s.whatsapp.net'])
   assert.deepEqual(s.chamadas.at(-1), ['/api/bot/avisos-cliente/entregues', { ids: ['r2'], sem_whatsapp: [], recusados: [{ id: 'r1', erro: 463 }] }])
 })
 
@@ -123,4 +126,34 @@ test('recusa pelo LID resolve: conta como entregue', async () => {
   const ol = console.log; console.log = () => {}
   try { await createAvisoCompra({ client, config: {}, api: s.api, pausaClienteMs: 0 })() } finally { console.log = ol }
   assert.deepEqual(s.chamadas.at(-1), ['/api/bot/avisos-cliente/entregues', { ids: ['l1'], sem_whatsapp: [] }])
+})
+
+test('a consulta diz que não tem conta (limite do WhatsApp), mas o número é de verdade: manda assim mesmo', async () => {
+  // a cliente do Craft Land de 01/11: +55 95 98421-4539 com número certo e o aviso largado como "sem WhatsApp"
+  const s = site([{ id: 'k1', numero: '5595984214539', texto: '*Craft Land entregue*' }])
+  const enviados = []
+  const client = {
+    getCredentials: () => ({ meJid: '5567981517686:3@s.whatsapp.net' }),
+    profile: { getLidsByPhoneNumbers: async ([n]) => [{ queriedJid: `${n}@s.whatsapp.net`, phoneJid: `${n}@s.whatsapp.net`, lidJid: null, exists: false }] },
+    message: { send: async (jid) => { enviados.push(jid); return { ack: {} } } }
+  }
+  const ow = console.warn, ol = console.log; console.warn = () => {}; console.log = () => {}
+  try { await createAvisoCompra({ client, config: {}, api: s.api, pausaClienteMs: 0 })() } finally { console.warn = ow; console.log = ol }
+  // DDD 95: sem o nono dígito, que é como o WhatsApp guarda
+  assert.deepEqual(enviados, ['559584214539@s.whatsapp.net'])
+  assert.deepEqual(s.chamadas.at(-1), ['/api/bot/avisos-cliente/entregues', { ids: ['k1'], sem_whatsapp: [] }])
+})
+
+test('sem conta confirmada e o jeito provável recusado: tenta o outro (com o nono dígito)', async () => {
+  const s = site([{ id: 'k2', numero: '5595984214539', texto: 'oi' }])
+  const enviados = []
+  const client = {
+    getCredentials: () => ({ meJid: '5567981517686:3@s.whatsapp.net' }),
+    profile: { getLidsByPhoneNumbers: async () => { throw new Error('rate-overlimit') } },
+    message: { send: async (jid) => { enviados.push(jid); return { ack: jid === '559584214539@s.whatsapp.net' ? { error: 479 } : {} } } }
+  }
+  const ow = console.warn, ol = console.log; console.warn = () => {}; console.log = () => {}
+  try { await createAvisoCompra({ client, config: {}, api: s.api, pausaClienteMs: 0 })() } finally { console.warn = ow; console.log = ol }
+  assert.deepEqual(enviados, ['559584214539@s.whatsapp.net', '5595984214539@s.whatsapp.net'])
+  assert.deepEqual(s.chamadas.at(-1), ['/api/bot/avisos-cliente/entregues', { ids: ['k2'], sem_whatsapp: [] }])
 })
