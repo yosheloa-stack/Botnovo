@@ -40,3 +40,13 @@ marca (continua "Aurora" e com o endereço do site).
   desliga no grupo), `#esquecer` (apaga a memória da conversa) e `#auroraia`
   (dono: liga/desliga no bot inteiro e mostra como ela está) e `#auroravoz` (criador: troca a voz dos áudios pelo nome de uma voz da conta na ElevenLabs (`#auroravoz padrao` volta pra padrão) e a velocidade: lenta/normal/rapida; `#auroravoz estilo sombria|fofa|animada|calma` ou um texto livre muda o jeito de falar nos áudios).
 - **Personalidade e conhecimento:** `sistema/funcoes/aurora/conhecimento.js`.
+
+## Aviso pra todos os clientes (#aviso)
+
+`#aviso texto` (só o criador, ou o dono do bot da casa) manda o texto pra todo
+cliente com WhatsApp em "Minha conta" no site. O bot repassa pro site, que põe
+na fila de cada cliente (com o nome e o rodapé no idioma dele) e solta UM por
+vez, a cada ~40 s com variação, pro número não ser bloqueado. Os avisos de
+entrega continuam saindo na hora. `#aviso` mostra o andamento e
+`#aviso cancelar` para o que ainda não saiu. O mesmo texto duas vezes em 30 min
+é recusado (engano).
