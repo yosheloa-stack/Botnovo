@@ -51,13 +51,31 @@ export async function destinoCliente(client, numero) {
       respondeu = true
       if (r?.exists && clean(r.phoneJid)) {
         jidPorNumero.set(numero, clean(r.phoneJid))
+        if (clean(r.lidJid)) lidPorNumero.set(numero, clean(r.lidJid))
         return clean(r.phoneJid)
       }
     } catch {}
   }
   return respondeu ? null : `${numero}@s.whatsapp.net`
 }
+const lidPorNumero = new Map()
 export const erroSemWhatsapp = () => Object.assign(new Error('esse número não tem WhatsApp'), { semWhatsapp: true })
+
+// MANDA O AVISO PRO CLIENTE E CONFERE O ACK. O WhatsApp pode RECUSAR a
+// mensagem sem dar erro no envio (ack com erro, ex.: 463 pra quem nunca falou
+// com o bot): sem esta conferência o aviso contava como entregue e sumia.
+// Recusou pelo número de telefone: tenta uma vez pelo endereço LID do contato.
+export async function mandarAoCliente(client, numero, texto, opcoes) {
+  const jid = await destinoCliente(client, numero)
+  if (!jid) throw erroSemWhatsapp()
+  const manda = (para) => client.message.send(para, { type: 'text', text: texto }, opcoes)
+  let r = await manda(jid)
+  let erro = r?.ack?.error
+  const lid = lidPorNumero.get(numero)
+  if (erro && lid && lid !== jid) { r = await manda(lid); erro = r?.ack?.error }
+  if (erro) throw Object.assign(new Error('o WhatsApp recusou a mensagem (erro ' + erro + ')'), { recusado: erro })
+  return r
+}
 
 // `meuNumero` e `enviar` mudam conforme quem manda: o bot da casa usa o
 // próprio WhatsApp; o launcher (avisosVenda.js) usa o bot de cliente que
@@ -69,11 +87,7 @@ export function createAvisoCompra({ client, config, api, meuNumero, enviar, envi
   let avisouOutro = false
   meuNumero = meuNumero || (() => digits(String(client.getCredentials?.()?.meJid || '').split(/[:@]/)[0]) || digits(config?.connection?.number))
   enviar = enviar || (async (numero, texto) => client.message.send(await destino(client, numero), { type: 'text', text: texto }))
-  enviarCliente = enviarCliente || (async (numero, texto) => {
-    const jid = await destinoCliente(client, numero)
-    if (!jid) throw erroSemWhatsapp()
-    return client.message.send(jid, { type: 'text', text: texto })
-  })
+  enviarCliente = enviarCliente || ((numero, texto) => mandarAoCliente(client, numero, texto))
 
   // AVISOS PRO CLIENTE (entregas e plano acabando). Cada aviso vem com o
   // número do cliente, já com o código do país (Brasil ou de fora). O site
@@ -93,7 +107,7 @@ export function createAvisoCompra({ client, config, api, meuNumero, enviar, envi
     }
     ultimoErroCliente = ''
     const avisos = Array.isArray(data?.avisos) ? data.avisos : []
-    const entregues = [], semWhatsapp = []
+    const entregues = [], semWhatsapp = [], recusados = []
     for (const aviso of avisos) {
       const id = clean(aviso?.id), texto = clean(aviso?.texto), numero = digits(aviso?.numero)
       if (!id || !texto || numero.length < 8) continue
@@ -103,6 +117,8 @@ export function createAvisoCompra({ client, config, api, meuNumero, enviar, envi
         console.log('[ AURORA AVISO AO CLIENTE ] Enviado:', id)
       } catch (err) {
         if (err?.semWhatsapp) { semWhatsapp.push(id); console.warn('[ AURORA AVISO AO CLIENTE ] Sem WhatsApp:', id); continue }
+        // recusa é deste número (os outros podem sair): anota e segue
+        if (err?.recusado) { recusados.push({ id, erro: err.recusado }); console.warn('[ AURORA AVISO AO CLIENTE ] Recusado pelo WhatsApp:', id, '(erro ' + err.recusado + ')'); continue }
         console.error('[ AURORA AVISO AO CLIENTE ] Falha ao enviar', id, '-', err?.message || err)
         break
       }
@@ -110,9 +126,9 @@ export function createAvisoCompra({ client, config, api, meuNumero, enviar, envi
       // WhatsApp mais bloqueia
       await sleep(pausaClienteMs)
     }
-    if (!entregues.length && !semWhatsapp.length) return
+    if (!entregues.length && !semWhatsapp.length && !recusados.length) return
     try {
-      await api(config, '/api/bot/avisos-cliente/entregues', { method: 'POST', body: { ids: entregues, sem_whatsapp: semWhatsapp } })
+      await api(config, '/api/bot/avisos-cliente/entregues', { method: 'POST', body: { ids: entregues, sem_whatsapp: semWhatsapp, ...(recusados.length ? { recusados } : {}) } })
     } catch (err) {
       console.error('[ AURORA AVISO AO CLIENTE ] Não confirmou no site:', err?.message || err)
     }

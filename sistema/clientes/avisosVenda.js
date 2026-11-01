@@ -24,7 +24,7 @@ export function enviarPorIpc(filho, para, texto, timeoutMs = 60_000, { cliente =
       if (erro) reject(erro)
       else resolve()
     }
-    const ouvir = (m) => { if (m?.tipo === 'aviso_venda_ok' && m.id === id) fim(m.ok ? null : Object.assign(new Error(m.erro || 'o bot não conseguiu mandar'), { semWhatsapp: !!m.sem_whatsapp })) }
+    const ouvir = (m) => { if (m?.tipo === 'aviso_venda_ok' && m.id === id) fim(m.ok ? null : Object.assign(new Error(m.erro || 'o bot não conseguiu mandar'), { semWhatsapp: !!m.sem_whatsapp, recusado: m.recusado || null })) }
     const saiu = () => fim(new Error('o bot desligou antes de mandar'))
     const prazo = setTimeout(() => fim(new Error('o bot não respondeu em ' + Math.round(timeoutMs / 1000) + ' s')), timeoutMs)
     filho.on('message', ouvir)
