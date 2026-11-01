@@ -80,6 +80,18 @@ export function criarGerente({
     return data
   }
 
+  const ehNumeroDaCasa = (n) => Boolean(limpo(n)) && (mesmoNumero(NUMERO_BOT_DA_CASA, limpo(n)) || mesmoNumero(limpo(n), NUMERO_BOT_DA_CASA))
+  async function pausarAvisoGeral(motivo) {
+    try {
+      await chamar('/api/bot/avisos-cliente/geral', { method: 'POST', body: { pausar: true, motivo } })
+      log.warn(`[ AURORA AVISO GERAL ] Pausado: ${motivo}. Volta com #aviso continuar.`)
+      return true
+    } catch (err) {
+      log.warn('[ AURORA AVISO GERAL ] Não consegui pausar no site:', err?.message || err)
+      return false
+    }
+  }
+
   async function contar(pedido, resultado) {
     try {
       await chamar('/api/bot/wa/clientes/resultado', { method: 'POST', body: { resultados: [{ pedido, ...resultado }] } })
@@ -138,7 +150,12 @@ export function criarGerente({
       const tipo = msg?.tipo
       if (tipo === 'codigo') void contar(c.pedido, { codigo: limpo(msg.codigo).slice(0, 16) })
       else if (tipo === 'conectado') { estado.conectado = true; estado.numero = limpo(msg.numero).replace(/\D/g, ''); estado.falhas = 0; void contar(c.pedido, { ok: true, numero: limpo(msg.numero) }) }
-      else if (tipo === 'desconectado') { estado.conectado = false; estado.motivo = 'desconectado'; void contar(c.pedido, { ok: false, erro: 'desconectado' }) }
+      else if (tipo === 'desconectado') {
+        estado.conectado = false; estado.motivo = 'desconectado'; void contar(c.pedido, { ok: false, erro: 'desconectado' })
+        // O NÚMERO DA CASA CAIU (é ele que manda os avisos pros clientes): o
+        // #aviso pra todos para no site e só volta com "#aviso continuar"
+        if (ehNumeroDaCasa(estado.numero || c.bot_numero)) void pausarAvisoGeral(`o WhatsApp desconectou o bot ${limpo(c.nome_bot) || limpo(c.bot_numero)}`)
+      }
       else if (tipo === 'codigo_expirou') { estado.motivo = 'codigo_expirou'; void contar(c.pedido, { ok: false, erro: 'codigo_expirou' }) }
       else if (tipo === 'vencido') estado.motivo = 'vencido'
     })
@@ -245,6 +262,7 @@ export function criarGerente({
   return {
     bots,
     sincronizar,
+    pausarAvisoGeral,
     // Bots de cliente conectados agora, com o número de cada um (os avisos de
     // venda saem pelo que estiver no número fixo da casa, ver avisosVenda.js).
     canais: () => [...bots.values()].filter((e) => e.conectado && e.filho?.connected)

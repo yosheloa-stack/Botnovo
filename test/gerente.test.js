@@ -175,3 +175,18 @@ test('Aurora com IA: só o bot no número da casa recebe a chave da Square Cloud
   assert.ok(casa.AURORA_SITE_TOKEN, 'o bot do número da casa lê o painel do site')
   assert.equal(outra.AURORA_SITE_TOKEN, undefined, 'bot de cliente nunca recebe o token do site')
 })
+
+test('o bot no número da casa caiu: o gerente pausa o #aviso pra todos no site; outro bot não', async () => {
+  const { g, filhos, pedidos } = cenario(() => [cliente({ codigo_pedido: 1, bot_numero: '5567981517686', nome_bot: 'GGx' }), cliente({ pedido: 'p2', codigo_pedido: 1 })])
+  await g.sincronizar()
+  filhos[1].emit('message', { tipo: 'desconectado' })
+  await espera()
+  assert.equal(pedidos.filter((p) => p.url.endsWith('/api/bot/avisos-cliente/geral')).length, 0, 'pausou por causa do bot de outra cliente')
+  filhos[0].emit('message', { tipo: 'desconectado' })
+  await espera()
+  const pausa = pedidos.filter((p) => p.url.endsWith('/api/bot/avisos-cliente/geral'))
+  assert.equal(pausa.length, 1)
+  const corpo = JSON.parse(pausa[0].opcoes.body)
+  assert.equal(corpo.pausar, true)
+  assert.match(corpo.motivo, /GGx/)
+})
