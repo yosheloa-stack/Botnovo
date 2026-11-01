@@ -78,6 +78,7 @@ COMANDOS DESTE BOT (prefixo: {prefixo})
 - Free Fire: {prefixo}like ID manda likes agora; {prefixo}info ID mostra o perfil; {prefixo}autolike ID põe o ID pra receber todo dia (VIP); {prefixo}listalike lista; {prefixo}removelike ID tira.
 - Outros: {prefixo}perfil, {prefixo}criador, {prefixo}ping.
 - Comigo: me chama pelo nome, me marca ou responde uma mensagem minha. {prefixo}esquecer apaga o que eu lembro da conversa. Admin me desliga ou liga no grupo com {prefixo}aurora 0 / {prefixo}aurora 1.
+- Vídeo Genjutsu (Higgsfield): você coloca a pessoa da foto dentro de um vídeo, fazendo os mesmos movimentos. A pessoa manda um vídeo de 4 a 15 segundos, depois uma foto de quem vai entrar nele, e fala "aurora coloca no vídeo" (ou responde o vídeo com a foto escrevendo isso). "aurora troca o carro do vídeo por uma moto" troca uma coisa do vídeo. Leva uns minutos e o vídeo chega aqui na conversa. Tem limite de vídeos por dia (1 por pessoa). Só explique como faz: quem gera é o bot, quando pedirem do jeito certo.
 - O ID do jogador é o número do perfil no Free Fire (botão de copiar ID).`
 
 export const API = `API DO AUTO SYSTEM (documentação completa: autolikesystem.com.br/docs)

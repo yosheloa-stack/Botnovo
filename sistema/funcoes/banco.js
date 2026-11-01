@@ -547,6 +547,25 @@ export function auroraVelocidade(value) {
   if (value !== undefined) setCfg('aurora_velocidade', Number(value) || 0)
   return Number(getCfg('aurora_velocidade', 0)) || 0
 }
+// O Genjutsu da Aurora (vídeo na Higgsfield): quem pode pedir (criador,
+// donos ou todos) e quantos vídeos por dia no bot inteiro. O criador muda com #genjutsu.
+export function auroraGenjutsuQuem(value) {
+  if (value !== undefined) setCfg('aurora_genjutsu_quem', ['criador', 'donos', 'todos'].includes(value) ? value : 'todos')
+  const v = String(getCfg('aurora_genjutsu_quem', '') || process.env.AURORA_GENJUTSU_QUEM || 'todos')
+  return ['criador', 'donos', 'todos'].includes(v) ? v : 'todos'
+}
+export function auroraGenjutsuDia(value) {
+  if (value !== undefined) setCfg('aurora_genjutsu_dia', Math.max(0, Math.min(500, Math.floor(Number(value) || 0))))
+  const n = Number(getCfg('aurora_genjutsu_dia', null) ?? process.env.AURORA_GENJUTSU_DIA ?? 3)
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 3
+}
+// Vídeos feitos no dia (chave = dia de Brasília): { total, pessoas: { quem: n } }.
+export function auroraGenjutsuUso(dia, value) {
+  const k = 'aurora:genjutsu:' + txt(dia)
+  if (value !== undefined) setKv(k, value)
+  const v = getKv(k, null)
+  return v && typeof v === 'object' ? { total: Number(v.total) || 0, pessoas: v.pessoas && typeof v.pessoas === 'object' ? v.pessoas : {} } : { total: 0, pessoas: {} }
+}
 export function auroraNoGrupo(gp, value) {
   const k = 'aurora:grupo:' + txt(gp)
   if (value !== undefined) setKv(k, value ? 1 : 0)

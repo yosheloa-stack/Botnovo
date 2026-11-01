@@ -12,10 +12,16 @@
 import { createAurora, deveResponder, chamouAurora, trocarMarcacoes, textoPrecos, textoClima, acaoDoCriador, acharId, FRASES_LIKE, FRASES_INFO, blocoMembros, acharMarcacoes, SEM_MEMBROS, pediuMarcar, acharMembro, garantirMarcacao, fingiuExecutar, oQueFingiu, SEM_FINGIR, LIMITES } from './ia.js'
 import { createVoz, vozLigada, pediuAudio, fraseDoAudio, blocoVoz, pedidoDeDirecao, direcaoValida, ofereceuAudio, topou, podeFalar, semTagsDeVoz } from './voz.js'
 import { extractText } from '../../core/contexto.js'
-import { contextInfoFromMessage, quotedInfo, quotedTarget } from '../mensagem.js'
+import { genjutsuLigado, pediuGenjutsu, promptDaTroca, escolherMidias, createRecentes, createGenjutsu, podePedir, conferirVideo, maxSegundos, diaBrasilia, falaDoErro, FALAS } from './genjutsu.js'
+import { downloadFile, cleanup } from '../midia.js'
+import fs from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
+import crypto from 'node:crypto'
+import { contextInfoFromMessage, quotedInfo, quotedTarget, mediaInfo } from '../mensagem.js'
 import { autoSystem } from '../auto.js'
 import { pedirAoSite } from '../rede.js'
-import { auroraIaLigada, auroraNoGrupo, auroraCriador, auroraEsposa, auroraVoz, auroraVelocidade, auroraEstilo, tokenAluguelSalvo, numeroDoLid, aluguelOk, getDonoAluguel, hasCmd, hasGcmd } from '../banco.js'
+import { auroraGenjutsuQuem, auroraGenjutsuDia, auroraGenjutsuUso, auroraIaLigada, auroraNoGrupo, auroraCriador, auroraEsposa, auroraVoz, auroraVelocidade, auroraEstilo, tokenAluguelSalvo, numeroDoLid, aluguelOk, getDonoAluguel, hasCmd, hasGcmd } from '../banco.js'
 import likeCmd from '../../comandos/ff/like.js'
 import infoCmd from '../../comandos/ff/info.js'
 import { modoCliente } from '../cliente.js'
@@ -395,11 +401,134 @@ async function conversar(system, texto) {
   await system.reply(semTagsDeVoz(resposta), mentions.length ? { ...opcoes, mentions } : opcoes)
 }
 
+// ── Genjutsu (vídeo na Higgsfield) ──────────────────────────────────────────
+// A pessoa manda um vídeo e uma foto e pede "aurora coloca eu nesse vídeo":
+// o bot baixa os dois, manda pra Higgsfield e devolve o vídeo pronto aqui.
+// Ver genjutsu.js (chave, limites e falas).
+const genjutsu = createGenjutsu()
+const recentes = createRecentes()
+let videosAgora = 0
+const MAX_JUNTOS = 2
+const LIMITE_MIDIA = 64 * 1024 * 1024
+
+const conversaDe = (system) => `${system.from}:${system.senderKey}`
+const midiaDe = (info, fonte) => info && ['image', 'video'].includes(info.type)
+  ? { tipo: info.type, seconds: Number(info.seconds || 0), mimetype: info.mimetype, fonte }
+  : null
+
+// Toda foto ou vídeo que chega fica lembrado 20 min (só a referência).
+export function lembrarMidia(system) {
+  if (!genjutsuLigado()) return
+  const m = midiaDe(mediaInfo(system.msg || system.event?.message), system.event)
+  if (m) recentes.guardar(conversaDe(system), m)
+}
+
+function midiasDoPedido(system) {
+  const atual = midiaDe(mediaInfo(system.msg || system.event?.message), system.event)
+  const q = quotedInfo(system.event)
+  const citada = q ? midiaDe(mediaInfo(q.message), {
+    key: { remoteJid: system.from, id: q.id, fromMe: Boolean(quotedTarget(system)?.fromMe), ...(q.participant ? { participant: q.participant } : {}) },
+    message: q.message
+  }) : null
+  return escolherMidias([atual, citada, recentes.pegar(conversaDe(system))])
+}
+
+async function baixarMidia(system, m) {
+  const dir = path.join(os.tmpdir(), 'aurora-genjutsu')
+  await fs.mkdir(dir, { recursive: true })
+  const file = path.join(dir, `${Date.now()}-${crypto.randomUUID()}.${m.tipo === 'video' ? 'mp4' : 'jpg'}`)
+  try {
+    try {
+      await system.client.message.downloadToFile(m.fonte, file, { maxBytes: LIMITE_MIDIA })
+    } catch {
+      await system.client.message.downloadToFile(m.fonte?.message || m.fonte, file, { maxBytes: LIMITE_MIDIA })
+    }
+    const buffer = await fs.readFile(file)
+    const mimetype = m.tipo === 'video' ? 'video/mp4' : (/png|webp/.test(String(m.mimetype)) ? String(m.mimetype).split(';')[0] : 'image/jpeg')
+    return { buffer, mimetype }
+  } finally {
+    await cleanup(file)
+  }
+}
+
+async function fazerGenjutsu(system, texto, pedido) {
+  const conversa = conversaDe(system)
+  const opcoes = modoCliente ? { semMarca: true } : {}
+  const criador = ehCriador(system)
+  const falar = async (frase) => {
+    aurora.anotar(conversa, `[${nomeDe(system)}] ${texto.slice(0, 800)}`, frase)
+    return system.reply(frase, opcoes)
+  }
+  const pessoa = String(system.senderNumber || system.senderKey || '')
+  const dia = diaBrasilia()
+  const pode = podePedir({ quem: auroraGenjutsuQuem(), ehCriador: criador, ehDono: Boolean(system.isOwner), uso: auroraGenjutsuUso(dia), pessoa, maxDia: auroraGenjutsuDia() })
+  if (!pode.sim) return falar(FALAS[pode.motivo]())
+  const max = maxSegundos()
+  const { video, imagens } = midiasDoPedido(system)
+  if (!video && !imagens.length) return falar(FALAS.sem_midia(max))
+  if (!video) return falar(FALAS.sem_video(max))
+  if (!imagens.length) return falar(FALAS.sem_foto())
+  const tamanho = conferirVideo(video.seconds, max)
+  if (tamanho) return falar(FALAS[tamanho](max))
+  if (videosAgora >= MAX_JUNTOS) return falar(FALAS.ocupado())
+
+  videosAgora++
+  let contou = false
+  const devolver = () => {
+    if (!contou) return
+    const u = auroraGenjutsuUso(dia)
+    u.total = Math.max(0, u.total - 1)
+    u.pessoas[pessoa] = Math.max(0, Number(u.pessoas[pessoa] || 0) - 1)
+    auroraGenjutsuUso(dia, u)
+  }
+  let saida = null
+  try {
+    let entrada
+    try {
+      entrada = { video: await baixarMidia(system, video), imagens: [] }
+      for (const img of imagens) entrada.imagens.push(await baixarMidia(system, img))
+    } catch (err) {
+      console.warn('[ AURORA GENJUTSU ] não baixei a mídia do zap:', err?.message || err)
+      return falar(FALAS.baixar())
+    }
+    await falar(FALAS.comecou())
+    console.log('[ AURORA GENJUTSU ]', pedido.modo, '| vídeo', video.seconds || '?', 's |', imagens.length, 'foto(s) |', system.from)
+    const url = await genjutsu.gerar({
+      modo: pedido.modo,
+      video: entrada.video,
+      imagens: entrada.imagens,
+      prompt: pedido.modo === 'troca' ? promptDaTroca(texto) : '',
+      aoEnviar: (p) => {
+        console.log('[ AURORA GENJUTSU ] pedido na Higgsfield:', p.request_id)
+        if (criador) return
+        const u = auroraGenjutsuUso(dia)
+        u.total += 1
+        u.pessoas[pessoa] = Number(u.pessoas[pessoa] || 0) + 1
+        auroraGenjutsuUso(dia, u)
+        contou = true
+      }
+    })
+    saida = await downloadFile(url, system.config, 'mp4')
+    recentes.esquecer(conversa)
+    aurora.anotar(conversa, `[${nomeDe(system)}] ${texto.slice(0, 800)}`, '(mandei o vídeo do genjutsu pronto)')
+    return await system.reply({ type: 'video', media: saida.path, mimetype: 'video/mp4', caption: FALAS.pronto() }, opcoes)
+  } catch (err) {
+    console.warn('[ AURORA GENJUTSU ] falhou:', err?.codigo || '', err?.message || err)
+    // Vídeo que não saiu não é cobrado: volta pro limite do dia.
+    if (['nsfw', 'falhou', 'demorou', 'api', 'invalido'].includes(err?.codigo)) devolver()
+    return falar(falaDoErro(err, criador))
+  } finally {
+    videosAgora--
+    if (saida) await cleanup(saida)
+  }
+}
+
 // Devolve true quando a mensagem é da Aurora (o handler para por aqui).
 // forcado: veio do comando #aurora texto.
 export function handleAurora(system, { forcado = false, texto } = {}) {
   if (!iaNesteBot()) return false
   configAtual = system.config || configAtual
+  lembrarMidia(system)
   const t = String(texto ?? system.text ?? '').trim()
   const p = String(system.prefix || '#')
   const ehComando = !forcado && (t.startsWith(p) || t.startsWith('/'))
@@ -426,6 +555,12 @@ export function handleAurora(system, { forcado = false, texto } = {}) {
   const bloqueado = (c) => comandoBloqueado(system, c)
   const tarefa = (async () => {
     await conhecerPessoas(system)
+    // Pediu vídeo (e tem vídeo ou foto por perto, ou falou "genjutsu"): vai pra Higgsfield.
+    const pedidoVideo = genjutsuLigado() ? pediuGenjutsu(t) : null
+    if (pedidoVideo) {
+      const { video, imagens } = midiasDoPedido(system)
+      if (pedidoVideo.forte || video || imagens.length) return fazerGenjutsu(system, t, pedidoVideo)
+    }
     const frase = ehCriador(system) && vozLigada() ? fraseDoAudio(t) : ''
     if (frase) return falarFrase(system, t, frase)
     const acao = ehCriador(system) ? acaoDoCriador(t, textoCitado(system), ultimoComando.get(`${system.from}:${system.senderKey}`)) : null
@@ -437,6 +572,6 @@ export function handleAurora(system, { forcado = false, texto } = {}) {
 }
 
 export const esquecerAurora = (system) => aurora.esquecer(`${system.from}:${system.senderKey}`)
-export const estadoAurora = () => ({ ...aurora.estado(), temChave: Boolean(chaveIa()), ligada: auroraIaLigada(), criador: auroraCriador(), esposa: auroraEsposa() })
+export const estadoAurora = () => ({ ...aurora.estado(), temChave: Boolean(chaveIa()), ligada: auroraIaLigada(), criador: auroraCriador(), esposa: auroraEsposa(), genjutsu: genjutsuLigado() })
 
 if (iaNesteBot() && !chaveIa()) console.log('[ AURORA IA ] desligada: falta SQUARECLOUD_API_KEY no ambiente')
