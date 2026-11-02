@@ -1,6 +1,6 @@
 import { apiUrl } from '../../funcoes/api.js'
 import { downloadFile, cleanup } from '../../funcoes/midia.js'
-import { tipoLink, comentariosDoVideo } from '../../funcoes/comentarios.js'
+import { tipoLink, comentariosDoVideo, videoTikTok } from '../../funcoes/comentarios.js'
 
 const EMOJI = { tiktok: '🎵', instagram: '📸' }
 const NOME = { tiktok: 'TikTok', instagram: 'Instagram' }
@@ -41,10 +41,25 @@ export default {
 
     await system.reply(`• ${EMOJI[plataforma]} Baixando o vídeo e os comentários do ${NOME[plataforma]}, aguarde...`)
 
-    // 1) Vídeo — a mesma API que os comandos #tiktok/#instagram já usam.
+    // 1) Vídeo.
+    // TikTok: baixa pela mesma fonte grátis dos comentários (tikwm), pra não
+    // depender da API Tokito (que anda caindo com 403). Se falhar, cai pra
+    // Tokito. Instagram continua na Tokito.
     let f
     try {
-      f = await downloadFile(apiUrl(system.config, ROTA[plataforma], { url: link }, 'tokitoApi'), system.config, 'mp4')
+      let fonteVideo
+      if (plataforma === 'tiktok') {
+        try {
+          const v = await videoTikTok(link, system.config)
+          fonteVideo = v.url
+        } catch (e) {
+          console.error('[ COMENTARIOS ] tikwm video, caindo pra Tokito:', e?.message || e)
+          fonteVideo = apiUrl(system.config, ROTA.tiktok, { url: link }, 'tokitoApi')
+        }
+      } else {
+        fonteVideo = apiUrl(system.config, ROTA.instagram, { url: link }, 'tokitoApi')
+      }
+      f = await downloadFile(fonteVideo, system.config, 'mp4')
       const ehImg = f.mimetype.startsWith('image/')
       await system.send({
         type: ehImg ? 'image' : 'video',

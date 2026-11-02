@@ -28,6 +28,30 @@ function normalizar(lista = []) {
     .filter((c) => c.texto)
 }
 
+// Pega o link direto do vídeo do TikTok pela mesma fonte dos comentários
+// (tikwm, grátis e sem token). Serve pra não depender da API Tokito pro vídeo.
+// Retorna { url, titulo }. Lança erro se a API falhar.
+export async function videoTikTok(link, config) {
+  const base = baseTikwm(config)
+  const url = `${base}/api/?url=${encodeURIComponent(link)}&hd=1`
+
+  const r = await fetch(url, {
+    headers: { 'User-Agent': 'Aurora-System/1.0', 'Accept': 'application/json,*/*' }
+  })
+  const texto = await r.text()
+
+  let data
+  try { data = JSON.parse(texto) } catch { throw new Error('A API de vídeo respondeu algo inválido.') }
+  if (data?.code !== undefined && data.code !== 0) throw new Error(String(data?.msg || 'Não consegui pegar o vídeo.'))
+
+  const d = data?.data || {}
+  const play = d.hdplay || d.play || d.wmplay || ''
+  if (!play) throw new Error('A API não devolveu o vídeo.')
+
+  const absoluto = /^https?:\/\//i.test(play) ? play : `${base}${play.startsWith('/') ? '' : '/'}${play}`
+  return { url: absoluto, titulo: String(d.title || '').trim() }
+}
+
 // Retorna { total, itens:[{autor, texto, likes}] }. Lança erro se a API falhar.
 export async function comentariosDoVideo(link, config, quantidade = 10) {
   const base = baseTikwm(config)
