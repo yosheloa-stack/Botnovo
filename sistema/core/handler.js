@@ -14,6 +14,7 @@ import { marcaCliente, modoCliente } from '../funcoes/cliente.js'
 import { handleAurora, anotarErro, mencionouBot, citouBot } from '../funcoes/aurora/index.js'
 import { configurarFF } from '../funcoes/configFF.js'
 import { chamouAurora } from '../funcoes/aurora/ia.js'
+import { participanteNaListaNegra, numerosProtegidos } from '../funcoes/listaNegra.js'
 
 const missingRentalLogs = new Map()
 const msgIdioma = (system, pt, es, en) => {
@@ -183,6 +184,15 @@ const startedContext = Date.now()
 system = await makeSystem({ client, event, config, registry, necessarios: flags })
 if (system.command) console.log('[ AURORA CONTEXTO ]', system.command, '| duração:', Date.now() - startedContext, 'ms', '| remetente:', system.senderKey || '(ausente)')
 if (!system.senderKey) return
+// Lista negra: se a pessoa escapou da remoção na entrada (bot fora do ar ou
+// sem ADM na hora), a primeira mensagem dela é apagada e ela sai do grupo.
+if (system.isGroup && !system.isOwner && system.isBotAdmin
+  && participanteNaListaNegra({ jid: system.sender, phoneJid: system.senderInfo?.pnJid, lidJid: system.senderInfo?.lidJid }, numerosProtegidos(config, client))) {
+  try { await revokeByAurora(system) } catch {}
+  try { await system.client.group.removeParticipants(system.from, [system.sender]) } catch {}
+  console.log('[ AURORA LISTA NEGRA ] Removido ao mandar mensagem:', system.senderNumber || system.senderKey, '| grupo:', system.from)
+  return
+}
 if (flags?.botoff === true && !system.isOwner) return
 if (system.isGroup && isBanGp(system.from) && !system.isOwner) return
 if (system.isGroup && aluguelOn() && !aluguelOk(system.from) && !system.isOwner) {

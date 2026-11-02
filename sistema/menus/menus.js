@@ -202,6 +202,9 @@ return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 ┃╎୨୧ 🚫 ${prefix}blockuser @usuario
 ┃╎୨୧ ♻️ ${prefix}unblockuser @usuario
 ┃╎୨୧ 📋 ${prefix}blocklist
+┃╎୨୧ ⛔ ${prefix}addblacklist número
+┃╎୨୧ ✅ ${prefix}delblacklist número
+┃╎୨୧ 📋 ${prefix}blacklist
 ┃╎୨୧ 💎 ${prefix}addvip @usuario
 ┃╎୨୧ 💔 ${prefix}delvip @usuario
 ┃╎୨୧ 📋 ${prefix}viplist

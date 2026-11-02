@@ -1,5 +1,6 @@
 import { ensureGroupState } from '../funcoes/banco.js'
 import { sendWelcomeParticipant } from '../funcoes/boasvindas.js'
+import { participanteNaListaNegra } from '../funcoes/listaNegra.js'
 
 const entrada = new Set(['add', 'join', 'joined', 'participant_add'])
 const saida = new Set(['remove', 'leave', 'left', 'participant_remove'])
@@ -18,7 +19,9 @@ if (!group || Number(group.bemVindo) !== 1) return
 
 const action = String(event?.action || '').toLowerCase()
 if (!entrada.has(action) && !saida.has(action)) return
-const participants = Array.isArray(event?.participants) ? event.participants : []
+// Quem está na lista negra é removido na hora (listaNegra.js): sem bem-vindo
+// nem despedida pra essa pessoa.
+const participants = (Array.isArray(event?.participants) ? event.participants : []).filter((p) => !participanteNaListaNegra(p))
 if (!participants.length) return
 
 for (const participant of participants) {

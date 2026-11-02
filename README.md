@@ -76,3 +76,23 @@ grupo com vários bots, só muda o bot do dono que mandou (dona, subdono ou quem
 alugou o grupo). ADM do grupo que não é dono muda um bot marcando ele junto
 (`#configurarff 3 @bot`) ou respondendo uma mensagem dele. O dono do bot e
 quem alugou o grupo não entram no limite, e like que não entrou não gasta.
+
+## Lista negra (#addblacklist)
+
+Números que o bot remove na hora quando entram em qualquer grupo onde ele é
+ADM. O pedido de remoção sai no mesmo instante em que o WhatsApp avisa da
+entrada (antes do bem-vindo e de qualquer consulta), então a pessoa não tem
+tempo de mandar mensagem. Só o dono e os subdonos mexem na lista.
+
+- `#addblacklist 5521988887777 motivo` põe na lista (com DDI; pode mandar
+  vários números de uma vez; o motivo é opcional). Também vale marcar ou
+  responder a pessoa dentro do grupo: aí ela já sai de lá na hora.
+- `#delblacklist 5521988887777` tira da lista. `#blacklist` mostra a lista.
+- Celular do Brasil com ou sem o 9 depois do DDD é a mesma pessoa.
+- Grupo com LID: ao cadastrar, o bot já descobre o código (LID) do número,
+  pra reconhecer a entrada sem consultar nada.
+- Grupo com aprovação: o pedido de entrada de quem está na lista é recusado.
+- Se o bot não for ADM, ele avisa no grupo. Se a pessoa escapar (bot fora do
+  ar na hora), a primeira mensagem dela é apagada e ela sai do grupo.
+- Dono, subdonos e o número do bot nunca entram na lista.
+- Cada bot tem a sua lista (bot de cliente usa a lista do dono dele).
