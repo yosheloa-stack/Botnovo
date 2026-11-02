@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS block (user TEXT PRIMARY KEY);
 CREATE TABLE IF NOT EXISTS vipcmd (cmd TEXT PRIMARY KEY);
 CREATE TABLE IF NOT EXISTS gcmd (cmd TEXT PRIMARY KEY);
 CREATE TABLE IF NOT EXISTS bangp (gp TEXT PRIMARY KEY);
+CREATE TABLE IF NOT EXISTS listanegra (numero TEXT PRIMARY KEY, motivo TEXT, at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS aluguel (gp TEXT PRIMARY KEY, ate INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS aluguel_pedido (pedido TEXT PRIMARY KEY, gp TEXT NOT NULL, dias INTEGER NOT NULL, ate INTEGER NOT NULL, criado INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS aluguel_pedido_gp ON aluguel_pedido(gp);
@@ -326,6 +327,40 @@ export function banGp(gp) { if(gp) sql.prepare('INSERT OR IGNORE INTO bangp(gp) 
 export function unbanGp(gp) { sql.prepare('DELETE FROM bangp WHERE gp=?').run(gp) }
 export function isBanGp(gp) { return Boolean(sql.prepare('SELECT 1 FROM bangp WHERE gp=?').get(gp)) }
 export function listBanGp() { return sql.prepare('SELECT gp FROM bangp ORDER BY gp').all().map(r=>r.gp) }
+
+// LISTA NEGRA: números que o bot remove na hora ao entrarem em qualquer
+// grupo (ver funcoes/listaNegra.js). Celular do Brasil com ou sem o 9 depois
+// do DDD é a mesma pessoa, então toda busca olha as duas formas.
+function variantesLista(numero) {
+  const n = String(numero || '').replace(/\D/g, '')
+  if (n.length < 8 || n.length > 15) return []
+  const br = n.match(/^55(\d{2})(\d{8,9})$/)
+  if (!br) return [n]
+  const outro = br[2].length === 9 ? (br[2].startsWith('9') ? `55${br[1]}${br[2].slice(1)}` : '') : `55${br[1]}9${br[2]}`
+  return outro ? [n, outro] : [n]
+}
+export function naListaNegra(numero) {
+  for (const n of variantesLista(numero)) {
+    const row = sql.prepare('SELECT numero,motivo,at FROM listanegra WHERE numero=?').get(n)
+    if (row) return { numero: row.numero, motivo: row.motivo || '', at: Number(row.at) || 0 }
+  }
+  return null
+}
+export function addListaNegra(numero, motivo = '') {
+  const v = variantesLista(numero)
+  if (!v.length) return 'invalido'
+  if (naListaNegra(v[0])) return 'ja'
+  sql.prepare('INSERT INTO listanegra(numero,motivo,at) VALUES(?,?,?)').run(v[0], String(motivo || '').slice(0, 200) || null, Date.now())
+  return 'ok'
+}
+export function delListaNegra(numero) {
+  let n = 0
+  for (const x of variantesLista(numero)) n += Number(sql.prepare('DELETE FROM listanegra WHERE numero=?').run(x).changes || 0)
+  return n > 0
+}
+export function listaNegra() {
+  return sql.prepare('SELECT numero,motivo,at FROM listanegra ORDER BY at').all().map(r => ({ numero: r.numero, motivo: r.motivo || '', at: Number(r.at) || 0 }))
+}
 
 export function aluguelOn(value) { if(value !== undefined) setCfg('aluguel', Boolean(value)); return Boolean(getCfg('aluguel', false)) }
 

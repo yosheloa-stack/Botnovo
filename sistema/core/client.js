@@ -8,6 +8,7 @@ import { loadState, importNecessarios, boasVindasEnviada, marcarBoasVindas, auro
 import { loadPlugins } from './loader.js'
 import { createHandler } from './handler.js'
 import { createGroupHandler } from './eventos.js'
+import { createListaNegraHandler } from '../funcoes/listaNegra.js'
 import { createOutgoingX9Tracker, createProtocolX9Handler, createInteractionX9Handler, createGroupX9Handler, createCallX9Handler, createUnavailableX9Handler } from '../funcoes/x9.js'
 import { showConnected, showPairing, showStart } from '../funcoes/terminal.js'
 import { runHora } from '../funcoes/hora.js'
@@ -309,6 +310,8 @@ client.on('message', (event) => {
 client.on('message_protocol', createProtocolX9Handler({ client }))
 client.on('message_addon', createInteractionX9Handler({ client }))
 client.on('message_unavailable', createUnavailableX9Handler({ client }))
+// Lista negra primeiro: o pedido de remoção sai antes de qualquer outra coisa.
+client.on('group', createListaNegraHandler({ client, config }))
 client.on('group', (event) => {
   void aluguelWorker.onGroupEvent(event).catch((err) => {
     console.error('[ AURORA ALUGUEL ] Erro ao tratar evento de participantes:', err?.message || err)
