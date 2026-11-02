@@ -265,6 +265,7 @@ return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 ┃╭╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╮
 ┃╎୨୧ 🎵 ${prefix}tiktok link
 ┃╎୨୧ 📸 ${prefix}instagram link
+┃╎୨୧ 💬 ${prefix}comentarios link
 ┃╎୨୧ 🎧 ${prefix}spotify música/link
 ┃╎୨୧ 🎬 ${prefix}kwai link
 ┃╎୨୧ 📘 ${prefix}facebook link
