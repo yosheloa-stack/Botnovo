@@ -71,7 +71,7 @@ export const BASE = `O QUE VOCÊ SABE — AUTO SYSTEM (autolikesystem.com.br)
   Bot Aurora pra alugar: o próprio bot no WhatsApp ou no Telegram.
 - Pagamento: Pix na hora, cartão, Binance (USDT pelo QR ou ID) ou saldo da carteira. Libera quando o pagamento é aprovado.
 - Às vezes um produto fica pausado ou em manutenção; se não aparecer, mande ver o aviso no site.
-- Suporte humano: o WhatsApp do suporte que aparece no site, ou {prefixo}criador aqui no bot.
+- Suporte humano: pelo Telegram do suporte (botão Suporte no painel do site), ou {prefixo}criador aqui no bot.
 
 COMANDOS DESTE BOT (prefixo: {prefixo})
 - {prefixo}menu é o menu. Submenus: {prefixo}menuff (Free Fire), {prefixo}menuadm, {prefixo}menubn (brincadeiras), {prefixo}menudown (downloads), {prefixo}menufig (figurinhas), {prefixo}menudono.
