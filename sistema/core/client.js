@@ -19,6 +19,7 @@ import { avisarGerente, marcaCliente, modoCliente } from '../funcoes/cliente.js'
 import { destino, mandarAoCliente } from '../funcoes/avisoCompra.js'
 import { textoBoasVindas } from '../funcoes/boasVindas.js'
 import { criarLoggerZapo } from '../funcoes/registro.js'
+import { criarPareamento } from '../funcoes/pareamento.js'
 
 const restartCode = 75
 let desligando = false
@@ -110,49 +111,39 @@ installCanalGlobal(client, config)
 installMarcaAluguel(client)
 registrarEnvios(client)
 
-let pairingRequested = false
-let pairingShown = false
 let avisouSemNumero = false
 let semNumero = false
+let prazoCodigo = null
 
-const showPairingCode = (code) => {
-if (!code || pairingShown) return
-pairingShown = true
+// Código de conexão (sistema/funcoes/pareamento.js): quando o WhatsApp vence
+// o código, sai um NOVO (antes ficava mostrando sempre o mesmo, já morto).
+const pareamento = criarPareamento({
+numero: async () => digits(config.connection?.number)
+|| digits(String(client.getCredentials?.()?.meJid || '').split(/[:@]/)[0])
+|| await numeroSalvo(),
+pedirCodigo: (number) => client.auth.requestPairingCode(number),
+codigoVivo: () => client.getState?.()?.hasPairingCode !== false,
+// Bot da cliente: poucas renovações (ela pede outro no site quando quiser).
+maxRenovacoes: modoCliente ? 5 : 20,
+mostrar: (code, { novo }) => {
+if (novo) console.warn('[ AURORA CONEXÃO ] O código anterior venceu. Use este código NOVO:')
 showPairing(code)
 // Bot da cliente: o código aparece pra ela no site ("Configurar meu bot").
 avisarGerente({ tipo: 'codigo', codigo: String(code) })
 if (modoCliente) {
-// Ela tem 10 minutos para digitar o código; depois o bot desliga e espera
-// ela pedir um código novo no site (não fica pedindo código sem parar).
-setTimeout(() => {
+// Ela tem 10 minutos (contados do último código) para digitar; depois o
+// bot desliga e espera ela pedir um código novo no site.
+if (prazoCodigo) clearTimeout(prazoCodigo)
+prazoCodigo = setTimeout(() => {
 if (connectionOpen) return
 avisarGerente({ tipo: 'codigo_expirou' })
 console.warn('[ AURORA CLIENTE ] O código de conexão não foi usado em 10 minutos.')
 process.exit(0)
-}, 10 * 60_000).unref?.()
+}, 10 * 60_000)
+prazoCodigo.unref?.()
 }
-}
-
-// O WhatsApp limita pedidos de código (429 rate-overlimit). Pedir de novo a
-// cada 20 s mantém o limite ativo pra sempre: espera 15 min, depois 30, até 1 h.
-let pausaCodigoAte = 0
-let pausasCodigo = 0
-let avisouPausa = 0
-const requestCode = async () => {
-if (pairingRequested) return
-if (Date.now() < pausaCodigoAte) {
-if (Date.now() - avisouPausa > 5 * 60_000) {
-avisouPausa = Date.now()
-console.warn(`[ AURORA CONEXÃO ] O WhatsApp limitou os pedidos de código de conexão. Tento de novo às ${new Date(pausaCodigoAte).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })}.`)
-}
-return
-}
-pairingRequested = true
-const number = digits(config.connection?.number)
-|| digits(String(client.getCredentials?.()?.meJid || '').split(/[:@]/)[0])
-|| await numeroSalvo()
-if (!number) {
-pairingRequested = false
+},
+semNumero: () => {
 // Uma vez só: o Zapo pede o código de novo a cada tentativa de conexão.
 if (!avisouSemNumero) {
 avisouSemNumero = true
@@ -168,30 +159,15 @@ console.warn('[ AURORA ] Bot principal parado até ter o número; os bots das cl
 // dele faria o index.js reiniciar o bot em loop.
 setTimeout(() => { client.disconnect?.().catch(() => {}) }, 20_000).unref?.()
 }
-return
-}
-try {
-const code = await client.auth.requestPairingCode(number)
-showPairingCode(code)
-pausasCodigo = 0
-} catch (err) {
-pairingRequested = false
-const msg = String(err?.message ?? err)
-if (/429|rate-?overlimit/i.test(msg)) {
-const minutos = Math.min(60, 15 * 2 ** pausasCodigo)
-pausasCodigo++
-pausaCodigoAte = Date.now() + minutos * 60_000
-avisouPausa = Date.now()
-console.error(chalk.redBright(`[ ERRO ] O WhatsApp limitou os pedidos de código de conexão (429). Vou esperar ${minutos} min antes de pedir outro; não reinicie o app nesse meio tempo.`))
-return
-}
-console.error(chalk.redBright('[ ERRO ] Não foi possível gerar o código de pareamento.'), msg)
-}
-}
+},
+log: { log: (...a) => console.log(...a), warn: (...a) => console.warn(...a), error: (m, ...a) => console.error(chalk.redBright(m), ...a) }
+})
 
-client.on('auth_pairing_required', requestCode)
-client.on('auth_qr', requestCode) // fallback: nunca exibe o QR
-client.on('auth_pairing_code', ({ code }) => showPairingCode(code))
+// O Zapo manda auth_pairing_required quando o WhatsApp avisa que o código
+// precisa ser renovado; auth_qr a cada giro do QR (nunca exibido).
+client.on('auth_pairing_required', () => { void pareamento.renovar() })
+client.on('auth_qr', () => { void pareamento.pedir() })
+client.on('auth_pairing_code', ({ code }) => { pareamento.registrar(code) })
 
 // O bot da cliente não busca aluguéis nem avisos de compra no site: isso é
 // só do bot da casa.
@@ -245,6 +221,8 @@ console.log('[ AURORA CONEXÃO ] WhatsApp conectado', quedas ? `(voltou depois d
 connectionOpen = true
 quedas = 0
 limparTimers()
+pareamento.conectou()
+if (prazoCodigo) { clearTimeout(prazoCodigo); prazoCodigo = null }
 const eu = String(client.getCredentials?.()?.meJid || '').split(/[:@]/)[0]
 void salvarNumero(eu)
 if (modoCliente) {
