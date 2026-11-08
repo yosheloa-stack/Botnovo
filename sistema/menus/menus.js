@@ -56,12 +56,12 @@ return traduzirSubmenu(`┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･�
 ┃╎୨୧ 👁️ ${prefix}revelar
 ┃╰╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╯
 ┃
-┣━〔 • 𝒀𝑶𝑺𝑯 𝑰𝑨 • 🤖 〕
+┣━〔 • 𝑩𝑳𝑨𝑪𝑲 𝑰𝑨 • 🤖 〕
 ┃
 ┃╭╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╮
-┃╎୨୧ 🤖 ${prefix}yosh texto
-┃╎୨୧ 🎨 ${prefix}yosh imagem texto
-┃╎୨୧ ❔ ${prefix}yosh ajuda
+┃╎୨୧ 🤖 ${prefix}black texto
+┃╎୨୧ 🎨 ${prefix}black imagem texto
+┃╎୨୧ ❔ ${prefix}black ajuda
 ┃╰╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╯
 ┃
 ┣━〔 • 𝑨𝑼𝑹𝑶𝑹𝑨 • 💚 〕

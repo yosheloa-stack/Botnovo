@@ -1,6 +1,7 @@
 // node --test test/yosh.test.js
-// A IA Yosh no bot (pedido do dono, 2026-11-01): uma IA separada da Aurora que
-// responde pela API do site (/v1/yosh), paga pelo saldo da key da Yosh. Cada
+// A Black IA no bot (pedido do dono, 2026-11-01; vira "Black" em 2026-11-08):
+// uma IA separada da Aurora que responde pela API do site (/v1/yosh), paga pelo
+// saldo da key da Black IA. Cada
 // grupo tem a sua conversa, a resposta vai no idioma do grupo, a imagem chega
 // como foto e o erro do site vira uma frase curta (sem detalhe técnico).
 import test from 'node:test'
@@ -16,7 +17,7 @@ process.env.AUTOSYSTEM_TOKEN = 'key-teste'
 process.env.AUTO_SYSTEM_URL = 'https://site.teste'
 
 let pedidos = []
-let resposta = () => ({ sucesso: true, resposta: 'Oi, eu sou a Yosh!' })
+let resposta = () => ({ sucesso: true, resposta: 'Oi, eu sou a Black!' })
 globalThis.fetch = async (url, op = {}) => {
   const u = new URL(String(url))
   pedidos.push({ u, op })
@@ -38,10 +39,23 @@ const sistema = (args, extra = {}) => {
     config: { autoSystem: { url: 'https://site.teste', token: 'key-teste' } }, reply: async (m) => { replies.push(m); return m }, ...extra }
 }
 
-test('o comando é yosh, separado da aurora', () => {
-  assert.equal(cmd.name, 'yosh')
+test('o comando é black (e #yosh antigo continua), separado da aurora', () => {
+  assert.equal(cmd.name, 'black')
+  for (const a of ['blackia', 'iablack', 'yosh', 'yoshia', 'iayosh']) assert.ok(cmd.aliases.includes(a), a)
   assert.ok(!cmd.vipOnly)
   assert.ok(!cmd.aliases.includes('aurora'))
+  assert.doesNotMatch(cmd.description, /yosh/i)
+})
+
+test('menu, ajuda e erros falam Black, nunca Yosh', async () => {
+  const menus = fs.readFileSync(path.join(raiz, 'sistema/menus/menus.js'), 'utf8')
+  assert.match(menus, /𝑩𝑳𝑨𝑪𝑲 𝑰𝑨/)
+  assert.match(menus, /\$\{prefix\}black texto/)
+  assert.doesNotMatch(menus, /\$\{prefix\}yosh|𝒀𝑶𝑺𝑯/)
+  const textos = [yosh.ajuda('#'), yosh.falaDoErro({ codigo: 'saldo_insuficiente' }), yosh.falaDoErro({ codigo: 'fechado' })].join('\n')
+  assert.match(textos, /BLACK IA/)
+  assert.match(textos, /#black imagem/)
+  assert.doesNotMatch(textos, /yosh/i)
 })
 
 test('#yosh mensagem: pergunta ao site na conversa do grupo, no idioma do grupo', async () => {
@@ -54,7 +68,7 @@ test('#yosh mensagem: pergunta ao site na conversa do grupo, no idioma do grupo'
   assert.equal(p.searchParams.get('conversa'), yosh.conversaDe(GP))
   assert.equal(p.searchParams.get('idioma'), 'pt')
   assert.equal(pedidos[0].op.headers['X-Api-Key'], 'key-teste')
-  assert.equal(s.replies.at(-1), 'Oi, eu sou a Yosh!')
+  assert.equal(s.replies.at(-1), 'Oi, eu sou a Black!')
   banco.setIdiomaGrupo(GP, 'es')
   pedidos = []
   await cmd.run(sistema(['hola']))
@@ -105,7 +119,7 @@ test('erros viram frase curta; sem saldo avisa pra recarregar a key da Yosh', as
 test('sem nada depois do comando mostra a ajuda; freio por pessoa', async () => {
   const s = sistema([])
   await cmd.run(s)
-  assert.match(s.replies[0], /IA YOSH/)
+  assert.match(s.replies[0], /BLACK IA/)
   assert.equal(yosh.livre('t', 2, 1000, 0), true)
   assert.equal(yosh.livre('t', 2, 1000, 1), true)
   assert.equal(yosh.livre('t', 2, 1000, 2), false)
