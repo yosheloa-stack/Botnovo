@@ -200,7 +200,7 @@ return `📢 *AURORA SYSTEM*\n\n${text}`
 }
 
 exports.mediaInvalid = type => {
-return `- ❌ A API não retornou ${type} válido.`
+return `- ❌ Não consegui obter ${type} válido.`
 }
 
 exports.noResult = () => {

@@ -106,11 +106,12 @@ test('#yosh criar, chat e reset usam conversas certas', async () => {
   assert.equal(pedidos[0].u.pathname, '/v1/yosh/reset')
 })
 
-test('erros viram frase curta; sem saldo avisa pra recarregar a key da Yosh', async () => {
+test('erros viram frase curta; sem saldo não cita key nem site', async () => {
   resposta = () => ({ sucesso: false, codigo: 'saldo_insuficiente', erro: 'saldo da key insuficiente: custa R$ 0,10' })
   const s = sistema(['oi'])
   await cmd.run(s)
-  assert.match(s.replies.at(-1), /sem saldo/)
+  assert.match(s.replies.at(-1), /não está disponível neste bot/)
+  assert.doesNotMatch(s.replies.at(-1), /key|site/i)
   assert.match(yosh.falaDoErro({ codigo: 'fechado' }), /manutenção/)
   assert.match(yosh.falaDoErro({ erro: 'a geração da imagem falhou' }), /imagem falhou/)
   assert.match(yosh.falaDoErro({}), /Não foi possível conectar/)

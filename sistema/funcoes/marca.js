@@ -176,10 +176,12 @@ export function trocarMarca(valor, marca, nivel = 0) {
   return out
 }
 
-// Erro da API mostrado no grupo alugado: se citar site, hospedagem ou vier em
-// HTML, vai a mensagem padrão do comando.
+// Erro que vem do site e vai pro grupo (pedido do Yosh, 08/11): NADA de site,
+// API, key, conta, plano, saldo, fornecedor ou de outras pessoas. Se citar
+// qualquer coisa assim (ou vier em HTML), vai a mensagem padrão do comando.
+const NAO_MOSTRA = /https?:\/\/|www\.|\.com\b|\.br\b|square ?cloud|cloudflare|<[a-z!/]|\bapis?\b|\bsites?\b|\bsitio\b|website|\bkeys?\b|chave|clave|token|servidor|server|servi[cç]o|servicio|service|painel|panel|\bconta\b|cuenta|account|\bplanos?\b|\bplan\b|saldo|balance|cr[eé]dito|credit|cobr|fornecedor|proveedor|supplier|provider|\bhttp\b|json|\bcota\b|quota|\boutr[oa]s?\b|\botr[oa]s?\b|another|\bother\b|algu[eé]m|cliente|client|\bdono\b|due[ñn]o|owner|admin|login|e-?mail|pagamento|payment|banco de dados|database/i
 export function erroParaCliente(erro, padrao) {
   const e = String(erro || '').trim()
   if (!e) return padrao
-  return /https?:\/\/|www\.|\.com\b|\.br\b|square ?cloud|cloudflare|<[a-z!/]/i.test(e) ? padrao : e
+  return NAO_MOSTRA.test(e) ? padrao : e
 }

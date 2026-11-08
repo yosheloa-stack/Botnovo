@@ -134,7 +134,7 @@ test('Instagram: vídeo pela Tokito e, sem comentários, avisa', async () => {
   await plugin.run(s)
   assert.ok(chamadas.some((u) => u.includes('/api/insta-video')), chamadas.join('\n'))
   assert.ok(enviouVideo(s))
-  assert.match(s.replies.at(-1), /Instagram costuma fechar os comentários/)
+  assert.match(s.replies.at(-1), /Não consegui pegar os comentários desse link do Instagram/)
 })
 
 test('comentários falham, mas o vídeo vai mesmo assim', async () => {

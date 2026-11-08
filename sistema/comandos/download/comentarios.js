@@ -81,7 +81,7 @@ export default {
       if (!itens.length) {
         return system.reply(
           plataforma === 'instagram'
-            ? '• 💬 Não consegui pegar os comentários desse link do Instagram (o Instagram costuma fechar os comentários para APIs grátis).'
+            ? '• 💬 Não consegui pegar os comentários desse link do Instagram.'
             : '• 💬 Esse vídeo está sem comentários (ou estão fechados).'
         )
       }

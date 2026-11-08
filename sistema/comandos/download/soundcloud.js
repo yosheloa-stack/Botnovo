@@ -45,7 +45,7 @@ const caption = `⏤͟͟͞͞𝐒𝐨𝐮𝐧𝐝𝐂𝐥𝐨𝐮𝐝 𝐌𝐮�
 
 await musica.capa(system, caption, thumb)
 
-if (!audio) return system.reply('• ❌ A API não retornou o áudio.')
+if (!audio) return system.reply('• ❌ Não consegui pegar o áudio dessa música.')
 return musica.enviar(system, audio, title)
 } catch (err) {
 console.error('[ SOUNDCLOUD ]', err?.message || err)

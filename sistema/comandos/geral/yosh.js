@@ -48,11 +48,11 @@ export function conversaDe(jid, nome = '') {
 
 export function falaDoErro(d) {
   const c = d?.codigo
-  if (c === 'saldo_insuficiente') return '❌ A Black IA está sem saldo neste bot. O dono precisa recarregar a key da Black IA no site (aba Black IA).'
+  if (c === 'saldo_insuficiente') return '❌ A Black IA não está disponível neste bot agora.'
   if (c === 'fechado') return '❌ A Black IA está em manutenção agora. Tente mais tarde.'
   if (c === 'muitas_requisicoes') return '⏱️ Muitas mensagens seguidas. Espere um minuto e tente de novo.'
   if (c === 'sem_mensagem' || c === 'sem_prompt') return '❌ Escreva o que você quer depois do comando.'
-  if (/chave|key|token/i.test(String(d?.erro || '')) && !c) return '❌ A key do site não está configurada neste bot.'
+  if (/chave|key|token/i.test(String(d?.erro || '')) && !c) return '❌ A Black IA não está disponível neste bot agora.'
   if (/processamento|demor/i.test(String(d?.erro || ''))) return '⏱️ A imagem ainda está em processamento. Tente de novo em instantes.'
   if (/imagem falhou|geração/i.test(String(d?.erro || ''))) return '❌ A geração da imagem falhou. Tente outro prompt.'
   if (/não retornou texto/i.test(String(d?.erro || ''))) return '❌ A IA não retornou texto. Tente novamente.'

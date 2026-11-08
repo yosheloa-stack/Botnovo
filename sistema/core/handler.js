@@ -247,7 +247,7 @@ if (system.command === 'like2' && String(text || '').trim().startsWith('/like2')
     const data = await response.json();
     if (response.status === 403) return system.reply('🔒 Somente o dono cadastrado do aluguel pode utilizar /like2.');
     if (!response.ok) throw new Error(data?.erro || 'consulta indisponível');
-    if (!data.ativo) return system.reply('⚠️ O comando /like2 não está ativado no seu aluguel. Ative essa função no painel onde você alugou o bot.');
+    if (!data.ativo) return system.reply('⚠️ O comando /like2 não está ativado neste bot.');
     return system.reply('⏳ O /like2 está habilitado, mas os envios ainda não foram liberados: a tarifa por envio e a cobrança segura na carteira estão em configuração. Nenhum saldo foi descontado.');
   } catch (error) {
     console.error('[ AURORA LIKE2 ] Falha na autorização:', error?.message || error);

@@ -63,7 +63,7 @@ const caption = `⏤͟͟͞͞𝐒𝐩𝐨𝐭𝐢𝐟𝐲 𝐌𝐮𝐬𝐢𝐜! �
 
 await musica.capa(system, caption, thumb)
 
-if (!audio) return system.reply('• ❌ A API encontrou a música, mas não retornou o áudio.')
+if (!audio) return system.reply('• ❌ Não consegui pegar o áudio dessa música.')
 return musica.enviar(system, audio, title)
 } catch (err) {
 console.error('[ SPOTIFY ]', err?.message || err)
