@@ -27,7 +27,7 @@ const nomePasta = (pedido) => limpo(pedido).replace(/[^A-Za-z0-9_-]/g, '_').slic
 // prefixo (#setprefix) na pasta dele. A chave da Square Cloud (Aurora com IA)
 // também, menos no número da casa (ver IA_DA_CASA).
 const IA_DA_CASA = ['SQUARECLOUD_API_KEY', 'SQUARECLOUD_AI_KEY', 'AURORA_MAX_DIA', 'AURORA_CRIADOR', 'ELEVENLABS_API_KEY', 'ELEVENLABS_VOZ', 'ELEVENLABS_MODELO', 'AURORA_AUDIO_CHANCE', 'AURORA_AUDIO_DIA']
-const SO_DA_CASA = ['AURORA_ALUGUEL_PEDIDO', 'AURORA_SITE_TOKEN', 'AURORA_RENTAL_TOKEN', 'AUTO_SYSTEM_TOKEN', 'AUTOSYSTEM_TOKEN', 'AURORA_PREFIX', 'AURORA_OWNER_NUMBER', 'AURORA_CONNECTION_NUMBER', 'AURORA_CONFIG_FILE', 'AURORA_DATA_DIR', 'AURORA_MARCA', 'AURORA_CLIENTE', 'AURORA_IA', ...IA_DA_CASA]
+const SO_DA_CASA = ['AURORA_ALUGUEL_PEDIDO', 'AURORA_ALUGUEL_TOKEN', 'AURORA_SITE_TOKEN', 'AURORA_RENTAL_TOKEN', 'AUTO_SYSTEM_TOKEN', 'AUTOSYSTEM_TOKEN', 'AURORA_PREFIX', 'AURORA_OWNER_NUMBER', 'AURORA_CONNECTION_NUMBER', 'AURORA_CONFIG_FILE', 'AURORA_DATA_DIR', 'AURORA_MARCA', 'AURORA_CLIENTE', 'AURORA_IA', ...IA_DA_CASA]
 
 // A Aurora com IA é do bot da casa. Quando o número da casa está ligado como
 // bot de cliente (o dono alugou pro próprio número, é ele que manda os avisos
@@ -122,10 +122,11 @@ export function criarGerente({
       AURORA_DATA_DIR: path.join(pasta, '.aurora-data'),
       AURORA_MARCA: JSON.stringify(marcaDo(c)),
       ...(autoSystem.url ? { AUTOSYSTEM_URL: autoSystem.url } : {}),
-      // Os likes saem da key da casa. O pedido do aluguel vai junto em cada
-      // chamada (X-Aurora-Aluguel): o site conta os IDs do dia no plano do
-      // bot (100, 250, 500 ou 1000 por dia) e avisa quando acaba.
+      // CONEXÃO DIRETA COM O SITE: o bot manda o pedido do aluguel e o token
+      // do aluguel em cada chamada, sem key de ninguém. O site usa a key da
+      // casa e conta os IDs do dia no plano do bot (100, 250, 500 ou 1000).
       AURORA_ALUGUEL_PEDIDO: limpo(c.pedido),
+      ...(limpo(site?.token) ? { AURORA_ALUGUEL_TOKEN: limpo(site.token) } : {}),
       ...(tokenDo(c) ? { AUTOSYSTEM_TOKEN: tokenDo(c) } : {})
     })
     if (temIaDaCasa(c.bot_numero)) {

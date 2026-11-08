@@ -53,7 +53,7 @@ const caption = `⏤͟͟͞͞𝐀𝐩𝐩𝐥𝐞 𝐌𝐮𝐬𝐢𝐜! 𖤐⃝�
 
 await musica.capa(system, caption, thumb)
 
-if (!audio) return system.reply('• ❌ A API não retornou o áudio.')
+if (!audio) return system.reply('• ❌ Não consegui pegar o áudio dessa música.')
 return musica.enviar(system, audio, title, String(audio).includes('.m4a') ? 'audio/mp4' : 'audio/mpeg')
 } catch (err) {
 console.error('[ APPLE MUSIC ]', err?.message || err)

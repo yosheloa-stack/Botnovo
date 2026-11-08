@@ -846,6 +846,15 @@ export const FRASES = [
   ['Grupo liberado para usar o Aurora.', 'Grupo liberado para usar Aurora.', 'Group allowed to use Aurora.'],
 
   // ===== Free Fire e respostas da API do site =====
+  ['Não consegui concluir agora. Tente de novo em instantes.', 'No pude completarlo ahora. Inténtalo de nuevo en unos instantes.', "I couldn't finish that now. Try again in a moment."],
+  ['Está demorando mais que o normal. O envio pode estar em andamento; confira antes de repetir.', 'Está tardando más de lo normal. El envío puede estar en curso; revisa antes de repetir.', "It's taking longer than usual. The send may still be running; check before trying again."],
+  ['Não consegui pegar o áudio dessa música.', 'No pude obtener el audio de esa canción.', "I couldn't get the audio for that song."],
+  ['Não consegui obter vídeo válido.', 'No pude obtener un video válido.', "I couldn't get a valid video."],
+  ['Não consegui obter áudio válido.', 'No pude obtener un audio válido.', "I couldn't get a valid audio."],
+  ['Não consegui obter', 'No pude obtener', "I couldn't get"],
+  ['A Black IA não está disponível neste bot agora.', 'Black IA no está disponible en este bot ahora.', "Black IA isn't available on this bot right now."],
+  ['O comando /like2 não está ativado neste bot.', 'El comando /like2 no está activado en este bot.', 'The /like2 command is not enabled on this bot.'],
+  ['Não consegui pegar os comentários desse link do Instagram.', 'No pude obtener los comentarios de ese enlace de Instagram.', "I couldn't fetch the comments from that Instagram link."],
   ['Não foi possível consultar o jogador.', 'No fue posible consultar al jugador.', "Couldn't look up the player."],
   ['Os likes não entraram desta vez. Nada foi descontado; tente de novo mais tarde.', 'Los likes no entraron esta vez. No se descontó nada; inténtalo de nuevo más tarde.', "The likes didn't go in this time. Nothing was charged; try again later."],
   ['Motivo:', 'Motivo:', 'Reason:'],

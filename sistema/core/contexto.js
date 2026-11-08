@@ -353,7 +353,7 @@ system.reply = (content, options = {}) => sendVisible(content, from, options)
 // No bot da cliente (modo cliente) vale sempre: a key da API é da casa.
 system.noAluguel = Boolean(modoCliente || (isGroup && !system.isOwner && aluguelOk(from)))
 // Erro da API: no grupo alugado não pode citar site nem hospedagem.
-system.erroApi = (erro, padrao) => modoCliente || (isGroup && aluguelOk(from)) ? erroParaCliente(erro, padrao) : (erro || padrao)
+system.erroApi = (erro, padrao) => erroParaCliente(erro, padrao)
 system.send = (content, jid = from, options = {}) => sendVisible(content, jid, options)
 system.revoke = () => client.message.send(from, { type: 'revoke', target: event })
 

@@ -10,11 +10,14 @@ if (!token || token.includes('COLOQUE_SEU_TOKEN')) throw new Error('Configure au
 return token
 }
 
-// BOT ALUGADO (gerente.js): o pedido do aluguel vai junto, pro site contar
-// os IDs do dia no plano do bot. O bot da casa não manda nada.
-function cabecalhos(config) {
-const h = { 'X-Api-Key': key(config), Accept: 'application/json' }
+// BOT ALUGADO (gerente.js) FALA DIRETO COM O SITE: manda o pedido do aluguel
+// e o token do aluguel, sem key de ninguém. O site usa a key da casa e conta
+// os IDs do dia no plano do bot. O bot da casa segue com a key dele.
+export function cabecalhos(config, accept = 'application/json') {
 const aluguel = String(process.env.AURORA_ALUGUEL_PEDIDO || '').trim()
+const token = String(process.env.AURORA_ALUGUEL_TOKEN || '').trim()
+if (aluguel && token) return { 'X-Aurora-Aluguel': aluguel, 'X-Aurora-Token': token, Accept: accept }
+const h = { 'X-Api-Key': key(config), Accept: accept }
 if (aluguel) h['X-Aurora-Aluguel'] = aluguel
 return h
 }
@@ -34,7 +37,7 @@ try {
 response = await pedirAoSite(url, { headers: cabecalhos(config), timeoutMs })
 } catch (err) {
 console.error('[ AURORA API ] Falha', pathname, 'após', Date.now() - started, 'ms:', motivoDaFalha(err))
-return { sucesso: false, erro: err?.name === 'TimeoutError' ? 'A API demorou demais para responder. O envio pode estar em andamento; confira antes de repetir.' : 'Não foi possível consultar a API agora.' }
+return { sucesso: false, erro: err?.name === 'TimeoutError' ? 'Está demorando mais que o normal. O envio pode estar em andamento; confira antes de repetir.' : 'Não consegui concluir agora. Tente de novo em instantes.' }
 }
 console.log('[ AURORA API ]', pathname, 'HTTP', response.status, 'em', Date.now() - started, 'ms')
 const text = await response.text()
@@ -43,7 +46,7 @@ try { data = JSON.parse(text) } catch {
 // Página no lugar dos dados (site fora do ar/reiniciando): o grupo vê só a
 // frase padrão, o motivo fica no console.
 console.error('[ AURORA API ]', pathname, respostaEstranha(text, response.status))
-data = { sucesso: false, erro: /^\s*</.test(text) ? 'O serviço está indisponível agora. Tente de novo em instantes.' : respostaEstranha(text, response.status) }
+data = { sucesso: false, erro: 'Não consegui concluir agora. Tente de novo em instantes.' }
 }
 if (!response.ok && !data?.erro) data.erro = `HTTP ${response.status}`
 return data
@@ -55,7 +58,7 @@ async function banner(config, uid) {
 try {
 const url = new URL(`${base(config)}/v1/banner`)
 url.searchParams.set('uid', String(uid))
-const response = await pedirAoSite(url, { headers: { 'X-Api-Key': key(config), Accept: 'image/png' }, timeoutMs: 40_000 })
+const response = await pedirAoSite(url, { headers: cabecalhos(config, 'image/png'), timeoutMs: 40_000 })
 if (!response.ok || !/^image\//.test(response.headers?.get?.('content-type') || '')) return null
 const bytes = new Uint8Array(await response.arrayBuffer())
 return bytes.length ? bytes : null
