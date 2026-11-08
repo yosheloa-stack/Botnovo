@@ -56,6 +56,7 @@ test('pediu código: liga o bot dela com o número e a marca dela, sem nada da c
   assert.equal(env.AURORA_CLIENTE, '1')
   assert.equal(env.AURORA_CONNECTION_NUMBER, '5511999990000')
   assert.equal(env.AURORA_OWNER_NUMBER, '5511888880000')
+  assert.equal(env.AURORA_ALUGUEL_PEDIDO, 'p1', 'o pedido do aluguel não foi pro bot (o site conta o plano de IDs por ele)')
   assert.equal(env.AURORA_RENTAL_TOKEN, undefined)
   assert.equal(env.SQUARECLOUD_API_KEY, undefined, 'a chave da IA é só da casa')
   assert.deepEqual(JSON.parse(env.AURORA_MARCA), { nome: 'Bot da Ana', dono: '5511888880000', donoNome: '', idioma: 'pt', foto: '', estilo: 'rosa', expira: '' })

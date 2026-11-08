@@ -10,6 +10,15 @@ if (!token || token.includes('COLOQUE_SEU_TOKEN')) throw new Error('Configure au
 return token
 }
 
+// BOT ALUGADO (gerente.js): o pedido do aluguel vai junto, pro site contar
+// os IDs do dia no plano do bot. O bot da casa não manda nada.
+function cabecalhos(config) {
+const h = { 'X-Api-Key': key(config), Accept: 'application/json' }
+const aluguel = String(process.env.AURORA_ALUGUEL_PEDIDO || '').trim()
+if (aluguel) h['X-Aurora-Aluguel'] = aluguel
+return h
+}
+
 // O site responde o /v1/like em até ~80 s (o Cloudflare corta em ~100 s).
 // Esperar menos que isso fazia o bot desistir de um envio que ainda ia dar certo.
 const timeoutMs = 95_000
@@ -22,7 +31,7 @@ if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, String(v)
 const started = Date.now()
 let response
 try {
-response = await pedirAoSite(url, { headers: { 'X-Api-Key': key(config), Accept: 'application/json' }, timeoutMs })
+response = await pedirAoSite(url, { headers: cabecalhos(config), timeoutMs })
 } catch (err) {
 console.error('[ AURORA API ] Falha', pathname, 'após', Date.now() - started, 'ms:', motivoDaFalha(err))
 return { sucesso: false, erro: err?.name === 'TimeoutError' ? 'A API demorou demais para responder. O envio pode estar em andamento; confira antes de repetir.' : 'Não foi possível consultar a API agora.' }
