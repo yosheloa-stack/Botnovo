@@ -15,6 +15,7 @@ import { handleAurora, anotarErro, mencionouBot, citouBot } from '../funcoes/aur
 import { configurarFF } from '../funcoes/configFF.js'
 import { chamouAurora } from '../funcoes/aurora/ia.js'
 import { participanteNaListaNegra, numerosProtegidos } from '../funcoes/listaNegra.js'
+import { controleMenu, desfazerMenu, avisoMenuRepetido } from '../funcoes/antiSpamMenu.js'
 
 const missingRentalLogs = new Map()
 const msgIdioma = (system, pt, es, en) => {
@@ -360,13 +361,28 @@ if (ffDislike) {
   if (!quota.ok) return system.reply('🎮 Seu limite diário de *' + quota.limite + ' IDs* acabou neste grupo. Volte amanhã.')
 }
 
+// Anti-spam do menu: o mesmo menu não volta pro grupo em menos de 1 min nem
+// pra mesma pessoa em menos de 5 min (ver funcoes/antiSpamMenu.js).
+const menuSpam = controleMenu({ comando: plugin.name || system.command, grupo: system.isGroup ? system.from : '', remetente: system.senderKey, dono: system.isOwner })
+if (menuSpam && menuSpam.acao !== 'enviar') {
+  console.log('[ AURORA ANTI-SPAM ] menu repetido', menuSpam.acao === 'avisar' ? '(avisou)' : '(ignorado)', '| comando:', system.command,
+    '| origem:', system.from, '| remetente:', system.senderNumber || system.senderKey)
+  if (menuSpam.acao === 'avisar') await system.reply(avisoMenuRepetido(system.isGroup ? getIdiomaGrupo(system.from) : (marcaCliente()?.idioma || 'pt')))
+  return
+}
+
 showCommand(system)
 if (system.profile) {
 system.profile.commands = Number(system.profile.commands || 0) + 1
 system.profile.lastSeen = new Date().toISOString()
 system.profile.name = system.pushName || system.profile.name || 'Usuário'
 }
+try {
 await plugin.run(system)
+} catch (err) {
+desfazerMenu(menuSpam)
+throw err
+}
 if (ffDislike) consumirCotaFF(system.from, system.senderKey)
 await saveState()
 } catch (err) {
