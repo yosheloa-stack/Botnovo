@@ -6,6 +6,9 @@ import { cleanup, downloadFile } from './midia.js'
 import { quotedInfo } from './mensagem.js'
 import { participantIdentity, resolveIdentity } from './jid.js'
 import { verifiedSendOptions } from './meta.js'
+import { aluguelOk } from './banco.js'
+import { modoCliente } from './cliente.js'
+import { capaDoMenu } from '../menus/capa.js'
 
 const mediaRoot = path.resolve('sistema/dados/grupos/midias')
 const linksFile = new URL('../dados/links.json', import.meta.url)
@@ -267,13 +270,37 @@ caption
 return true
 }
 
-async function sendProfileImage(client, config, groupJid, jid, caption, options) {
+// Bot da cliente ou grupo alugado: a imagem padrão é arte da Aurora e não
+// pode aparecer. No lugar dela vai a imagem do menu que o cliente cadastrou.
+function grupoComMarca(groupJid) {
+if (modoCliente) return true
+try { return aluguelOk(groupJid) } catch { return false }
+}
+
+async function sendMenuImage(client, groupJid, caption, options) {
+let media = null
+try {
+media = await capaDoMenu(groupJid)
+if (!media) return false
+await client.message.send(groupJid, media.type === 'video'
+? { type: 'video', media: media.file, mimetype: media.mimetype || 'video/mp4', gifPlayback: true, caption }
+: { type: 'image', media: media.file, mimetype: media.mimetype, caption }, options)
+return true
+} catch (err) {
+console.error('[ AURORA ] Imagem do menu no bem-vindo:', err?.message || err)
+return false
+} finally {
+if (media?.temporary) await fs.unlink(media.file).catch(() => {})
+}
+}
+
+async function sendProfileImage(client, config, groupJid, jid, caption, options, { semAvatarPadrao = false } = {}) {
 let url = ''
 try {
 const picture = await client.profile.getProfilePicture(jid, 'image')
 url = String(picture?.url || '').trim()
 } catch {}
-if (!url) url = await fallbackAvatar()
+if (!url && !semAvatarPadrao) url = await fallbackAvatar()
 if (!url) return false
 
 let file
@@ -336,7 +363,9 @@ contextInfo: mentions.length ? { mentionedJid: mentions } : {}
 )
 
 if (await sendCustomBackground(client, groupJid, group, outgoing, caption, options)) return true
-if (await sendProfileImage(client, config, groupJid, jid, caption, options)) return true
+const comMarca = grupoComMarca(groupJid)
+if (await sendProfileImage(client, config, groupJid, jid, caption, options, { semAvatarPadrao: comMarca })) return true
+if (comMarca && await sendMenuImage(client, groupJid, caption, options)) return true
 await client.message.send(groupJid, { type: 'text', text: caption }, options)
 return true
 }

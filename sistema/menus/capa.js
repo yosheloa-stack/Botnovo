@@ -101,6 +101,14 @@ if (await exists(file)) return { type: 'image', file, mimetype }
 return null
 }
 
+// Imagem do menu já pronta para enviar (baixa a do site, se for link).
+// Quem chama apaga o arquivo quando vier com temporary: true.
+export async function capaDoMenu(groupJid = '') {
+const jid = String(groupJid || '')
+const media = await getMenuMedia({ isGroup: jid.endsWith('@g.us'), from: jid })
+return media ? resolverCapa(media) : null
+}
+
 export async function prepareMenuHeader(system) {
 const media = await getMenuMedia(system)
 if (!media) return null
