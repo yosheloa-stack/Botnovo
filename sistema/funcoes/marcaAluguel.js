@@ -39,11 +39,28 @@ function trocarQuote(quote, marca) {
 // Todo envio passa por aqui: comandos, menus, boas-vindas, X9, horários,
 // aviso de ativação. Aqui o texto vai para o idioma do grupo e, em grupo
 // alugado, nada da casa escapa por um caminho que não usa system.reply.
+// Linha só com ">" não vira citação no WhatsApp: aparece um ">" solto
+// quebrando o layout. Tira essas linhas de todo texto que o bot manda.
+const semMaiorSolto = (texto) => texto.replace(/^[ \t]*>[ \t]*(?:\r?\n|$)/gm, '')
+export function arrumarCitacao(content) {
+  if (typeof content === 'string') return content.includes('>') ? semMaiorSolto(content) : content
+  if (!content || typeof content !== 'object') return content
+  let saida = content
+  for (const campo of ['text', 'caption']) {
+    if (typeof saida[campo] === 'string' && saida[campo].includes('>')) {
+      const novo = semMaiorSolto(saida[campo])
+      if (novo !== saida[campo]) saida = { ...saida, [campo]: novo }
+    }
+  }
+  return saida
+}
+
 export function installMarcaAluguel(client) {
   const box = client?.message
   if (!box || typeof box.send !== 'function' || box.__auroraMarcaAluguel) return false
   const original = box.send.bind(box)
   box.send = async (jid, content, options = {}) => {
+    try { content = arrumarCitacao(content) } catch {}
     // semMarca: só o aviso de renovação no privado da dona leva o link do site.
     if (options && typeof options === 'object' && options.semMarca) {
       const { semMarca, ...resto } = options

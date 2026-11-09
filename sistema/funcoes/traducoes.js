@@ -122,6 +122,8 @@ export const FRASES = [
   ['Nenhum admin encontrado.', 'No se encontró ningún admin.', 'No admins found.'],
   ['Usuário mutado!', '¡Usuario silenciado!', 'User muted!'],
   ['foi silenciado nos comandos do Aurora.', 'fue silenciado en los comandos de Aurora.', 'was muted from Aurora commands.'],
+  ['foi mutado: as mensagens dele(a) serão apagadas pelo Aurora.', 'fue silenciado: Aurora borrará sus mensajes.', 'was muted: Aurora will delete their messages.'],
+  ['Preciso ser *ADM* do grupo para apagar as mensagens de quem foi mutado.', 'Necesito ser *ADMIN* del grupo para borrar los mensajes de quien fue silenciado.', 'I need to be a group *ADMIN* to delete messages from muted users.'],
   ['Usuário desmutado!', '¡Silencio quitado!', 'User unmuted!'],
   ['já pode usar os comandos novamente.', 'ya puede usar los comandos de nuevo.', 'can use the commands again.'],
   ['Novo usuário VIP!', '¡Nuevo usuario VIP!', 'New VIP user!'],
