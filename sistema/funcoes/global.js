@@ -345,9 +345,11 @@ return `- 👥 Grupo: ${meta.subject ?? '-'}\n- 👤 Membros: ${meta.participant
 
 exports.muted = (n, admin = '') => `⏤͟͟͞͞𝐔𝐬𝐮𝐚́𝐫𝐢𝐨 𝐦𝐮𝐭𝐚𝐝𝐨! 𖤐⃝🔇
 •
-> @${String(n).replace(/^@/, '')} foi silenciado nos comandos do Aurora.
+> @${String(n).replace(/^@/, '')} foi mutado: as mensagens dele(a) serão apagadas pelo Aurora.
 ${actionBy(admin)}
 ${auroraFooter()}`
+
+exports.mutedNeedsAdmin = () => `⚠️ Preciso ser *ADM* do grupo para apagar as mensagens de quem foi mutado.`
 
 exports.unmuted = (n, admin = '') => `⏤͟͟͞͞𝐔𝐬𝐮𝐚́𝐫𝐢𝐨 𝐝𝐞𝐬𝐦𝐮𝐭𝐚𝐝𝐨! 𖤐⃝🔊
 •

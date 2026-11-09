@@ -18,6 +18,15 @@ import { participanteNaListaNegra, numerosProtegidos } from '../funcoes/listaNeg
 import { controleMenu, desfazerMenu, avisoMenuRepetido } from '../funcoes/antiSpamMenu.js'
 
 const missingRentalLogs = new Map()
+// Bot sem ADM num grupo com gente mutada: avisa no máximo 1 vez a cada 6 h.
+const avisoMuteSemAdm = new Map()
+
+function estaMutado(system) {
+const muted = db().muted?.[system.from] ?? []
+if (!muted.length) return false
+const keys = [system.senderKey, system.senderNumber, system.senderInfo?.pnJid, system.senderInfo?.lidJid, system.senderInfo?.jid].filter(Boolean)
+return keys.some((key) => muted.includes(key))
+}
 const msgIdioma = (system, pt, es, en) => {
   const lang = system?.isGroup ? getIdiomaGrupo(system.from) : (marcaCliente()?.idioma || 'pt')
   return lang === 'es' ? es : lang === 'en' ? en : pt
@@ -126,6 +135,21 @@ await system.reply(`⏤͟͟͞͞𝐒𝐨́ 𝐕𝐢𝐞𝐰 𝐎𝐧𝐜𝐞! �
 return true
 }
 
+// Mutado (/mutar): o bot apaga toda mensagem da pessoa, mesmo se ela for ADM.
+// Só o dono do bot escapa. Antes a mensagem só era ignorada e ficava no grupo.
+if (!system.isOwner && estaMutado(system)) {
+if (system.isBotAdmin) {
+try { await revokeByAurora(system) } catch (err) { console.warn('[ AURORA MUTE ] Não consegui apagar:', err?.message || err) }
+} else {
+const agora = Date.now()
+if (agora - (avisoMuteSemAdm.get(system.from) || 0) > 6 * 60 * 60_000) {
+avisoMuteSemAdm.set(system.from, agora)
+try { await system.reply(messages.mutedNeedsAdmin()) } catch {}
+}
+}
+return true
+}
+
 // As demais proteções continuam liberando ADM/dono, como já era na base.
 if (system.isOwner || system.isAdmin) return false
 
@@ -159,9 +183,6 @@ status: ['antiStatus', 'Status']
 const rule = map[system.kind]
 if (rule && Number(g[rule[0]]) === 1) return punish(system, rule[1])
 if (Number(g.antiCanal) === 1 && hasNewsletterContext(system.msg)) return punish(system, 'Canal')
-const muted = db().muted?.[system.from] ?? []
-const senderMutedKeys = [system.senderKey, system.senderNumber, system.senderInfo?.pnJid, system.senderInfo?.lidJid, system.senderInfo?.jid].filter(Boolean)
-if (senderMutedKeys.some((key) => muted.includes(key))) return true
 return false
 }
 
