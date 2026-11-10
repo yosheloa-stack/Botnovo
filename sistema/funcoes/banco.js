@@ -279,7 +279,17 @@ export function saveState() {
   return Promise.resolve()
 }
 
-const cleanCmd = (c='') => String(c).trim().replace(/^[!./#]+/,'').toLowerCase()
+const cleanCmd = (c='') => String(c ?? '').trim().replace(/^[!./#]+/,'').toLowerCase()
+export function canonicalCmd(registry, cmd) {
+  const c = cleanCmd(cmd)
+  const plugin = registry?.commands?.get(c)
+  return cleanCmd(plugin?.name || c)
+}
+export function commandKeys(registry, cmd) {
+  const c = cleanCmd(cmd)
+  const plugin = registry?.commands?.get(c)
+  return [...new Set([c, plugin?.name, ...(plugin?.aliases || [])].map(cleanCmd).filter(Boolean))]
+}
 export function addCmd(gp, cmd) { const c=cleanCmd(cmd); if(c) sql.prepare('INSERT OR IGNORE INTO cmd(gp,cmd) VALUES(?,?)').run(gp,c); return c }
 export function delCmd(gp, cmd) { const c=cleanCmd(cmd); sql.prepare('DELETE FROM cmd WHERE gp=? AND cmd=?').run(gp,c); return c }
 export function listCmd(gp) { return sql.prepare('SELECT cmd FROM cmd WHERE gp=? ORDER BY cmd').all(gp).map(r=>r.cmd) }

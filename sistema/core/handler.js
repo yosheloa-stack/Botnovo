@@ -1,5 +1,5 @@
 import { makeSystem, extractText, messageKind } from './contexto.js'
-import { db, groupState, saveState, hasCmd, hasGcmd, isVipCmd, isBanGp, aluguelOn, aluguelOk, consultarCotaFF, consumirCotaFF, getIdiomaGrupo, setIdiomaGrupo } from '../funcoes/banco.js'
+import { db, groupState, saveState, hasCmd, hasGcmd, commandKeys, isVipCmd, isBanGp, aluguelOn, aluguelOk, consultarCotaFF, consumirCotaFF, getIdiomaGrupo, setIdiomaGrupo } from '../funcoes/banco.js'
 import { showCommand } from '../funcoes/terminal.js'
 import messages from '../funcoes/global.js'
 import { handleTicTacToe } from '../funcoes/velha.js'
@@ -364,8 +364,9 @@ if (!sent) return system.reply(text)
 return
 }
 
-if (hasGcmd(system.command) && !system.isOwner) return system.reply(msgIdioma(system, `• 🚫 O comando *${system.prefix}${system.command}* está bloqueado globalmente.`, `• 🚫 El comando *${system.prefix}${system.command}* está bloqueado globalmente.`, `• 🚫 Command *${system.prefix}${system.command}* is blocked globally.`))
-if (system.isGroup && hasCmd(system.from, system.command) && !system.isOwner) return system.reply(msgIdioma(system, `• 🚫 O comando *${system.prefix}${system.command}* está bloqueado neste grupo.`, `• 🚫 El comando *${system.prefix}${system.command}* está bloqueado en este grupo.`, `• 🚫 Command *${system.prefix}${system.command}* is blocked in this group.`))
+const blockedCommandKeys = commandKeys(registry, system.command)
+if (blockedCommandKeys.some((c) => hasGcmd(c)) && !system.isOwner) return system.reply(msgIdioma(system, `• 🚫 O comando *${system.prefix}${system.command}* está bloqueado globalmente.`, `• 🚫 El comando *${system.prefix}${system.command}* está bloqueado globalmente.`, `• 🚫 Command *${system.prefix}${system.command}* is blocked globally.`))
+if (system.isGroup && blockedCommandKeys.some((c) => hasCmd(system.from, c)) && !system.isOwner) return system.reply(msgIdioma(system, `• 🚫 O comando *${system.prefix}${system.command}* está bloqueado neste grupo.`, `• 🚫 El comando *${system.prefix}${system.command}* está bloqueado en este grupo.`, `• 🚫 Command *${system.prefix}${system.command}* is blocked in this group.`))
 if (system.isGroup && Number(system.group?.soAdm) === 1 && !system.isAdmin && !system.isOwner) return system.reply(messages.onlyAdmMode())
 if (plugin.ownerOnly && !system.isOwner) return system.reply(messages.onlyOwner())
 if (plugin.groupOnly && !system.isGroup) return system.reply(messages.onlyGroup())
