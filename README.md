@@ -28,8 +28,10 @@ ambiente e reinicie o app. Nesse bot a resposta dela sai sem a troca de marca
 (continua "Aurora" e com o endereço do site), e o `#auroraia` mostra em qual
 número ela está.
 
-- **O criador:** é o número que recebe os avisos de compra (o site informa a
-  cada volta da fila; `AURORA_CRIADOR` no ambiente serve até chegar). Só ele
+- **O criador:** é o número que recebe os avisos de compra (ajuste "WhatsApp
+  que recebe os avisos" no admin do site). O bot da IA pergunta ao painel do
+  site ao ligar e confere a cada 10 min; o bot que manda os avisos também
+  fica sabendo pela fila. `AURORA_CRIADOR` no ambiente serve até chegar. Só ele
   faz ela mandar like e falar do sistema por dentro; dono, subdono e admin do
   bot não contam. `#auroraia` mostra qual número ela reconhece.
 - **Quando ela responde:** no privado, sempre. No grupo, quando alguém marca o
