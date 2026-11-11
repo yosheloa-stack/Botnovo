@@ -211,3 +211,34 @@ test('uso de recursos: o que cada bot mede vai pro site num lote, com o limite d
   await g.sincronizar()
   assert.equal(pedidos.filter((p) => p.url.endsWith('/resultado')).length, 1)
 })
+
+test('gerenciar bot: parar desliga e guarda a sessão, iniciar liga de novo, reiniciar desliga e liga', async () => {
+  let c = cliente({ codigo_pedido: 1 })
+  const { g, filhos, pedidos } = cenario(() => [c])
+  await g.sincronizar()
+  assert.equal(filhos.length, 1)
+  const resultados = () => pedidos.filter((p) => p.url.endsWith('/resultado')).map((p) => JSON.parse(p.opcoes.body).resultados[0])
+  // parar
+  c = cliente({ codigo_pedido: 1, desligado: true, comando: 'parar', comando_seq: 1 })
+  await g.sincronizar(); await espera()
+  assert.equal(filhos[0].exitCode, 0, 'o bot não foi desligado')
+  assert.deepEqual(resultados().at(-1), { pedido: 'p1', estado: 'parado', comando_seq: 1 })
+  // a lista continua "parado": não liga de novo nem conta de novo
+  const antes = pedidos.length
+  await g.sincronizar(); await espera()
+  assert.deepEqual([filhos.length, pedidos.length - antes], [1, 1], 'ligou ou contou de novo com o bot parado')
+  // iniciar (sem sessão salva, mas o código já foi pedido antes: liga)
+  c = cliente({ codigo_pedido: 1, desligado: false, comando: 'iniciar', comando_seq: 2 })
+  await g.sincronizar(); await espera()
+  assert.equal(filhos.length, 2, 'não ligou de novo')
+  assert.deepEqual(resultados().at(-1), { pedido: 'p1', estado: 'rodando', comando_seq: 2 })
+  // reiniciar: mata e liga outro assim que sair
+  c = cliente({ codigo_pedido: 1, desligado: false, comando: 'reiniciar', comando_seq: 3 })
+  await g.sincronizar(); await espera()
+  assert.equal(filhos[1].exitCode, 0)
+  assert.equal(filhos.length, 3, 'não religou depois de reiniciar')
+  assert.deepEqual(resultados().at(-1), { pedido: 'p1', estado: 'rodando', comando_seq: 3 })
+  // o mesmo comando na volta seguinte não faz nada
+  await g.sincronizar(); await espera()
+  assert.equal(filhos.length, 3)
+})
