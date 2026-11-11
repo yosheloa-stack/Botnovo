@@ -191,3 +191,23 @@ test('o bot no número da casa caiu: o gerente pausa o #aviso pra todos no site;
   assert.equal(corpo.pausar, true)
   assert.match(corpo.motivo, /GGx/)
 })
+
+test('uso de recursos: o que cada bot mede vai pro site num lote, com o limite de memória do app', async () => {
+  const { g, filhos, pedidos } = cenario(() => [cliente({ codigo_pedido: 1 })])
+  await g.sincronizar()
+  filhos[0].emit('message', { tipo: 'recursos', cpu_pct: 1.5, ram_mb: 96.25, nucleos: 2, uptime_s: 120, msgs_in: 3, msgs_out: 1 })
+  await espera()
+  // só vai na volta seguinte do gerente, num lote só
+  assert.equal(pedidos.filter((p) => p.url.endsWith('/resultado')).length, 0)
+  await g.sincronizar()
+  const enviados = pedidos.filter((p) => p.url.endsWith('/resultado')).map((p) => JSON.parse(p.opcoes.body).resultados)
+  assert.equal(enviados.length, 1)
+  const [r] = enviados[0]
+  assert.equal(r.pedido, 'p1')
+  assert.equal(r.ok, undefined, 'a medição não pode virar "conectou"')
+  assert.deepEqual({ ...r.recursos, limite_mb: 0 }, { cpu_pct: 1.5, ram_mb: 96.25, nucleos: 2, uptime_s: 120, msgs_in: 3, msgs_out: 1, modo: 'processo', limite_mb: 0 })
+  assert.ok(r.recursos.limite_mb > 0, 'falta o limite de memória do app')
+  // sem medição nova, não manda de novo
+  await g.sincronizar()
+  assert.equal(pedidos.filter((p) => p.url.endsWith('/resultado')).length, 1)
+})

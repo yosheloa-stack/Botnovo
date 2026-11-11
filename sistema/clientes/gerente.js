@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url'
 import { criarLogRaro, motivoDaFalha, pedirAoSite, respostaEstranha } from '../funcoes/rede.js'
 import { NUMERO_BOT_DA_CASA } from '../funcoes/config.js'
 import { mesmoNumero } from '../funcoes/jid.js'
+import { limiteMb } from '../funcoes/recursos.js'
 
 const INDEX = fileURLToPath(new URL('../../index.js', import.meta.url))
 const limpo = (v) => String(v ?? '').trim()
@@ -59,6 +60,8 @@ export function criarGerente({
   log = console
 } = {}) {
   const bots = new Map() // pedido -> estado
+  // Medições de recursos que chegaram dos bots e ainda não foram pro site.
+  const recursosPendentes = new Map() // pedido -> amostra
   // Site fora do ar (ou ainda sem esta rota): uma linha a cada 10 minutos.
   const logSite = criarLogRaro({ intervaloMs: 10 * 60_000 })
   let timer = null, parado = false, rodando = false
@@ -97,6 +100,20 @@ export function criarGerente({
       await chamar('/api/bot/wa/clientes/resultado', { method: 'POST', body: { resultados: [{ pedido, ...resultado }] } })
     } catch (err) {
       log.warn('[ AURORA CLIENTES ] Não consegui avisar o site:', err?.message || err)
+    }
+  }
+
+  // USO DE RECURSOS: cada bot mede o próprio processo uma vez por minuto
+  // (funcoes/recursos.js) e manda por IPC; aqui junta o que chegou e manda
+  // tudo num lote só pro site, a cada volta do gerente (30 s).
+  async function enviarRecursos() {
+    if (!recursosPendentes.size) return
+    const lote = [...recursosPendentes.entries()].map(([pedido, r]) => ({ pedido, recursos: { ...r, limite_mb: limiteMb() } }))
+    recursosPendentes.clear()
+    try {
+      await chamar('/api/bot/wa/clientes/resultado', { method: 'POST', body: { resultados: lote } })
+    } catch (err) {
+      log.warn('[ AURORA CLIENTES ] Não consegui mandar o uso dos bots pro site:', err?.message || err)
     }
   }
 
@@ -161,6 +178,10 @@ export function criarGerente({
       }
       else if (tipo === 'codigo_expirou') { estado.motivo = 'codigo_expirou'; void contar(c.pedido, { ok: false, erro: 'codigo_expirou' }) }
       else if (tipo === 'vencido') estado.motivo = 'vencido'
+      else if (tipo === 'recursos') {
+        const { tipo: _t, ...r } = msg
+        recursosPendentes.set(c.pedido, { ...r, modo: 'processo' })
+      }
     })
     filho.on('exit', (code) => {
       estado.filho = null
@@ -256,6 +277,7 @@ export function criarGerente({
         bots.delete(pedido)
         log.log(`[ AURORA CLIENTES ] Bot desligado: ${limpo(estado.conf.nome_bot) || estado.conf.bot_numero}`)
       }
+      await enviarRecursos()
     } catch (err) {
       const msg = String(err?.message || err)
       if (!/não configurada/i.test(msg)) logSite.falha('lista', '[ AURORA CLIENTES ] Lista do site indisponível:', msg)

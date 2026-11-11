@@ -20,6 +20,7 @@ import { destino, mandarAoCliente } from '../funcoes/avisoCompra.js'
 import { textoBoasVindas } from '../funcoes/boasVindas.js'
 import { criarLoggerZapo } from '../funcoes/registro.js'
 import { criarPareamento } from '../funcoes/pareamento.js'
+import { criarMedidor } from '../funcoes/recursos.js'
 
 const restartCode = 75
 let desligando = false
@@ -276,8 +277,16 @@ reconnectTimer.unref?.()
 
 client.on('stream_failure', (event) => console.error(chalk.redBright('[ ERRO ] Falha no stream:'), event))
 client.on('message_send', createOutgoingX9Tracker())
+// USO DE RECURSOS (bot de cliente): CPU, RAM e mensagens deste processo vão
+// pro gerente a cada minuto, e dele pro site (a cliente vê na página do bot).
+const medidor = criarMedidor()
+if (modoCliente) {
+  client.on('message_send', () => medidor.enviou())
+  setInterval(() => avisarGerente({ tipo: 'recursos', ...medidor.medir() }), 60_000).unref?.()
+}
 const handleMessage = createHandler({ client, config, registry })
 client.on('message', (event) => {
+  medidor.recebeu()
   const rawText = event?.message?.conversation || event?.message?.extendedTextMessage?.text || event?.message?.imageMessage?.caption || event?.message?.buttonsResponseMessage?.selectedButtonId || event?.message?.listResponseMessage?.singleSelectReply?.selectedRowId || ''
   const isPossibleCommand = /^[!/\.]/.test(String(rawText).trim())
   if (isPossibleCommand) console.log('[ AURORA RECEBIMENTO ] id:', event?.key?.id || '-', '| grupo:', event?.key?.remoteJid || '-', '| comando:', String(rawText).trim().split(/\s+/)[0])
