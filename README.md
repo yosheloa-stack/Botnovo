@@ -9,6 +9,7 @@ Bot de WhatsApp do Aurora System. O aluguel de grupos pode ser ativado automatic
 - `AUTOSYSTEM_URL` — URL da Kasane.
 - `AUTOSYSTEM_TOKEN` — key usada pelos comandos de Free Fire.
 - `AURORA_RENTAL_TOKEN` — segredo compartilhado apenas entre Kasane e Aurora para os aluguéis automáticos.
+- `AURORA_IA_NUMERO` — opcional, o número do bot que tem a Aurora com IA (padrão `5598970016740`, só dígitos). Veja "Aurora com IA".
 - `SQUARECLOUD_API_KEY` — liga a Aurora com IA. É a API key da conta da Square Cloud com a permissão `ai:chat` (a mesma do suporte com IA do site).
 - `AURORA_MAX_DIA` — opcional, quantas respostas da IA por dia (padrão 300). O limite do plano da Square Cloud é dividido com o site.
 - `ELEVENLABS_API_KEY` — opcional, liga a voz da Aurora (ElevenLabs). Quando pedem áudio ela responde com mensagem de voz, e às vezes manda áudio sozinha em respostas curtas. A voz vai do jeito dela (sem filtro e sem mudar o ajuste), falando o texto que a IA escreveu. Link, @, ID e lista ficam sempre no texto; se a ElevenLabs falhar, sai texto. `ELEVENLABS_VOZ` (padrão `NS7yU4WmAouJsg84X3Mg`), `ELEVENLABS_MODELO` (padrão `eleven_v3`; sem ele na conta, cai pro `eleven_multilingual_v2`), `AURORA_AUDIO_CHANCE` (padrão 0.2) e `AURORA_AUDIO_DIA` (padrão 80 áudios por dia) são opcionais; o `#auroravoz` lista as vozes da conta e escolhe pelo nome.
@@ -19,11 +20,13 @@ O bot consulta a Kasane periodicamente. Quando encontra um pedido pago, valida o
 ## Aurora com IA
 
 Com `SQUARECLOUD_API_KEY` no ambiente, a Aurora conversa como gente, usando o
-AI Gateway da Square Cloud (modelo `cubic`). Só no bot da casa: bot de
-cliente não tem, menos o que roda no número da casa (quando o dono alugou um
-bot pro próprio número, que é o que manda os avisos de compra). Pra usar outro
-número, ponha `AURORA_IA_NUMERO`. Nesse bot a resposta dela sai sem a troca de
-marca (continua "Aurora" e com o endereço do site).
+AI Gateway da Square Cloud (modelo `cubic`). **Só num bot:** o que está
+conectado no número `5598970016740` (o "Aurora System" do dono; com ou sem o
+nono dígito dá no mesmo). Os outros bots de cliente e o bot principal (número
+da casa) ficam sem ela. Pra trocar o número, ponha `AURORA_IA_NUMERO` no
+ambiente e reinicie o app. Nesse bot a resposta dela sai sem a troca de marca
+(continua "Aurora" e com o endereço do site), e o `#auroraia` mostra em qual
+número ela está.
 
 - **O criador:** é o número que recebe os avisos de compra (o site informa a
   cada volta da fila; `AURORA_CRIADOR` no ambiente serve até chegar). Só ele

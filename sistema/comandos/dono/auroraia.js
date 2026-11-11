@@ -14,6 +14,7 @@ const e = estadoAurora()
 const pausa = e.pausadaAte > Date.now() ? new Date(e.pausadaAte).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : ''
 return system.reply([
 '*Aurora IA*',
+`Só neste bot (número ${e.numero}; AURORA_IA_NUMERO no ambiente troca)`,
 `Ligada: ${e.ligada ? 'sim' : 'não'} (${system.prefix}auroraia 1 / 0)`,
 `Chave da Square Cloud: ${e.temChave ? (e.chaveRecusada ? 'recusada pela Square Cloud, confira a SQUARECLOUD_API_KEY' : 'configurada') : 'falta SQUARECLOUD_API_KEY no ambiente'}`,
 `Respostas hoje: ${e.hoje} de ${e.max} (zera às 21h)`,

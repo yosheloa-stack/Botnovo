@@ -151,11 +151,13 @@ test('marcaDo limpa o número da dona', () => {
   assert.equal(marcaDo({ dono_numero: '+55 (11) 98888-0000' }).dono, '5511988880000')
 })
 
-test('Aurora com IA: só o bot no número da casa recebe a chave da Square Cloud', async () => {
+test('a Aurora com IA vai só pro bot do número dela (5598970016740), com ou sem o nono dígito', async () => {
   process.env.SQUARECLOUD_API_KEY = 'chave-da-ia-da-casa'
   process.env.AURORA_MAX_DIA = '50'
   process.env.ELEVENLABS_API_KEY = 'chave-da-voz'
+  delete process.env.AURORA_IA_NUMERO
   const { g, filhos } = cenario(() => [
+    cliente({ codigo_pedido: 1, pedido: 'ia', bot_numero: '559870016740' }),
     cliente({ codigo_pedido: 1, pedido: 'casa', bot_numero: '556781517686' }),
     cliente({ codigo_pedido: 1, pedido: 'outra', bot_numero: '5511999990000' })
   ])
@@ -163,18 +165,38 @@ test('Aurora com IA: só o bot no número da casa recebe a chave da Square Cloud
   delete process.env.SQUARECLOUD_API_KEY
   delete process.env.AURORA_MAX_DIA
   delete process.env.ELEVENLABS_API_KEY
+  const ia = filhos.find((f) => f.opcoes.env.AURORA_CONNECTION_NUMBER === '559870016740').opcoes.env
   const casa = filhos.find((f) => f.opcoes.env.AURORA_CONNECTION_NUMBER === '556781517686').opcoes.env
   const outra = filhos.find((f) => f.opcoes.env.AURORA_CONNECTION_NUMBER === '5511999990000').opcoes.env
-  assert.equal(casa.AURORA_IA, '1', 'número da casa sem o nono dígito também conta')
-  assert.equal(casa.SQUARECLOUD_API_KEY, 'chave-da-ia-da-casa')
-  assert.equal(casa.AURORA_MAX_DIA, '50')
-  assert.equal(outra.AURORA_IA, undefined)
-  assert.equal(outra.SQUARECLOUD_API_KEY, undefined)
-  assert.equal(outra.AURORA_MAX_DIA, undefined)
-  assert.equal(casa.ELEVENLABS_API_KEY, 'chave-da-voz', 'a voz da Aurora também é só da casa')
-  assert.equal(outra.ELEVENLABS_API_KEY, undefined)
-  assert.ok(casa.AURORA_SITE_TOKEN, 'o bot do número da casa lê o painel do site')
-  assert.equal(outra.AURORA_SITE_TOKEN, undefined, 'bot de cliente nunca recebe o token do site')
+  assert.equal(ia.AURORA_IA, '1', 'número da IA sem o nono dígito também conta')
+  assert.equal(ia.SQUARECLOUD_API_KEY, 'chave-da-ia-da-casa')
+  assert.equal(ia.AURORA_MAX_DIA, '50')
+  assert.equal(ia.ELEVENLABS_API_KEY, 'chave-da-voz', 'a voz da Aurora vai junto')
+  assert.equal(ia.AURORA_SITE_TOKEN, 'tk')
+  for (const [nome, env] of [['casa', casa], ['outra', outra]]) {
+    assert.equal(env.AURORA_IA, undefined, `${nome}: sem a IA`)
+    assert.equal(env.SQUARECLOUD_API_KEY, undefined, `${nome}: sem a chave`)
+    assert.equal(env.AURORA_MAX_DIA, undefined)
+    assert.equal(env.ELEVENLABS_API_KEY, undefined)
+  }
+})
+
+test('AURORA_IA_NUMERO troca o número que tem a Aurora com IA', async () => {
+  process.env.SQUARECLOUD_API_KEY = 'chave-da-ia-da-casa'
+  process.env.AURORA_IA_NUMERO = '+55 11 99999-0000'
+  const { g, filhos } = cenario(() => [
+    cliente({ codigo_pedido: 1, pedido: 'ia', bot_numero: '5598970016740' }),
+    cliente({ codigo_pedido: 1, pedido: 'outra', bot_numero: '5511999990000' })
+  ])
+  await g.sincronizar()
+  delete process.env.SQUARECLOUD_API_KEY
+  delete process.env.AURORA_IA_NUMERO
+  const padrao = filhos.find((f) => f.opcoes.env.AURORA_CONNECTION_NUMBER === '5598970016740').opcoes.env
+  const escolhido = filhos.find((f) => f.opcoes.env.AURORA_CONNECTION_NUMBER === '5511999990000').opcoes.env
+  assert.equal(escolhido.AURORA_IA, '1')
+  assert.equal(escolhido.SQUARECLOUD_API_KEY, 'chave-da-ia-da-casa')
+  assert.equal(padrao.AURORA_IA, undefined)
+  assert.equal(padrao.SQUARECLOUD_API_KEY, undefined)
 })
 
 test('o bot no número da casa caiu: o gerente pausa o #aviso pra todos no site; outro bot não', async () => {

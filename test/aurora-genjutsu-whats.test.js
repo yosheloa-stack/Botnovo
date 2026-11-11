@@ -11,6 +11,8 @@ import path from 'node:path'
 const raiz = path.resolve(import.meta.dirname, '..')
 process.chdir(fs.mkdtempSync(path.join(os.tmpdir(), 'aurora-genjutsu-')))
 process.env.AURORA_CLIENTE = ''
+// Aqui o bot principal é o bot da IA (na vida real ela fica no número de AURORA_IA_NUMERO).
+process.env.AURORA_IA_NUMERO = '5567981517686'
 process.env.SQUARECLOUD_API_KEY = 'chave-de-teste'
 process.env.HIGGSFIELD_KEY_ID = 'id-teste'
 process.env.HIGGSFIELD_KEY_SECRET = 'segredo-teste'
