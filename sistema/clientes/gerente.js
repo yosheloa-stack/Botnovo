@@ -203,6 +203,35 @@ export function criarGerente({
     log.log(`[ AURORA CLIENTES ] Bot ligado: ${nome} (${limpo(c.bot_numero)})`)
   }
 
+  // Parar: desliga e guarda a sessão (ligar de novo não pede código).
+  // Iniciar: liga se tem sessão; sem sessão, ela precisa pedir o código.
+  // Reiniciar: desliga e liga de novo assim que o processo sair.
+  async function comandar(estado, acao, cmdSeq) {
+    const c = estado.conf
+    const pedido = limpo(c.pedido)
+    if (acao === 'parar' || c.desligado === true) {
+      estado.parado = true
+      desligar(estado)
+      await contar(pedido, { estado: 'parado', comando_seq: cmdSeq })
+      return
+    }
+    estado.parado = false
+    estado.parando = false
+    if (acao === 'reiniciar' && estado.filho && estado.filho.exitCode === null) {
+      const filho = estado.filho
+      estado.parando = true
+      filho.once('exit', () => { estado.parando = false; if (!parado) ligar(estado) })
+      filho.kill('SIGTERM')
+      await contar(pedido, { estado: 'rodando', comando_seq: cmdSeq })
+      return
+    }
+    if (!estado.filho) {
+      if (temSessao(pedido) || Number(c.codigo_pedido) > 0) { estado.esperandoCodigo = false; ligar(estado) }
+      else { estado.esperandoCodigo = true; await contar(pedido, { estado: 'parado', comando_seq: cmdSeq, erro: 'Para ligar, gere o código de conexão em "Configurar meu bot".' }); return }
+    }
+    await contar(pedido, { estado: 'rodando', comando_seq: cmdSeq })
+  }
+
   function desligar(estado, apagar = false) {
     estado.parando = true
     if (estado.religar) clearTimeout(estado.religar)
@@ -235,13 +264,25 @@ export function criarGerente({
           estado = null
         }
         if (!estado) {
-          estado = { conf: c, seq, esperandoCodigo: false, falhas: 0 }
+          estado = { conf: c, seq, esperandoCodigo: false, falhas: 0, comandoSeq: Number(c.comando_seq) || 0 }
           bots.set(pedido, estado)
+          // Parado pelo site ("Gerenciar bot"): fica desligado até ela mandar ligar.
+          if (c.desligado === true) { estado.parado = true; continue }
           // Sem sessão salva, só liga quando ela pedir o código no site.
           if (temSessao(pedido) || seq > 0) ligar(estado)
           else estado.esperandoCodigo = true
           continue
         }
+        // GERENCIAR BOT (11/11): iniciar, reiniciar ou parar, mandado pelo site.
+        // Cada comando é atendido uma vez (comando_seq) e o site recebe o estado.
+        const cmdSeq = Number(c.comando_seq) || 0
+        if (cmdSeq && cmdSeq !== estado.comandoSeq) {
+          estado.comandoSeq = cmdSeq
+          estado.conf = c
+          await comandar(estado, c.comando, cmdSeq)
+          continue
+        }
+        if (c.desligado === true) { estado.conf = c; continue }
         const marcaMudou = JSON.stringify(marcaDo(estado.conf)) !== JSON.stringify(marcaDo(c))
         const donoMudou = estado.conf.dono_numero !== c.dono_numero || tokenDo(estado.conf) !== tokenDo(c)
         estado.conf = c
@@ -251,6 +292,9 @@ export function criarGerente({
           estado.seq = seq
           estado.esperandoCodigo = false
           estado.motivo = ''
+          // Pedir código também liga um bot parado pelo site.
+          estado.parado = false
+          if (!estado.filho) estado.parando = false
           if (estado.filho) {
             if (!estado.conectado) {
               estado.parando = true
