@@ -204,8 +204,29 @@ function mesmaPessoa(system, numero) {
 export const ehCriador = (system) => mesmaPessoa(system, auroraCriador())
 export const ehEsposa = (system) => mesmaPessoa(system, auroraEsposa())
 
+// O CRIADOR VEM DO SITE: é o número que recebe os avisos de compra (ajuste
+// "WhatsApp que recebe os avisos" no admin). O bot que manda os avisos fica
+// sabendo pela fila; o bot da IA, que pode ser outro, pergunta ao painel do
+// site. Sem criador guardado pergunta já; com, confere a cada 10 min (se o
+// dono trocar no admin, vale aqui).
+let criadorConferidoEm = 0
+export async function aprenderCriador() {
+  const guardado = auroraCriador()
+  if (!tokenSite() || Date.now() - criadorConferidoEm < (guardado ? 10 * 60_000 : 60_000)) return guardado
+  criadorConferidoEm = Date.now()
+  painelCache = { at: 0, d: null }
+  const d = await buscarPainel()
+  const numero = digits(d?.criador)
+  if (numero && numero !== guardado) {
+    auroraCriador(numero)
+    console.log('[ AURORA IA ] criador (quem recebe os avisos de compra), pelo site:', numero)
+  }
+  return auroraCriador()
+}
+
 // Garante o LID do criador e da mulher dele antes de decidir quem fala.
 export async function conhecerPessoas(system) {
+  await aprenderCriador()
   for (const numero of [auroraCriador(), auroraEsposa()].filter(Boolean)) {
     const n = digits(numero)
     const lid = base(system.senderInfo?.lidJid)
@@ -578,4 +599,5 @@ export const esquecerAurora = (system) => aurora.esquecer(`${system.from}:${syst
 export const estadoAurora = () => ({ ...aurora.estado(), temChave: Boolean(chaveIa()), ligada: auroraIaLigada(), criador: auroraCriador(), esposa: auroraEsposa(), genjutsu: genjutsuLigado(), numero: numeroDaIa() })
 
 if (iaNesteBot() && !chaveIa()) console.log('[ AURORA IA ] desligada: falta SQUARECLOUD_API_KEY no ambiente')
+if (iaNesteBot()) setTimeout(() => { aprenderCriador().catch(() => {}) }, 5_000).unref?.()
 if (!iaNesteBot() && !modoCliente) console.log(`[ AURORA IA ] fica só no bot do número ${numeroDaIa()} (AURORA_IA_NUMERO troca); o bot principal não tem a IA`)

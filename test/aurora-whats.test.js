@@ -20,6 +20,7 @@ const pedidosLike = []
 const pedidosInfo = []
 const pedidosVoz = []
 let respostaIa = 'oi, tô aqui 😌'
+let criadorNoSite = ''
 globalThis.fetch = async (url, opcoes = {}) => {
   if (String(url).includes('/v2/ai/chat/completions')) {
     pedidosIa.push(JSON.parse(opcoes.body))
@@ -31,6 +32,9 @@ globalThis.fetch = async (url, opcoes = {}) => {
   if (String(url).includes('api.elevenlabs.io/v1/text-to-speech')) {
     pedidosVoz.push(JSON.parse(opcoes.body).text)
     return new Response(new Uint8Array([0x4f, 0x67, 0x67, 0x53, 0, 2, ...new Array(2000).fill(0)]), { status: 200 })
+  }
+  if (String(url).includes('/api/bot/aurora/painel')) {
+    return new Response(JSON.stringify({ ok: true, criador: criadorNoSite, vendas: { hoje_qtd: 0, hoje_cent: 0, mes_cent: 0 } }), { status: 200 })
   }
   if (String(url).includes('/v1/info')) {
     pedidosInfo.push(new URL(String(url)).searchParams.get('uid'))
@@ -169,6 +173,19 @@ test('perguntou do erro: ela recebe o motivo real do último comando que quebrou
   await respostaDe(mensagem('#tiktok https://vt.tiktok.com/x'))
   await respostaDe(mensagem('aurora qual foi o erro?'))
   assert.match(pedidosIa.at(-1).messages[0].content, /ÚLTIMO ERRO DE COMANDO[\s\S]*#tiktok de Yosh[\s\S]*HTTP 502/)
+})
+
+test('o criador vem do site (painel) quando o bot ainda não sabe quem é', async () => {
+  const { default: cmd } = await import(path.join(raiz, 'sistema/comandos/dono/auroramulher.js'))
+  comandos.set('auroramulher', cmd)
+  process.env.AURORA_SITE_TOKEN = 'token-do-site'
+  banco.auroraCriador('')
+  criadorNoSite = '+55 44 91111-2222'
+  assert.match((await respostaDe(mensagem('#auroramulher 5568984110000')))[0].conteudo.text, /556898411000/, 'reconheceu pelo número do site')
+  assert.equal(banco.auroraCriador(), '5544911112222')
+  banco.auroraEsposa('5568984111797')
+  criadorNoSite = ''
+  delete process.env.AURORA_SITE_TOKEN
 })
 
 test('#auroramulher: só o criador escolhe, e ela passa a ser tratada como a mulher dele', async () => {
