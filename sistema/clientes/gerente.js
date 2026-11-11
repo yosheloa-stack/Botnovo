@@ -15,7 +15,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { criarLogRaro, motivoDaFalha, pedirAoSite, respostaEstranha } from '../funcoes/rede.js'
-import { NUMERO_BOT_DA_CASA } from '../funcoes/config.js'
+import { NUMERO_BOT_DA_CASA, numeroDaIa } from '../funcoes/config.js'
 import { mesmoNumero } from '../funcoes/jid.js'
 import { limiteMb } from '../funcoes/recursos.js'
 
@@ -30,11 +30,11 @@ const nomePasta = (pedido) => limpo(pedido).replace(/[^A-Za-z0-9_-]/g, '_').slic
 const IA_DA_CASA = ['SQUARECLOUD_API_KEY', 'SQUARECLOUD_AI_KEY', 'AURORA_MAX_DIA', 'AURORA_CRIADOR', 'ELEVENLABS_API_KEY', 'ELEVENLABS_VOZ', 'ELEVENLABS_MODELO', 'AURORA_AUDIO_CHANCE', 'AURORA_AUDIO_DIA']
 const SO_DA_CASA = ['AURORA_ALUGUEL_PEDIDO', 'AURORA_ALUGUEL_TOKEN', 'AURORA_SITE_TOKEN', 'AURORA_RENTAL_TOKEN', 'AUTO_SYSTEM_TOKEN', 'AUTOSYSTEM_TOKEN', 'AURORA_PREFIX', 'AURORA_OWNER_NUMBER', 'AURORA_CONNECTION_NUMBER', 'AURORA_CONFIG_FILE', 'AURORA_DATA_DIR', 'AURORA_MARCA', 'AURORA_CLIENTE', 'AURORA_IA', ...IA_DA_CASA]
 
-// A Aurora com IA é do bot da casa. Quando o número da casa está ligado como
-// bot de cliente (o dono alugou pro próprio número, é ele que manda os avisos
-// de compra), esse bot também tem a IA. AURORA_IA_NUMERO troca o número.
+// A Aurora com IA fica só no bot do número da IA (NUMERO_IA_DA_CASA, ou
+// AURORA_IA_NUMERO no ambiente): o bot de cliente ligado nesse número recebe
+// AURORA_IA=1 e as chaves da IA; os outros bots de cliente ficam sem ela.
 export const temIaDaCasa = (botNumero) => {
-  const numero = limpo(process.env.AURORA_IA_NUMERO) || NUMERO_BOT_DA_CASA
+  const numero = numeroDaIa()
   return Boolean(limpo(botNumero)) && (mesmoNumero(numero, botNumero) || mesmoNumero(botNumero, numero))
 }
 

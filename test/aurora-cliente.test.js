@@ -1,6 +1,8 @@
 // node test/aurora-cliente.test.js
-// Bot de cliente: só o do número da casa (AURORA_IA=1, ligado pelo gerente)
-// tem a Aurora com IA, e a resposta dela sai sem a troca de marca.
+// A Aurora com IA fica só no bot do número dela (5598970016740, ou o de
+// AURORA_IA_NUMERO): bot de cliente só com AURORA_IA=1 (ligado pelo gerente),
+// e o bot principal só quando o número da casa é o número da IA. A resposta
+// dela no bot de cliente sai sem a troca de marca.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
@@ -47,4 +49,23 @@ test('bot de cliente no número da casa: Aurora responde, sem trocar a marca', (
   assert.equal(r.enviados.length, 1)
   assert.equal(r.enviados[0][0], 'sou a Aurora, entra no autolikesystem.com.br')
   assert.deepEqual(r.enviados[0][1], { semMarca: true })
+})
+
+test('bot principal: sem a IA, porque o número da casa não é o número da IA', () => {
+  const r = rodar({ AURORA_CLIENTE: '', AURORA_MARCA: '', AURORA_IA_NUMERO: '' }, conversa)
+  assert.equal(r.ia, false)
+  assert.equal(r.tomou, false)
+  assert.deepEqual(r.enviados, [])
+})
+
+test('bot principal com AURORA_IA_NUMERO no número da casa: tem a IA', () => {
+  const r = rodar({ AURORA_CLIENTE: '', AURORA_MARCA: '', AURORA_IA_NUMERO: '5567981517686' }, conversa)
+  assert.equal(r.ia, true)
+  assert.equal(r.tomou, true)
+  assert.equal(r.enviados.length, 1)
+})
+
+test('bot de cliente: AURORA_IA=1 vale mesmo com AURORA_IA_NUMERO apontando pra outro número', () => {
+  const r = rodar({ AURORA_IA: '1', AURORA_IA_NUMERO: '5511999990000' }, conversa)
+  assert.equal(r.ia, true)
 })

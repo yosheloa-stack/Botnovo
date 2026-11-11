@@ -17,6 +17,11 @@ const merge = (base, extra) => {
 const clean = (value = '') => String(value ?? '').replace(/[\r\n]+/g, ' ').trim()
 export const NUMERO_BOT_DA_CASA = '5567981517686'
 
+// A Aurora com IA fica num bot só: o do número abaixo (o "Aurora System" do
+// dono). AURORA_IA_NUMERO no ambiente troca o número, sem mexer no código.
+export const NUMERO_IA_DA_CASA = '5598970016740'
+export const numeroDaIa = () => String(process.env.AURORA_IA_NUMERO || '').replace(/\D/g, '') || NUMERO_IA_DA_CASA
+
 function normalizeChannelLink(value = '') {
 const raw = clean(value)
 if (!raw) return ''
