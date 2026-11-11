@@ -10,8 +10,8 @@ import { criarGerente, marcaDo } from '../sistema/clientes/gerente.js'
 const quieto = { log() {}, warn() {} }
 const espera = () => new Promise((r) => setTimeout(r, 10))
 
-function cenario(lista) {
-  const pastaBase = fs.mkdtempSync(path.join(os.tmpdir(), 'gerente-'))
+function cenario(lista, pasta) {
+  const pastaBase = pasta || fs.mkdtempSync(path.join(os.tmpdir(), 'gerente-'))
   const pedidos = []
   const filhos = []
   const fetchImpl = async (url, opcoes) => {
@@ -241,4 +241,28 @@ test('gerenciar bot: parar desliga e guarda a sessão, iniciar liga de novo, rei
   // o mesmo comando na volta seguinte não faz nada
   await g.sincronizar(); await espera()
   assert.equal(filhos.length, 3)
+})
+
+test('código pedido e nunca usado: ao ligar o app de novo não pede outro; só quando ela gera um novo', async () => {
+  const lista = [cliente({ codigo_pedido: 1 })]
+  const { g, filhos, pastaBase } = cenario(() => lista)
+  await g.sincronizar()
+  assert.equal(filhos.length, 1)
+  // 10 minutos sem digitar: o bot avisa e sai limpo
+  filhos[0].emit('message', { tipo: 'codigo_expirou' })
+  filhos[0].emit('exit', 0)
+  assert.equal(fs.existsSync(path.join(pastaBase, 'p1', 'codigo-tentado.json')), true)
+  // o app reinicia (gerente novo, mesma pasta): o pedido 1 não é repetido
+  const { g: g2, filhos: filhos2 } = cenario(() => lista, pastaBase)
+  await g2.sincronizar()
+  assert.equal(filhos2.length, 0)
+  assert.equal(g2.bots.get('p1').esperandoCodigo, true)
+  // nem o botão Iniciar pede código sozinho
+  lista[0] = cliente({ codigo_pedido: 1, comando: 'iniciar', comando_seq: 1 })
+  await g2.sincronizar()
+  assert.equal(filhos2.length, 0)
+  // ela clicou em "Gerar novo código": aí liga
+  lista[0] = cliente({ codigo_pedido: 2, comando: 'iniciar', comando_seq: 1 })
+  await g2.sincronizar()
+  assert.equal(filhos2.length, 1)
 })

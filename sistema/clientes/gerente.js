@@ -123,6 +123,21 @@ export function criarGerente({
     try { return fs.readdirSync(sessaoDe(pedido), { recursive: true }).some((f) => String(f).endsWith('.bin')) } catch { return false }
   }
   const apagarSessao = (pedido) => { try { fs.rmSync(sessaoDe(pedido), { recursive: true, force: true }) } catch {} }
+  // CÓDIGO PEDIDO E NUNCA USADO (pedido do Yosh, 11/11): a cliente que
+  // comprou, pediu o código e sumiu fazia o app pedir outro código a cada
+  // reinício (e a cada 10 min enquanto o WhatsApp deixava), até o WhatsApp
+  // limitar os pedidos de todo mundo (429). Agora o pedido fica anotado na
+  // pasta dela: o bot só pede de novo quando ela clica em "Gerar novo código"
+  // no site (codigo_pedido muda). Ligar o app de novo não repete o pedido.
+  const marcaCodigoDe = (pedido) => path.join(pastaDe(pedido), 'codigo-tentado.json')
+  const codigoTentado = (pedido) => {
+    try { return Number(JSON.parse(fs.readFileSync(marcaCodigoDe(pedido), 'utf8')).seq) || 0 } catch { return 0 }
+  }
+  const anotarCodigoTentado = (pedido, seq) => {
+    try { fs.mkdirSync(pastaDe(pedido), { recursive: true }); fs.writeFileSync(marcaCodigoDe(pedido), JSON.stringify({ seq, em: new Date().toISOString() })) } catch {}
+  }
+  // Pode ligar sem ela clicar: tem sessão guardada, ou pediu um código que ainda não foi tentado.
+  const podeLigar = (pedido, seq) => temSessao(pedido) || (seq > 0 && seq !== codigoTentado(pedido))
 
   const tokenDo = (c) => limpo(c.api_key) || autoSystem.token || ''
 
@@ -176,7 +191,7 @@ export function criarGerente({
         // #aviso pra todos para no site e só volta com "#aviso continuar"
         if (ehNumeroDaCasa(estado.numero || c.bot_numero)) void pausarAvisoGeral(`o WhatsApp desconectou o bot ${limpo(c.nome_bot) || limpo(c.bot_numero)}`)
       }
-      else if (tipo === 'codigo_expirou') { estado.motivo = 'codigo_expirou'; void contar(c.pedido, { ok: false, erro: 'codigo_expirou' }) }
+      else if (tipo === 'codigo_expirou') { estado.motivo = 'codigo_expirou'; anotarCodigoTentado(c.pedido, estado.seq); void contar(c.pedido, { ok: false, erro: 'codigo_expirou' }) }
       else if (tipo === 'vencido') estado.motivo = 'vencido'
       else if (tipo === 'recursos') {
         const { tipo: _t, ...r } = msg
@@ -226,7 +241,7 @@ export function criarGerente({
       return
     }
     if (!estado.filho) {
-      if (temSessao(pedido) || Number(c.codigo_pedido) > 0) { estado.esperandoCodigo = false; ligar(estado) }
+      if (podeLigar(pedido, Number(c.codigo_pedido) || 0)) { estado.esperandoCodigo = false; ligar(estado) }
       else { estado.esperandoCodigo = true; await contar(pedido, { estado: 'parado', comando_seq: cmdSeq, erro: 'Para ligar, gere o código de conexão em "Configurar meu bot".' }); return }
     }
     await contar(pedido, { estado: 'rodando', comando_seq: cmdSeq })
@@ -268,8 +283,9 @@ export function criarGerente({
           bots.set(pedido, estado)
           // Parado pelo site ("Gerenciar bot"): fica desligado até ela mandar ligar.
           if (c.desligado === true) { estado.parado = true; continue }
-          // Sem sessão salva, só liga quando ela pedir o código no site.
-          if (temSessao(pedido) || seq > 0) ligar(estado)
+          // Sem sessão salva, só liga quando ela pedir o código no site (e um
+          // código já pedido e não usado não é pedido de novo).
+          if (podeLigar(pedido, seq)) ligar(estado)
           else estado.esperandoCodigo = true
           continue
         }
