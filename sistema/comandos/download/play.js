@@ -22,7 +22,8 @@ ptt: false,
 }
 catch (err) {
 console.error('[ PLAY ]', err)
-return system.reply(`• ❌ Não consegui baixar agora.\n• Motivo: ${String(err?.message || err).slice(0, 700)}`)
+return system.reply('Eita, não consegui pegar essa música agora 😅
+Tenta de novo daqui a pouco ou procura outra, tá? 💙')
 }
 finally {
 await cleanup(media)
