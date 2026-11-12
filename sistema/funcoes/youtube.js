@@ -196,12 +196,14 @@ function downloadCandidates(kind, youtubeUrl, config, raw = null) {
 const isVideo = kind === 'video'
 const list = []
 const add = (fn) => { try { const u = fn(); if (u) list.push(u) } catch {} }
-add(() => directDownload(kind, youtubeUrl, config))
-const alt = (route, extra = {}) => {
+const alt = (route, extra = {}, param = 'url') => {
 const { url, token } = apiBlock(config, 'akameApi')
-const q = new URLSearchParams({ url: youtubeUrl, ...extra, apikey: token })
+const q = new URLSearchParams({ [param]: youtubeUrl, ...extra, apikey: token })
 return `${url}${route}?${q}`
 }
+// Rota documentada da Akame: devolve JSON com resultado.download.
+add(() => alt(isVideo ? '/api/download/youtube-video' : '/api/download/youtube-audio', { quality: isVideo ? 360 : 128 }, 'url'))
+add(() => directDownload(kind, youtubeUrl, config))
 if (isVideo) {
 add(() => alt('/api/download/ytmp4', { quality: 720 }))
 add(() => alt('/api/download/ytmp4'))
