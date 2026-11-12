@@ -108,6 +108,13 @@ config.autoSystem.url = clean(process.env.AUTOSYSTEM_URL || process.env.KASANE_U
 }
 if (process.env.AUTO_SYSTEM_TOKEN || process.env.AUTOSYSTEM_TOKEN) config.autoSystem.token = clean(process.env.AUTO_SYSTEM_TOKEN || process.env.AUTOSYSTEM_TOKEN)
 config.autoSystem.rentalToken = clean(process.env.AURORA_RENTAL_TOKEN || config.autoSystem.rentalToken || '')
+// Chaves das APIs de YouTube/figurinhas: pela variável de ambiente (Square Cloud).
+config.akameApi = { ...(config.akameApi || {}) }
+config.tokitoApi = { ...(config.tokitoApi || {}) }
+if (process.env.AKAME_API_KEY) config.akameApi.token = clean(process.env.AKAME_API_KEY)
+if (process.env.AKAME_API_URL) config.akameApi.url = clean(process.env.AKAME_API_URL)
+if (process.env.TOKITO_API_KEY) config.tokitoApi.token = clean(process.env.TOKITO_API_KEY)
+if (process.env.TOKITO_API_URL) config.tokitoApi.url = clean(process.env.TOKITO_API_URL)
 
 applyChannel(config, normalizeChannel(config))
 return config
@@ -129,7 +136,9 @@ export async function saveConfig(config) {
     ['AURORA_CONNECTION_NUMBER', 'connection', 'number'],
     ['AUTO_SYSTEM_TOKEN', 'autoSystem', 'token'],
     ['AUTOSYSTEM_TOKEN', 'autoSystem', 'token'],
-    ['AURORA_RENTAL_TOKEN', 'autoSystem', 'rentalToken']
+    ['AURORA_RENTAL_TOKEN', 'autoSystem', 'rentalToken'],
+    ['AKAME_API_KEY', 'akameApi', 'token'],
+    ['TOKITO_API_KEY', 'tokitoApi', 'token']
   ]
   for (const [env, section, key] of overrides) {
     if (process.env[env]) next[section][key] = previous[section]?.[key] || ''
