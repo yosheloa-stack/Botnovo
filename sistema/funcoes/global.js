@@ -675,7 +675,12 @@ return `- ⚡ \`𝙰𝚄𝚃𝙾𝙻𝙸𝙺𝙴\`\n\n- 🆔 UID: ${d.uid ?? uid
 }
 
 exports.ffList = items => {
-return `- 💚 \`𝙰𝚄𝚃𝙾𝙻𝙸𝙺𝙴𝚂\`\n\n${items.length ? items.slice(0,50).map((x,i)=>`${i+1}. ${x.uid ?? x.id ?? x}${x.nick ? ` • ${x.nick}` : ''}`).join('\n') : 'Nenhum ID cadastrado.'}`
+const n = v => v == null || v === '' || !Number.isFinite(Number(v)) ? '—' : Number(v).toLocaleString('pt-BR')
+const bloco = x => {
+if (typeof x !== 'object' || !x) return `ID: ${x}`
+return [`Nick: ${x.nick || '—'}`, `ID: ${x.uid ?? x.id ?? '—'}`, `Likes inicial: ${n(x.likes_inicial)}`, `Likes hoje: ${n(x.likes_hoje)}`, `Total recebido: ${n(x.likes_entregues ?? x.likes)}`].join('\n')
+}
+return `- 💚 \`𝙰𝚄𝚃𝙾𝙻𝙸𝙺𝙴𝚂\`\n\n${items.length ? items.slice(0,30).map(bloco).join('\n\n') : 'Nenhum ID cadastrado.'}`
 }
 
 exports.ffRemoved = uid => {
