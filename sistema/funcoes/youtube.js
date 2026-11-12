@@ -252,14 +252,6 @@ console.warn('[ YOUTUBE DOWNLOAD ]', rota, motivo)
 }
 throw new Error(falhas.length ? falhas.join(' | ') : 'Nenhum provedor conseguiu baixar este vídeo.')
 }
-catch (err) {
-await cleanup(media)
-lastError = err
-console.warn('[ YOUTUBE DOWNLOAD ]', String(err?.message || err))
-}
-}
-throw lastError || new Error('Nenhum provedor conseguiu baixar este vídeo.')
-}
 
 // O WhatsApp só toca o áudio se o arquivo bater com o mimetype enviado. Alguns
 // provedores devolvem m4a/webm/mp4 no lugar de mp3: converte para mp3 de verdade.
