@@ -9,12 +9,12 @@ const info = await youtube.resolve(system.q, system.config)
 await youtube.result(system, info, 'doc')
 let media
 try {
-media = await youtube.download('audio', info, system.config, 'mp3')
+media = await youtube.audioMp3(info, system.config)
 const safe = String(info.title || 'audio').replace(/[\\/:*?"<>|]/g, '').slice(0, 90) || 'audio'
 return await system.send({
 type: 'document',
 media: media.path,
-mimetype: 'audio/mpeg',
+mimetype: media.mimetype || 'audio/mpeg',
 fileName: `${safe}.mp3`
 })
 }

@@ -44,3 +44,22 @@ test('play tenta vários provedores de download, sem repetir link', () => {
   const video = _teste.downloadCandidates('video', 'https://www.youtube.com/watch?v=abc', cfg)
   assert.ok(video.every((u) => !/ytmp3|mp3/.test(u)))
 })
+
+test('áudio que não é mp3 é convertido antes de enviar', async () => {
+  const http = await import('node:http')
+  const { spawnSync } = await import('node:child_process')
+  const { youtube } = await import('../sistema/funcoes/youtube.js')
+  const fs = await import('node:fs')
+  const tmp = '/tmp/aurora-teste.m4a'
+  const r = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=2', '-c:a', 'aac', tmp])
+  if (r.status !== 0) return // sem ffmpeg neste ambiente
+  const srv = http.createServer((q, res) => { res.setHeader('content-type', 'audio/mp4'); res.end(fs.readFileSync(tmp)) }).listen(0)
+  const port = srv.address().port
+  const cfg = { akameApi: { url: `http://127.0.0.1:${port}`, token: 'k' }, tokitoApi: { url: `http://127.0.0.1:${port}`, token: 'k' } }
+  try {
+    const m = await youtube.audioMp3({ url: 'https://www.youtube.com/watch?v=abc' }, cfg)
+    assert.equal(m.mimetype, 'audio/mpeg')
+    assert.equal(m.ext, 'mp3')
+    assert.ok(fs.readFileSync(m.path).subarray(0, 3).toString() === 'ID3' || fs.readFileSync(m.path)[0] === 0xff)
+  } finally { srv.close() }
+})

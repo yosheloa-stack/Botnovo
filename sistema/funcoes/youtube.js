@@ -1,4 +1,6 @@
 import { downloadFile, cleanup, bestMediaUrl } from './midia.js'
+import { spawn } from 'node:child_process'
+import fs from 'node:fs/promises'
 
 function cleanBase(value = '') {
 return String(value).trim().replace(/\/+$/, '')
@@ -245,6 +247,39 @@ console.warn('[ YOUTUBE DOWNLOAD ]', String(err?.message || err))
 throw lastError || new Error('Nenhum provedor conseguiu baixar este vídeo.')
 }
 
+// O WhatsApp só toca o áudio se o arquivo bater com o mimetype enviado. Alguns
+// provedores devolvem m4a/webm/mp4 no lugar de mp3: converte para mp3 de verdade.
+function ffmpegMp3(entrada, saida) {
+return new Promise((resolve, reject) => {
+const p = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-i', entrada, '-vn', '-codec:a', 'libmp3lame', '-b:a', '128k', saida], { stdio: ['ignore', 'ignore', 'pipe'] })
+let err = ''
+p.stderr.on('data', (d) => { err += d })
+p.on('error', reject)
+p.on('close', (code) => code === 0 ? resolve() : reject(new Error(err.trim().slice(-200) || `ffmpeg saiu com ${code}`)))
+})
+}
+
+export async function baixarAudioMp3(info, config) {
+const media = await baixarYouTube('audio', info, config, 'mp3')
+console.log('[ YOUTUBE AUDIO ]', media.mimetype, media.ext, media.size)
+if (media.mimetype === 'audio/mpeg' && media.size > 1024) return media
+const saida = media.path.replace(/\.[^.\/]+$/, '') + '-conv.mp3'
+try {
+await ffmpegMp3(media.path, saida)
+const { size } = await fs.stat(saida)
+if (size < 1024) throw new Error('áudio convertido vazio')
+await cleanup(media)
+return { path: saida, mimetype: 'audio/mpeg', ext: 'mp3', size }
+}
+catch (err) {
+console.warn('[ YOUTUBE AUDIO ] conversão falhou:', String(err?.message || err))
+await cleanup(saida)
+if (String(media.mimetype).startsWith('audio/')) return media
+await cleanup(media)
+throw new Error('O provedor não devolveu um áudio válido.')
+}
+}
+
 function videoIdFromUrl(url = '') {
 try {
 const parsed = new URL(url)
@@ -300,6 +335,7 @@ return system.reply(caption, { mentions: [system.senderInfo?.pnJid || system.sen
 
 export const youtube = {
 download: baixarYouTube,
+audioMp3: baixarAudioMp3,
 result: showResultCard,
 search: (query, config) => searchYouTube(query, config, 1),
 searchMany: (query, config, limit = 8) => searchYouTube(query, config, limit),
