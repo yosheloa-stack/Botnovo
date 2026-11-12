@@ -106,7 +106,7 @@ test('consulta o ID de verdade e põe no system; ID que não existe vira aviso',
 test('limite por pessoa: avisa uma vez e depois fica quieta', async () => {
   const { a, chamadas } = aurora()
   for (let i = 0; i < LIMITES.porPessoa; i++) await a.responder(fala('aurora ' + i))
-  assert.equal(await a.responder(fala('aurora de novo')), FRASES.pessoa)
+  assert.match(await a.responder(fala('aurora de novo')), /em \d+ minutos?, tá\?/)
   assert.equal(await a.responder(fala('aurora de novo 2')), null)
   assert.equal(chamadas.length, LIMITES.porPessoa)
   assert.equal(await a.responder(fala('aurora oi', { conversa: 'g@g.us:5511' })), 'oi sumido 😏', 'outra pessoa segue')
