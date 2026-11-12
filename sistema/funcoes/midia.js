@@ -92,7 +92,16 @@ headers: {
 }
 })
 
-if (!response.ok) throw new Error(`Falha ao baixar mídia: HTTP ${response.status}`)
+if (!response.ok) {
+// Mostra o que o servidor respondeu (ex.: "chave inválida") e se foi o link final.
+let detalhe = ''
+try {
+const txt = (await response.text()).slice(0, 400)
+try { const j = JSON.parse(txt); detalhe = String(j?.resultado ?? j?.message ?? j?.error ?? '') } catch { detalhe = /^\s*</.test(txt) ? '' : txt }
+} catch {}
+const onde = depth > 0 ? ' (link final de download)' : ''
+throw new Error(`Falha ao baixar mídia: HTTP ${response.status}${onde}${detalhe ? ` - ${detalhe.replace(/\s+/g, ' ').slice(0, 120)}` : ''}`)
+}
 
 const maxMb = 80
 const limit = maxMb * 1024 * 1024
