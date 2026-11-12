@@ -674,13 +674,13 @@ exports.ffAuto = (d, uid) => {
 return `- ⚡ \`𝙰𝚄𝚃𝙾𝙻𝙸𝙺𝙴\`\n\n- 🆔 UID: ${d.uid ?? uid}\n- 💚 Por envio: ${d.likes_por_envio ?? '-'}\n- 📦 Entregas: ${d.entregas ?? 0}\n- ✅ Entregues: ${d.likes_entregues ?? 0}`
 }
 
-exports.ffList = items => {
+exports.ffList = (items, titulo = '𝙰𝚄𝚃𝙾𝙻𝙸𝙺𝙴𝚂') => {
 const n = v => v == null || v === '' || !Number.isFinite(Number(v)) ? '—' : Number(v).toLocaleString('pt-BR')
 const bloco = x => {
 if (typeof x !== 'object' || !x) return `ID: ${x}`
 return [`Nick: ${x.nick || '—'}`, `ID: ${x.uid ?? x.id ?? '—'}`, `Likes inicial: ${n(x.likes_inicial)}`, `Likes hoje: ${n(x.likes_hoje)}`, `Total recebido: ${n(x.likes_entregues ?? x.likes)}`].join('\n')
 }
-return `- 💚 \`𝙰𝚄𝚃𝙾𝙻𝙸𝙺𝙴𝚂\`\n\n${items.length ? items.slice(0,30).map(bloco).join('\n\n') : 'Nenhum ID cadastrado.'}`
+return `- 💚 \`${titulo}\`\n\n${items.length ? items.slice(0,30).map(bloco).join('\n\n') : 'Nenhum ID cadastrado.'}`
 }
 
 exports.ffRemoved = uid => {
