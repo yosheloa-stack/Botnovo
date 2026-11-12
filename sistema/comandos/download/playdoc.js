@@ -18,6 +18,10 @@ mimetype: media.mimetype || 'audio/mpeg',
 fileName: `${safe}.mp3`
 })
 }
+catch (err) {
+console.error('[ PLAY ]', err)
+return system.reply(`• ❌ Não consegui baixar agora.\n• Motivo: ${String(err?.message || err).slice(0, 180)}`)
+}
 finally {
 await cleanup(media)
 }

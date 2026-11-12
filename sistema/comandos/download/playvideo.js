@@ -19,6 +19,10 @@ mimetype: media.mimetype.startsWith('video/') ? media.mimetype : 'video/mp4',
 gifPlayback: false
 })
 }
+catch (err) {
+console.error('[ PLAY ]', err)
+return system.reply(`• ❌ Não consegui baixar agora.\n• Motivo: ${String(err?.message || err).slice(0, 180)}`)
+}
 finally {
 await cleanup(media)
 }
