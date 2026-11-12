@@ -129,7 +129,8 @@ export const aurora = createAurora({
   buscarPainel,
   consultarId: (uid) => autoSystem.info(configAtual, uid),
   buscarPrecos,
-  maxDia
+  maxDia,
+  semLimite: !modoCliente // só o bot do criador é sem limite; bot de cliente mantém
 })
 
 // ── quem é o bot, quem foi marcado, quem foi citado ─────────────────────────

@@ -381,6 +381,7 @@ export function createAurora({
   agora = () => Date.now(),
   esperar = (ms) => new Promise((r) => setTimeout(r, ms)),
   maxDia = () => LIMITES.maxDiaPadrao,
+  semLimite = false,               // bot do criador: sem limite por pessoa nem por grupo
   log = (...a) => console.log('[ AURORA IA ]', ...a)
 } = {}) {
   const memoria = new Map()   // grupo (ou conversa no privado) -> { msgs, at }
@@ -496,13 +497,13 @@ export function createAurora({
       return avisarUmaVez('dia:' + (grupo || conversa), FRASES.cansada, proximaMeiaNoiteUtc(t) - t)
     }
     // O criador não tem limite por pessoa (só o do grupo e o do dia).
-    const daPessoa = ehCriador ? [] : recentes(usoPessoa, conversa, LIMITES.porPessoaJanelaMs)
+    const daPessoa = ehCriador || semLimite ? [] : recentes(usoPessoa, conversa, LIMITES.porPessoaJanelaMs)
     if (daPessoa.length >= LIMITES.porPessoa) {
       log('ignorou: limite por pessoa', conversa)
       const falta = Math.max(1000, Math.min(...daPessoa) + LIMITES.porPessoaJanelaMs - t)
       return avisarUmaVez('pessoa:' + conversa, FRASES.pessoa(Math.max(1, Math.ceil(falta / MINUTO))), falta)
     }
-    if (grupo) {
+    if (grupo && !semLimite) {
       const doGrupo = recentes(usoGrupo, grupo, LIMITES.porGrupoJanelaMs)
       if (doGrupo.length >= LIMITES.porGrupo) { log('ignorou: limite do grupo', grupo); return null }
       doGrupo.push(t)
