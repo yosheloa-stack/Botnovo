@@ -63,3 +63,12 @@ test('áudio que não é mp3 é convertido antes de enviar', async () => {
     assert.ok(fs.readFileSync(m.path).subarray(0, 3).toString() === 'ID3' || fs.readFileSync(m.path)[0] === 0xff)
   } finally { srv.close() }
 })
+
+test('chave da Akame vem da variável de ambiente AKAME_API_KEY', async () => {
+  const { loadConfig } = await import('../sistema/funcoes/config.js')
+  process.env.AKAME_API_KEY = 'ak_teste_123'
+  try {
+    const cfg = await loadConfig()
+    assert.equal(cfg.akameApi.token, 'ak_teste_123')
+  } finally { delete process.env.AKAME_API_KEY }
+})
