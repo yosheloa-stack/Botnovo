@@ -112,6 +112,12 @@ test('limite por pessoa: avisa uma vez e depois fica quieta', async () => {
   assert.equal(await a.responder(fala('aurora oi', { conversa: 'g@g.us:5511' })), 'oi sumido 😏', 'outra pessoa segue')
 })
 
+test('bot do criador (semLimite): responde sem parar', async () => {
+  const { a, chamadas } = aurora({ deps: { semLimite: true } })
+  for (let i = 0; i < LIMITES.porPessoa + 5; i++) assert.equal(await a.responder(fala('aurora ' + i)), 'oi sumido 😏')
+  assert.equal(chamadas.length, LIMITES.porPessoa + 5)
+})
+
 test('o criador não tem limite por pessoa', async () => {
   const { a, chamadas } = aurora()
   for (let i = 0; i < LIMITES.porPessoa + 3; i++) assert.equal(await a.responder(fala('aurora ' + i, { ehCriador: true })), 'oi sumido 😏')
