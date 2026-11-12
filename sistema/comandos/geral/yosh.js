@@ -51,6 +51,9 @@ export function falaDoErro(d) {
   if (c === 'saldo_insuficiente') return '❌ A Black IA não está disponível neste bot agora.'
   if (c === 'fechado') return '❌ A Black IA está em manutenção agora. Tente mais tarde.'
   if (c === 'muitas_requisicoes') return '⏱️ Muitas mensagens seguidas. Espere um minuto e tente de novo.'
+  // a falha da IA e o "ainda criando" já vêm com o motivo em português, sem dados internos
+  if (c === 'processando') return '⏱️ A imagem ainda está em processamento. Tente de novo em instantes.'
+  if (c === 'falha_ia' && d?.erro) return '❌ ' + String(d.erro).slice(0, 300)
   if (c === 'sem_mensagem' || c === 'sem_prompt') return '❌ Escreva o que você quer depois do comando.'
   if (/chave|key|token/i.test(String(d?.erro || '')) && !c) return '❌ A Black IA não está disponível neste bot agora.'
   if (/processamento|demor/i.test(String(d?.erro || ''))) return '⏱️ A imagem ainda está em processamento. Tente de novo em instantes.'
@@ -112,7 +115,12 @@ export default {
       if (!prompt) return system.reply(`❌ Descreva a imagem. Exemplo: ${system.prefix}black imagem um dragão voando 16:9`)
       if (!livre('img:' + pessoa, 2, 5 * 60_000)) return system.reply('⏱️ Muitas imagens seguidas. Espere alguns minutos.')
       await system.reply('🎨 Gerando a imagem, aguarde...')
-      const d = await autoSystem.yoshImagem(system.config, { prompt, tamanho })
+      let d = await autoSystem.yoshImagem(system.config, { prompt, tamanho })
+      // imagem que passou do tempo de uma conexão: espera o pedido ficar pronto (até ~3 min)
+      for (let i = 0; i < 36 && d?.codigo === 'processando' && d.pedido; i++) {
+        await new Promise((r) => setTimeout(r, 5000))
+        d = await autoSystem.yoshPedido(system.config, d.pedido)
+      }
       if (!d?.sucesso || !d.imagem) return system.reply(falaDoErro(d))
       const bytes = await autoSystem.yoshArquivo(d.imagem)
       if (!bytes) return system.reply(`🎨 Imagem pronta: ${d.imagem}`)

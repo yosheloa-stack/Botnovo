@@ -91,6 +91,7 @@ remove: (config, uid) => request(config, '/v1/autolike/remove', { uid }),
 // IA Yosh (a API de IA do site, paga pelo saldo da key da Yosh)
 yosh: (config, params) => request(config, '/v1/yosh', params),
 yoshImagem: (config, params) => request(config, '/v1/yosh/imagem', params),
+yoshPedido: (config, pedido) => request(config, '/v1/yosh/imagem/pedido', { pedido }),
 yoshModelos: (config) => request(config, '/v1/yosh/modelos'),
 yoshReset: (config, conversa) => request(config, '/v1/yosh/reset', { conversa }),
 yoshArquivo: arquivo

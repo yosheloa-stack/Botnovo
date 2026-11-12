@@ -114,6 +114,8 @@ test('erros viram frase curta; sem saldo não cita key nem site', async () => {
   assert.doesNotMatch(s.replies.at(-1), /key|site/i)
   assert.match(yosh.falaDoErro({ codigo: 'fechado' }), /manutenção/)
   assert.match(yosh.falaDoErro({ erro: 'a geração da imagem falhou' }), /imagem falhou/)
+  assert.match(yosh.falaDoErro({ codigo: 'processando', erro: 'a imagem ainda está sendo criada' }), /processamento/)
+  assert.match(yosh.falaDoErro({ codigo: 'falha_ia', erro: 'a IA recusou a imagem (HTTP 405). Nada foi cobrado.' }), /recusou a imagem/)
   assert.match(yosh.falaDoErro({}), /Não foi possível conectar/)
 })
 
