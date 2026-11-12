@@ -234,20 +234,23 @@ return [...new Set(list)]
 export async function baixarYouTube(kind, info, config, ext = kind === 'video' ? 'mp4' : 'mp3', pos = null) {
 const url = typeof info === 'string' ? info : info?.url
 const raw = typeof info === 'string' ? null : info?.raw
-let lastError
+const falhas = []
 for (const link of downloadCandidates(kind, url, config, raw)) {
 let media
+// Nome curto da rota para diagnóstico, sem a chave da API.
+const rota = (() => { try { const u = new URL(link); return `${u.hostname}${u.pathname}` } catch { return 'link' } })()
 try {
 media = await downloadFile(link, config, ext)
 return pos ? await pos(media) : media
 }
 catch (err) {
 await cleanup(media)
-lastError = err
-console.warn('[ YOUTUBE DOWNLOAD ]', String(err?.message || err))
+const motivo = String(err?.message || err)
+falhas.push(`${rota}: ${motivo}`)
+console.warn('[ YOUTUBE DOWNLOAD ]', rota, motivo)
 }
 }
-throw lastError || new Error('Nenhum provedor conseguiu baixar este vídeo.')
+throw new Error(falhas.length ? falhas.join(' | ') : 'Nenhum provedor conseguiu baixar este vídeo.')
 }
 
 // O WhatsApp só toca o áudio se o arquivo bater com o mimetype enviado. Alguns
