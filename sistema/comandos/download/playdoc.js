@@ -20,7 +20,7 @@ fileName: `${safe}.mp3`
 }
 catch (err) {
 console.error('[ PLAY ]', err)
-return system.reply(`• ❌ Não consegui baixar agora.\n• Motivo: ${String(err?.message || err).slice(0, 180)}`)
+return system.reply(`• ❌ Não consegui baixar agora.\n• Motivo: ${String(err?.message || err).slice(0, 700)}`)
 }
 finally {
 await cleanup(media)
