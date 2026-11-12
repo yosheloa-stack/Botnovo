@@ -1,4 +1,4 @@
-import { downloadFile, cleanup } from './midia.js'
+import { downloadFile, cleanup, bestMediaUrl } from './midia.js'
 
 function cleanBase(value = '') {
 return String(value).trim().replace(/\/+$/, '')
@@ -159,7 +159,7 @@ console.warn('[ YOUTUBE ] Pesquisa direta falhou:', err?.message || err)
 throw lastError || new Error('Nenhum resultado encontrado no YouTube.')
 }
 
-export const _teste = { videosDaPagina }
+export const _teste = { videosDaPagina, downloadCandidates: (...a) => downloadCandidates(...a) }
 
 function fallbackFromLink(url = '') {
 let videoId = ''
@@ -190,6 +190,58 @@ const quality = isVideo ? 360 : 128
 return `${url}/api/download/${route}?url=${encodeURIComponent(youtubeUrl)}&quality=${quality}&apikey=${encodeURIComponent(token)}`
 }
 
+// Links de download em ordem de tentativa. Provedores de YouTube caem ou mudam
+// de rota com frequência, então o play tenta uma lista em vez de uma API só.
+function downloadCandidates(kind, youtubeUrl, config, raw = null) {
+const isVideo = kind === 'video'
+const list = []
+const add = (fn) => { try { const u = fn(); if (u) list.push(u) } catch {} }
+add(() => directDownload(kind, youtubeUrl, config))
+const alt = (route, extra = {}) => {
+const { url, token } = apiBlock(config, 'akameApi')
+const q = new URLSearchParams({ url: youtubeUrl, ...extra, apikey: token })
+return `${url}${route}?${q}`
+}
+if (isVideo) {
+add(() => alt('/api/download/ytmp4', { quality: 720 }))
+add(() => alt('/api/download/ytmp4'))
+add(() => alt('/api/download/youtube-mp4'))
+}
+else {
+add(() => alt('/api/download/ytmp3', { quality: 192 }))
+add(() => alt('/api/download/ytmp3'))
+add(() => alt('/api/download/youtube-mp3'))
+}
+const tokito = (route) => {
+const { url, token } = apiBlock(config, 'tokitoApi')
+const q = new URLSearchParams({ url: youtubeUrl, apikey: token })
+return `${url}${route}?${q}`
+}
+const tokitoRoutes = isVideo
+? ['/api/downloads/youtube-mp4', '/api/downloads/ytmp4', '/api/youtube-mp4']
+: ['/api/downloads/youtube-mp3', '/api/downloads/ytmp3', '/api/youtube-mp3', '/api/youtube-play']
+for (const route of tokitoRoutes) add(() => tokito(route))
+const embutido = raw ? bestMediaUrl(raw, isVideo ? 'video' : 'audio') : ''
+if (embutido && !/youtube\.com\/watch|youtu\.be\//i.test(embutido)) list.push(embutido)
+return [...new Set(list)]
+}
+
+// Baixa o áudio/vídeo tentando cada provedor até um funcionar.
+export async function baixarYouTube(kind, info, config, ext = kind === 'video' ? 'mp4' : 'mp3') {
+const url = typeof info === 'string' ? info : info?.url
+const raw = typeof info === 'string' ? null : info?.raw
+let lastError
+for (const link of downloadCandidates(kind, url, config, raw)) {
+try {
+return await downloadFile(link, config, ext)
+}
+catch (err) {
+lastError = err
+console.warn('[ YOUTUBE DOWNLOAD ]', String(err?.message || err))
+}
+}
+throw lastError || new Error('Nenhum provedor conseguiu baixar este vídeo.')
+}
 
 function videoIdFromUrl(url = '') {
 try {
@@ -245,6 +297,7 @@ return system.reply(caption, { mentions: [system.senderInfo?.pnJid || system.sen
 }
 
 export const youtube = {
+download: baixarYouTube,
 result: showResultCard,
 search: (query, config) => searchYouTube(query, config, 1),
 searchMany: (query, config, limit = 8) => searchYouTube(query, config, limit),

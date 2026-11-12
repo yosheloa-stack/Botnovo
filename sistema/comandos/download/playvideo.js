@@ -9,7 +9,7 @@ const info = await youtube.resolve(system.q, system.config)
 await youtube.result(system, info, 'video')
 let media
 try {
-media = await downloadFile(youtube.video(info.url, system.config), system.config, 'mp4')
+media = await youtube.download('video', info, system.config, 'mp4')
 if (media.ext !== 'mp4' && !media.mimetype.startsWith('video/'))
 throw new Error('A API não retornou um vídeo MP4 válido.')
 return await system.send({
