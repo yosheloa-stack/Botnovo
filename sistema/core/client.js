@@ -21,6 +21,7 @@ import { textoBoasVindas } from '../funcoes/boasVindas.js'
 import { criarLoggerZapo } from '../funcoes/registro.js'
 import { criarPareamento } from '../funcoes/pareamento.js'
 import { criarMedidor } from '../funcoes/recursos.js'
+import { atualizar as atualizar600, avisoPendente as aviso600, avisoVisto as aviso600Visto, textoDoAviso } from '../funcoes/auto600.js'
 
 const restartCode = 75
 let desligando = false
@@ -231,6 +232,7 @@ avisarGerente({ tipo: 'conectado', numero: eu })
 void enviarBoasVindas()
 } else avisarLauncher({ tipo: 'conectado', numero: eu })
 showConnected()
+iniciarAuto600()
 aluguelWorker.start()
 return
 }
@@ -360,6 +362,29 @@ await client.message.send(await destino(client, marca.dono), { type: 'text', tex
 marcarBoasVindas(marca.dono)
 console.log('[ AURORA CLIENTE ] Boas-vindas enviadas no privado da dona.')
 } catch (err) { console.warn('[ AURORA CLIENTE ] Não consegui mandar as boas-vindas:', err?.message || err) }
+}
+
+// AUTOLIKE 300/600 (12/11): o bot pergunta ao site se o comando está liberado
+// (o menu e o comando respondem pelo que ele disse) e, no bot da cliente,
+// manda a novidade no privado da dona uma vez; o site só para de mandar
+// depois que o bot confirma.
+let auto600Timer = null
+async function verificarAuto600() {
+try {
+await atualizar600(config, { forcar: true })
+const aviso = aviso600()
+const marca = marcaCliente()
+if (!aviso || !modoCliente || !connectionOpen || !marca?.dono) return
+await client.message.send(await destino(client, marca.dono), { type: 'text', text: textoDoAviso(aviso, marca.idioma) }, { semMarca: true })
+await aviso600Visto(config, aviso.id)
+console.log('[ AURORA CLIENTE ] Novidade do AutoLike 300/600 enviada no privado da dona.')
+} catch (err) { console.warn('[ AURORA AUTOLIKE600 ] Não consegui conferir/avisar:', err?.message || err) }
+}
+function iniciarAuto600() {
+if (auto600Timer) return
+setTimeout(() => { void verificarAuto600() }, 10_000).unref?.()
+auto600Timer = setInterval(() => { void verificarAuto600() }, 10 * 60_000)
+auto600Timer.unref?.()
 }
 
 const shutdown = async () => {

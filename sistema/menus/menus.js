@@ -1,3 +1,4 @@
+import { rotuloMenu as rotulo600 } from '../funcoes/auto600.js'
 const exports = {}
 
 // Traduz somente os rótulos do menu; nomes de comandos permanecem iguais.
@@ -310,6 +311,8 @@ return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 ┃╎୨୧ ⚡ ${prefix}autolike uid (VIP)
 ┃╎୨୧ 📋 ${prefix}listalike
 ┃╎୨୧ 🗑️ ${prefix}removelike uid
+┃╎୨୧ 🔥 ${prefix}autolike600 uid${rotulo600()}
+┃╎୨୧ 📋 ${prefix}listalike600${rotulo600()}
 ┃╰╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╯
 ┃
 ┣━〔 • 𝑨𝑼𝑹𝑶𝑹𝑨 • 💚 〕

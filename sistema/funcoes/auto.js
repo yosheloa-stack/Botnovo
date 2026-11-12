@@ -82,6 +82,12 @@ return null
 }
 
 export const autoSystem = {
+// AUTOLIKE 300/600 (só pro dono do bot; o site trava até a liberação paga)
+auto600Info: (config) => request(config, '/v1/auto400/info'),
+auto600Add: (config, uid) => request(config, '/v1/auto400/add', { uid }),
+auto600List: (config) => request(config, '/v1/auto400/list'),
+auto600Remove: (config, uid) => request(config, '/v1/auto400/remove', { uid }),
+auto600AvisoVisto: (config, id) => request(config, '/v1/auto400/aviso-visto', { id }),
 info: (config, uid) => request(config, '/v1/info', { uid }),
 banner,
 like: (config, uid, qtd) => request(config, '/v1/like', { uid, qtd }),
