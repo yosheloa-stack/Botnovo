@@ -207,23 +207,19 @@ return `${url}${route}?${q}`
 add(() => alt(isVideo ? '/api/download/youtube-video' : '/api/download/youtube-audio', { quality: isVideo ? 360 : 128 }, 'url'))
 add(() => directDownload(kind, youtubeUrl, config))
 if (isVideo) {
-add(() => alt('/api/download/ytmp4', { quality: 720 }))
-add(() => alt('/api/download/ytmp4'))
 add(() => alt('/api/download/youtube-mp4'))
 }
 else {
-add(() => alt('/api/download/ytmp3', { quality: 192 }))
-add(() => alt('/api/download/ytmp3'))
 add(() => alt('/api/download/youtube-mp3'))
 }
 const tokito = (route) => {
 const { url, token } = apiBlock(config, 'tokitoApi')
-const q = new URLSearchParams({ url: youtubeUrl, apikey: token })
+const q = new URLSearchParams({ url: youtubeUrl, q: youtubeUrl, query: youtubeUrl, apikey: token })
 return `${url}${route}?${q}`
 }
 const tokitoRoutes = isVideo
-? ['/api/downloads/youtube-mp4', '/api/downloads/ytmp4', '/api/youtube-mp4']
-: ['/api/downloads/youtube-mp3', '/api/downloads/ytmp3', '/api/youtube-mp3', '/api/youtube-play']
+? ['/api/downloads/youtube-video', '/api/download/youtube-video', '/api/youtube-video', '/api/downloads/youtube-mp4', '/api/downloads/ytmp4']
+: ['/api/downloads/youtube-audio', '/api/download/youtube-audio', '/api/youtube-audio', '/api/youtube-play', '/api/downloads/youtube-mp3', '/api/downloads/ytmp3']
 for (const route of tokitoRoutes) add(() => tokito(route))
 const embutido = raw ? bestMediaUrl(raw, isVideo ? 'video' : 'audio') : ''
 if (embutido && !/youtube\.com\/watch|youtu\.be\//i.test(embutido)) list.push(embutido)
