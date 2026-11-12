@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS adv (gp TEXT, user TEXT, nome TEXT, n INTEGER DEFAULT
 CREATE TABLE IF NOT EXISTS mute (gp TEXT, user TEXT, PRIMARY KEY(gp,user));
 CREATE TABLE IF NOT EXISTS cmd (gp TEXT, cmd TEXT, PRIMARY KEY(gp,cmd));
 CREATE TABLE IF NOT EXISTS hora (gp TEXT PRIMARY KEY, fechar TEXT, abrir TEXT, last TEXT);
-CREATE TABLE IF NOT EXISTS vip (user TEXT PRIMARY KEY);
+CREATE TABLE IF NOT EXISTS vip (user TEXT PRIMARY KEY, ate INTEGER);
 CREATE TABLE IF NOT EXISTS block (user TEXT PRIMARY KEY);
 CREATE TABLE IF NOT EXISTS vipcmd (cmd TEXT PRIMARY KEY);
 CREATE TABLE IF NOT EXISTS gcmd (cmd TEXT PRIMARY KEY);
@@ -92,7 +92,7 @@ const txt = (v = '', fallback = '') => String(v ?? '').trim() || fallback
 
 function emptyState() {
   return {
-    blocked: [], vip: [], muted: {}, settings: { antiPv: 0 },
+    blocked: [], vip: [], vipAte: {}, muted: {}, settings: { antiPv: 0 },
     games: { tictactoe: {} }, relationships: { couples: [], pending: [] }, profiles: {}
   }
 }
@@ -201,7 +201,10 @@ export async function loadState() {
   }
 
   state = emptyState()
-  state.vip = sql.prepare('SELECT user FROM vip ORDER BY user').all().map(r => r.user)
+  // VIP dura no máximo 30 dias. VIP antigo (sem data) ganha 30 dias a partir de agora.
+  try { sql.exec('ALTER TABLE vip ADD COLUMN ate INTEGER') } catch {}
+  sql.prepare('UPDATE vip SET ate=? WHERE ate IS NULL OR ate>?').run(Date.now() + VIP_MS, Date.now() + VIP_MS)
+  for (const r of sql.prepare('SELECT user,ate FROM vip ORDER BY user').all()) { state.vip.push(r.user); state.vipAte[r.user] = Number(r.ate) }
   state.blocked = sql.prepare('SELECT user FROM block ORDER BY user').all().map(r => r.user)
   state.muted = {}
   for (const r of sql.prepare('SELECT gp,user FROM mute').all()) (state.muted[r.gp] ??= []).push(r.user)
@@ -222,7 +225,24 @@ export function importNecessarios(n = {}) {
   if (getCfg('aluguel') === null && typeof n.aluguel === 'boolean') setCfg('aluguel', n.aluguel)
 }
 
+export const VIP_DIAS = 30
+const VIP_MS = VIP_DIAS * 86400000
 export function db() { return state }
+// Dá (ou renova) 30 dias de VIP.
+export function darVip(n) {
+  const u = String(n)
+  if (!state.vip.includes(u)) state.vip.push(u)
+  state.vipAte[u] = Date.now() + VIP_MS
+}
+export function tirarVip(n) { const u = String(n); state.vip = state.vip.filter(x => x !== u); delete state.vipAte[u] }
+// Tira quem já passou dos 30 dias. Devolve true se mudou algo.
+export function vencerVips() {
+  const agora = Date.now(); const velhos = state.vip.filter(u => !(Number(state.vipAte[u]) > agora))
+  if (!velhos.length) return false
+  for (const u of velhos) tirarVip(u)
+  try { saveState() } catch {}
+  return true
+}
 
 export function userProfile(key, patch = {}) {
   const id = txt(key)
@@ -266,7 +286,7 @@ export function saveState() {
   sql.exec('BEGIN')
   try {
     sql.exec('DELETE FROM vip; DELETE FROM block; DELETE FROM mute;')
-    for (const u of [...new Set(state.vip || [])]) sql.prepare('INSERT OR IGNORE INTO vip(user) VALUES(?)').run(String(u))
+    for (const u of [...new Set(state.vip || [])]) sql.prepare('INSERT OR IGNORE INTO vip(user,ate) VALUES(?,?)').run(String(u), Math.min(Number(state.vipAte?.[u]) || Date.now() + VIP_MS, Date.now() + VIP_MS))
     for (const u of [...new Set(state.blocked || [])]) sql.prepare('INSERT OR IGNORE INTO block(user) VALUES(?)').run(String(u))
     for (const [gp, users] of Object.entries(state.muted || {})) for (const u of [...new Set(users || [])]) sql.prepare('INSERT OR IGNORE INTO mute(gp,user) VALUES(?,?)').run(gp, String(u))
     setCfg('antiPv', bit(state.settings?.antiPv))
