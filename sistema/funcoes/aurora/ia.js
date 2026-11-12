@@ -33,7 +33,7 @@ export const LIMITES = {
 
 export const FRASES = {
   fila: 'calma gente, um de cada vez 😤',
-  pessoa: 'para de me alugar um pouco, volta daqui a pouco 🙄',
+  pessoa: (min = 1) => `Você já mandou várias mensagens seguidas 😊 Me chama de novo em ${min} ${min === 1 ? 'minuto' : 'minutos'}, tá?`,
   cansada: 'tô cansada hoje, amanhã eu volto 😴',
   bug: 'deu um bug aqui na minha cabeça, manda de novo daqui a pouco 😵‍💫'
 }
@@ -499,7 +499,8 @@ export function createAurora({
     const daPessoa = ehCriador ? [] : recentes(usoPessoa, conversa, LIMITES.porPessoaJanelaMs)
     if (daPessoa.length >= LIMITES.porPessoa) {
       log('ignorou: limite por pessoa', conversa)
-      return avisarUmaVez('pessoa:' + conversa, FRASES.pessoa, LIMITES.porPessoaJanelaMs)
+      const falta = Math.max(1000, Math.min(...daPessoa) + LIMITES.porPessoaJanelaMs - t)
+      return avisarUmaVez('pessoa:' + conversa, FRASES.pessoa(Math.max(1, Math.ceil(falta / MINUTO))), falta)
     }
     if (grupo) {
       const doGrupo = recentes(usoGrupo, grupo, LIMITES.porGrupoJanelaMs)
