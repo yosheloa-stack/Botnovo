@@ -16,7 +16,8 @@ type: 'audio',
 media: media.path,
 mimetype: media.mimetype || 'audio/mpeg',
 fileName: `${safe}.mp3`,
-ptt: false
+ptt: false,
+...(media.seconds ? { seconds: media.seconds } : {})
 })
 }
 finally {

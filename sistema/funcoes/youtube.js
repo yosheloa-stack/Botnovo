@@ -231,15 +231,18 @@ return [...new Set(list)]
 }
 
 // Baixa o áudio/vídeo tentando cada provedor até um funcionar.
-export async function baixarYouTube(kind, info, config, ext = kind === 'video' ? 'mp4' : 'mp3') {
+export async function baixarYouTube(kind, info, config, ext = kind === 'video' ? 'mp4' : 'mp3', pos = null) {
 const url = typeof info === 'string' ? info : info?.url
 const raw = typeof info === 'string' ? null : info?.raw
 let lastError
 for (const link of downloadCandidates(kind, url, config, raw)) {
+let media
 try {
-return await downloadFile(link, config, ext)
+media = await downloadFile(link, config, ext)
+return pos ? await pos(media) : media
 }
 catch (err) {
+await cleanup(media)
 lastError = err
 console.warn('[ YOUTUBE DOWNLOAD ]', String(err?.message || err))
 }
@@ -259,25 +262,40 @@ p.on('close', (code) => code === 0 ? resolve() : reject(new Error(err.trim().sli
 })
 }
 
-export async function baixarAudioMp3(info, config) {
-const media = await baixarYouTube('audio', info, config, 'mp3')
-console.log('[ YOUTUBE AUDIO ]', media.mimetype, media.ext, media.size)
-if (media.mimetype === 'audio/mpeg' && media.size > 1024) return media
+function duracaoSegundos(arquivo) {
+return new Promise((resolve) => {
+const p = spawn('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=nw=1:nk=1', arquivo], { stdio: ['ignore', 'pipe', 'ignore'] })
+let out = ''
+p.stdout.on('data', (d) => { out += d })
+p.on('error', () => resolve(0))
+p.on('close', () => resolve(Math.round(Number.parseFloat(out)) || 0))
+})
+}
+
+// Sempre passa pelo ffmpeg: valida que é áudio de verdade (arquivo quebrado
+// ou página de erro faz o provedor seguinte ser tentado), deixa o cabeçalho
+// correto e descobre a duração, que o WhatsApp precisa para tocar (senão 0:00).
+async function normalizarMp3(media) {
 const saida = media.path.replace(/\.[^.\/]+$/, '') + '-conv.mp3'
 try {
 await ffmpegMp3(media.path, saida)
 const { size } = await fs.stat(saida)
-if (size < 1024) throw new Error('áudio convertido vazio')
+const seconds = await duracaoSegundos(saida)
+if (size < 2048 || !seconds) throw new Error('áudio convertido vazio ou sem duração')
 await cleanup(media)
-return { path: saida, mimetype: 'audio/mpeg', ext: 'mp3', size }
+return { path: saida, mimetype: 'audio/mpeg', ext: 'mp3', size, seconds }
 }
 catch (err) {
-console.warn('[ YOUTUBE AUDIO ] conversão falhou:', String(err?.message || err))
 await cleanup(saida)
-if (String(media.mimetype).startsWith('audio/')) return media
-await cleanup(media)
-throw new Error('O provedor não devolveu um áudio válido.')
+// Sem ffmpeg no servidor não dá para validar: usa o arquivo como veio.
+if (err?.code === 'ENOENT' && String(media.mimetype).startsWith('audio/')) return media
+console.warn('[ YOUTUBE AUDIO ] inválido:', media.mimetype, media.size, String(err?.message || err))
+throw err
 }
+}
+
+export async function baixarAudioMp3(info, config) {
+return baixarYouTube('audio', info, config, 'mp3', normalizarMp3)
 }
 
 function videoIdFromUrl(url = '') {
