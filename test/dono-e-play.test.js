@@ -39,7 +39,7 @@ test('play tenta vários provedores de download, sem repetir link', () => {
   const audio = _teste.downloadCandidates('audio', 'https://www.youtube.com/watch?v=abc', cfg)
   assert.ok(audio.length >= 4)
   assert.equal(new Set(audio).size, audio.length)
-  assert.ok(audio[0].startsWith('https://a.test/api/download/ytmp3'))
+  assert.ok(audio[0].startsWith('https://a.test/api/download/youtube-audio?url='))
   assert.ok(audio.some((u) => u.startsWith('https://t.test/')))
   const video = _teste.downloadCandidates('video', 'https://www.youtube.com/watch?v=abc', cfg)
   assert.ok(video.every((u) => !/ytmp3|mp3/.test(u)))
