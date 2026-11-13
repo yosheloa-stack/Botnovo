@@ -4,6 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
 import { sticker } from './figurinha.js'
+import { apiUrl } from './api.js'
 
 // Pack de figurinhas SEM nome, SEM autor/publisher e SEM assinatura.
 
@@ -38,37 +39,67 @@ export async function capaJpeg(webp) {
 export const MAX_FIGURINHAS = 30
 export const MIN_FIGURINHAS = 3
 
-const UA = 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36'
+const UA = 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36'
 const PIN_BASE = 'https://br.pinterest.com'
 
-async function cookiesPinterest() {
-  const r = await fetch(PIN_BASE, { headers: { 'user-agent': UA }, signal: AbortSignal.timeout(20000) })
-  const set = r.headers.getSetCookie?.() || []
-  return set.map((c) => String(c).split(';')[0].trim()).join('; ')
+// Fonte 1: API do bot (a mesma do #pinsearch). Cada chamada traz uma imagem; as repetidas caem fora.
+function urlsApi(config, tema) {
+  return Array.from({ length: 12 }, (_, i) => apiUrl(config, '/api/pin-image', { titulo: tema, cache: `${Date.now()}-${i}` }))
 }
 
-// Busca imagens no Pinterest pelo tema (mesma busca do packfig do Tokito).
-export async function buscarImagens(tema) {
-  const cookie = await cookiesPinterest()
+// Fonte 2: busca de imagens do Bing (aberta, sem chave), com filtro de conteúdo adulto.
+async function urlsBing(tema) {
+  const q = new URLSearchParams({ q: tema, first: '1', count: '60', adlt: 'strict', mmasync: '1' })
+  const r = await fetch(`https://www.bing.com/images/async?${q}`, { headers: { 'user-agent': UA, 'accept-language': 'pt-BR,pt;q=0.9' }, signal: AbortSignal.timeout(20000) })
+  if (!r.ok) throw new Error(`Bing respondeu HTTP ${r.status}`)
+  const html = await r.text()
+  return [...html.matchAll(/murl&quot;:&quot;(https?:[^&]+?)&quot;/g)].map((m) => m[1])
+}
+
+// Fonte 3: Pinterest direto (costuma dar 403 em servidor; fica por último).
+async function urlsPinterest(tema) {
+  const home = await fetch(PIN_BASE, { headers: { 'user-agent': UA }, signal: AbortSignal.timeout(20000) })
+  const cookie = (home.headers.getSetCookie?.() || []).map((c) => String(c).split(';')[0].trim()).join('; ')
   const params = new URLSearchParams({
     source_url: `/search/pins/?q=${tema}`,
     data: JSON.stringify({ options: { isPrefetch: false, query: tema, scope: 'pins', bookmarks: [''], page_size: 60 }, context: {} }),
     _: String(Date.now())
   })
-  const r = await fetch(`${PIN_BASE}/resource/BaseSearchResource/get/?${params}`, {
-    headers: { 'user-agent': UA, cookie, accept: 'application/json' },
-    signal: AbortSignal.timeout(30000)
-  })
+  const r = await fetch(`${PIN_BASE}/resource/BaseSearchResource/get/?${params}`, { headers: { 'user-agent': UA, cookie, accept: 'application/json' }, signal: AbortSignal.timeout(30000) })
   if (!r.ok) throw new Error(`Pinterest respondeu HTTP ${r.status}`)
   const data = await r.json()
-  const urls = (data?.resource_response?.data?.results || []).map((x) => x?.images?.orig?.url).filter(Boolean)
+  return (data?.resource_response?.data?.results || []).map((x) => x?.images?.orig?.url).filter(Boolean)
+}
+
+// Junta as fontes na ordem; se uma falhar, segue para a próxima.
+export async function buscarImagens(tema, config) {
+  const fontes = [
+    ['API do bot', async () => urlsApi(config, tema)],
+    ['Bing', () => urlsBing(tema)],
+    ['Pinterest', () => urlsPinterest(tema)]
+  ]
+  const urls = []
+  const erros = []
+  for (const [nome, buscar] of fontes) {
+    try {
+      const achadas = await buscar()
+      console.log(`[ FIGPACK ] fonte ${nome}:`, achadas.length, 'imagens')
+      urls.push(...achadas)
+    } catch (err) {
+      erros.push(`${nome}: ${err?.message || err}`)
+      console.warn(`[ FIGPACK ] fonte ${nome} falhou:`, err?.message || err)
+    }
+  }
+  if (!urls.length && erros.length) throw new Error(erros.join(' | '))
   return [...new Set(urls)]
 }
 
 async function baixar(url) {
-  const r = await fetch(url, { headers: { 'user-agent': UA, referer: 'https://www.pinterest.com/' }, signal: AbortSignal.timeout(30000) })
+  const r = await fetch(url, { headers: { 'user-agent': UA, ...(url.includes('pinimg') ? { referer: 'https://www.pinterest.com/' } : {}) }, signal: AbortSignal.timeout(20000) })
   if (!r.ok) throw new Error(`HTTP ${r.status}`)
-  return new Uint8Array(await r.arrayBuffer())
+  const bytes = new Uint8Array(await r.arrayBuffer())
+  if (!bytes.length || bytes.length > 10 * 1024 * 1024) throw new Error('imagem vazia ou grande demais')
+  return bytes
 }
 
 // Baixa e converte as imagens em figurinhas (várias ao mesmo tempo), até o limite.

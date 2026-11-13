@@ -9,7 +9,7 @@ if (!tema) return system.reply(`🧊 Use: *${system.prefix}figpack tema*\nEx.: *
 await system.reply(`⏳ Montando o pack: ${tema}...`)
 try {
 console.log('[ FIGPACK ] buscando:', tema, '| chat:', system.from)
-const urls = await buscarImagens(tema)
+const urls = await buscarImagens(tema, system.config)
 if (!urls.length) return system.reply('❌ Não achei imagens para esse tema. Tente outro.')
 const itens = await montarFigurinhas(urls)
 console.log('[ FIGPACK ] figurinhas prontas:', itens.length, 'de', urls.length, 'imagens')
