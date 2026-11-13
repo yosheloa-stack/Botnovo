@@ -3,10 +3,46 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
-import { sticker } from './figurinha.js'
 import { apiUrl } from './api.js'
 
 // Pack de figurinhas SEM nome, SEM autor/publisher e SEM assinatura.
+
+// O WhatsApp só aceita figurinha de pack com até ~100 KB, 512x512, WebP.
+// Convertemos baixando a qualidade até caber (senão: "Não foi possível adicionar o pacote").
+const LIMITE_STICKER = 95 * 1024
+const QUALIDADES = [75, 60, 45, 30, 18]
+
+function rodarFfmpeg(args) {
+  return new Promise((resolve, reject) => {
+    const p = spawn('ffmpeg', args, { stdio: ['ignore', 'ignore', 'pipe'] })
+    let err = ''
+    p.stderr.on('data', (d) => { err += String(d) })
+    p.once('error', (e) => reject(e?.code === 'ENOENT' ? new Error('ffmpeg não está instalado') : e))
+    p.once('close', (code) => code === 0 ? resolve() : reject(new Error(err.trim().split('\n').slice(-3).join(' ') || `ffmpeg código ${code}`)))
+  })
+}
+
+export async function paraWebp(bytes) {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'figpack-'))
+  const entrada = path.join(dir, 'in.img')
+  const saida = path.join(dir, 'out.webp')
+  try {
+    await fs.writeFile(entrada, bytes)
+    let ultimo = null
+    for (const q of QUALIDADES) {
+      await rodarFfmpeg([
+        '-y', '-i', entrada, '-frames:v', '1',
+        '-vf', 'format=rgba,scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000',
+        '-vcodec', 'libwebp', '-lossless', '0', '-q:v', String(q), '-compression_level', '6', '-preset', 'picture', '-an', saida
+      ])
+      ultimo = await fs.readFile(saida)
+      if (ultimo.length <= LIMITE_STICKER) return new Uint8Array(ultimo.buffer, ultimo.byteOffset, ultimo.byteLength)
+    }
+    throw new Error('figurinha ficou grande demais')
+  } finally {
+    await fs.rm(dir, { recursive: true, force: true }).catch(() => {})
+  }
+}
 
 // O WhatsApp exige a capa do pack em JPEG 252x252 (o Zapo envia como image/jpeg).
 // Mandar o WebP aqui faz o pack não aparecer/abrir.
@@ -36,6 +72,7 @@ export async function capaJpeg(webp) {
   }
 }
 
+const VAZIO = '\u3164'
 export const MAX_FIGURINHAS = 30
 export const MIN_FIGURINHAS = 3
 
@@ -112,7 +149,7 @@ export async function montarFigurinhas(urls) {
       const url = urls[i++]
       if (!url) return
       try {
-        const webp = await sticker(await baixar(url), { video: false, mimetype: 'image/jpeg' })
+        const webp = await paraWebp(await baixar(url))
         const hash = crypto.createHash('sha256').update(webp).digest('hex')
         if (hashes.has(hash) || itens.length >= MAX_FIGURINHAS) continue
         hashes.add(hash)
@@ -140,8 +177,10 @@ export async function gerarFigpack(system, itens) {
   await system.send({
     type: 'sticker-pack',
     stickerPackId: id,
-    name: '',
-    publisher: '',
+    // Nome e autor "vazios": o WhatsApp recusa o pack com texto de verdade vazio,
+    // então vai um caractere invisível (aparece em branco).
+    name: VAZIO,
+    publisher: VAZIO,
     stickers,
     trayIcon: { media: itens[0].webp, fileName: trayName },
     coverThumbnail: await capaJpeg(itens[0].webp)
