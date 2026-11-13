@@ -46,8 +46,10 @@ test('figpack tema: busca, monta e envia o pack sozinho, sem nome nem publisher'
     assert.equal(enviados.length, 1)
     const pack = enviados[0]
     assert.equal(pack.type, 'sticker-pack')
-    assert.equal(pack.name, '')
-    assert.equal(pack.publisher, '')
+    assert.equal(pack.name.trim().replace(/\u3164/g, ''), '') // aparece em branco
+    assert.equal(pack.publisher.trim().replace(/\u3164/g, ''), '')
+    assert.ok(pack.name.length > 0) // nunca string vazia de verdade
+    assert.ok(pack.stickers.every((st) => st.media.length <= 100 * 1024))
     assert.equal(pack.stickers.length, 30)
     assert.equal(pack.coverThumbnail[0], 0xff) // capa JPEG
     assert.doesNotMatch(JSON.stringify(respostas), /tokito|dylan|channel/i)
@@ -81,4 +83,14 @@ test('figpack: se Bing e Pinterest falham, só com a API do bot avisa que não d
 test('figpack: capa do pack é JPEG', async () => {
   const jpg = await capaJpeg(new Uint8Array(imagem(3)))
   assert.equal(jpg[0], 0xff); assert.equal(jpg[1], 0xd8)
+})
+
+test('figpack: imagem pesada vira WebP de até 100 KB', async () => {
+  const { paraWebp } = await import('../sistema/funcoes/figpack.js')
+  const out = '/tmp/figpack-ruido.png'
+  const r = spawnSync('ffmpeg', ['-y', '-f', 'lavfi', '-i', 'testsrc2=s=1200x1200', '-vf', 'noise=alls=80:allf=t', '-frames:v', '1', out])
+  assert.equal(r.status, 0)
+  const webp = await paraWebp(new Uint8Array(fs.readFileSync(out)))
+  assert.ok(webp.length <= 100 * 1024, `ficou com ${webp.length} bytes`)
+  assert.equal(Buffer.from(webp.subarray(0, 4)).toString(), 'RIFF')
 })
