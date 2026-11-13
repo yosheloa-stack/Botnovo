@@ -474,7 +474,7 @@ return `┏╾═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾═╼┓
 ┃
 ┃╭╾═╼〔 • ❦ • 〕╾═╼╮
 ┃╎୨୧ 🖼️ ${prefix}fig — responda foto/vídeo
-┃╎୨୧ 📦 ${prefix}figpack criar/gerar
+┃╎୨୧ 📦 ${prefix}figpack — e mande as fotos
 ┃╎୨୧ 😂 ${prefix}figumeme 1/10
 ┃╎୨୧ 😡 ${prefix}figuraiva 1/10
 ┃╎୨୧ 💬 ${prefix}brat texto
