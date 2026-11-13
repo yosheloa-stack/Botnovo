@@ -26,7 +26,7 @@ const traduzirMenu = (texto, idioma = 'pt') => {
 
 
 exports.menuPrincipal = (NomeDoBot, pushname, isCargo, isChVip, hora, prefix, grupo, zapo, idioma = 'pt') => {
-return traduzirSubmenu(`┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
+return traduzirSubmenu(`┏╾═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾═╼┓
 ┣━〔 • ${NomeDoBot.toUpperCase()} • 💚 〕
 ┃
 ┃╎୨୧ 👤 ᴜsᴜᴀ́ʀɪᴏ: ${pushname}
@@ -39,41 +39,41 @@ return traduzirSubmenu(`┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･�
 ┃
 ┣━〔 • 𝑴𝑬𝑵𝑼𝑺 • ✨ 〕
 ┃
-┃╭╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╮
+┃╭╾═╼〔 • ❦ • 〕╾═╼╮
 ┃╎୨୧ 💎 ${prefix}menuff
 ┃╎୨୧ 🎭 ${prefix}menubn
 ┃╎୨୧ 🛡️ ${prefix}menuadm
 ┃╎୨୧ 👑 ${prefix}menudono
 ┃╎୨୧ 📥 ${prefix}menudown
 ┃╎୨୧ 🖼️ ${prefix}menufig
-┃╰╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╯
+┃╰╾═╼〔 • ❦ • 〕╾═╼╯
 ┃
 ┣━〔 • 𝑷𝑬𝑹𝑭𝑰𝑳 • 👤 〕
 ┃
-┃╭╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╮
+┃╭╾═╼〔 • ❦ • 〕╾═╼╮
 ┃╎୨୧ 👤 ${prefix}perfil
 ┃╎୨୧ ✏️ ${prefix}setbio sua bio
 ┃╎୨୧ 👑 ${prefix}criador
 ┃╎୨୧ 👁️ ${prefix}revelar
-┃╰╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╯
+┃╰╾═╼〔 • ❦ • 〕╾═╼╯
 ┃
 ┣━〔 • 𝑩𝑳𝑨𝑪𝑲 𝑰𝑨 • 🤖 〕
 ┃
-┃╭╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╮
+┃╭╾═╼〔 • ❦ • 〕╾═╼╮
 ┃╎୨୧ 🤖 ${prefix}black texto
 ┃╎୨୧ 🎨 ${prefix}black imagem texto
 ┃╎୨୧ ❔ ${prefix}black ajuda
-┃╰╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╯
+┃╰╾═╼〔 • ❦ • 〕╾═╼╯
 ┃
 ┣━〔 • 𝑨𝑼𝑹𝑶𝑹𝑨 • 💚 〕
 ┃╎୨୧ ✰ۣۜۜ͜͡ ${NomeDoBot.toUpperCase()}
 ┃╎୨୧ ᴅᴇᴠ: YoshiGGX
 ┃
-┗╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┛`, idioma)
+┗╾═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾═╼┛`, idioma)
 }
 
 exports.adms = (NomeDoBot, pushname, isCargo, isChVip, hora, prefix, grupo, zapo) => {
-return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
+return `┏╾═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾═╼┓
 ┣━〔 • ${NomeDoBot.toUpperCase()} ADM • 🛡️ 〕
 ┃
 ┃╎୨୧ 👤 ᴜsᴜᴀ́ʀɪᴏ: ${pushname}
@@ -86,7 +86,7 @@ return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 ┃
 ┣━〔 • 𝑮𝑹𝑼𝑷𝑶 • 👥 〕
 ┃
-┃╭╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╮
+┃╭╾═╼〔 • ❦ • 〕╾═╼╮
 ┃╎୨୧ 🔓 ${prefix}abrir
 ┃╎୨୧ 🔒 ${prefix}fechar
 ┃╎୨୧ ⏰ ${prefix}closegp 22:00
@@ -113,11 +113,11 @@ return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 ┃╎୨୧ 🔊 ${prefix}desmutar @usuario
 ┃╎୨୧ ✏️ ${prefix}msg novo texto
 ┃╎୨୧ 🗑️ ${prefix}apagar
-┃╰╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╯
+┃╰╾═╼〔 • ❦ • 〕╾═╼╯
 ┃
 ┣━〔 • 𝑷𝑹𝑶𝑻𝑬𝑪̧𝑶̃𝑬𝑺 • 🛡️ 〕
 ┃
-┃╭╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╮
+┃╭╾═╼〔 • ❦ • 〕╾═╼╮
 ┃╎୨୧ 🎮 ${prefix}configurarff 3\n┃╎୨୧ ⚙️ ${prefix}ativacoes
 ┃╎୨୧ ⚠️ ${prefix}adv @usuario motivo
 ┃╎୨୧ ♻️ ${prefix}deladv @usuario
@@ -136,11 +136,11 @@ return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 ┃╎୨୧ 📢 ${prefix}anticanal 1/0
 ┃╎୨୧ 👁️ ${prefix}antivisu 1/0
 ┃╎୨୧ 🎥 ${prefix}x9viewonce 1/0
-┃╰╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╯
+┃╰╾═╼〔 • ❦ • 〕╾═╼╯
 ┃
 ┣━〔 • 𝑺𝑰𝑺𝑻𝑬𝑴𝑨𝑺 • ⚙️ 〕
 ┃
-┃╭╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╮
+┃╭╾═╼〔 • ❦ • 〕╾═╼╮
 ┃╎୨୧ 👋 ${prefix}bemvindo 1/0
 ┃╎୨୧ ℹ️ ${prefix}infobemvindo
 ┃╎୨୧ ✍️ ${prefix}legendabv texto
@@ -151,17 +151,17 @@ return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 ┃╎୨୧ 🚫 ${prefix}autoban 1/0
 ┃╎୨୧ 👑 ${prefix}soadm 1/0
 ┃╎୨୧ 👀 ${prefix}x9 1/0
-┃╰╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╯
+┃╰╾═╼〔 • ❦ • 〕╾═╼╯
 ┃
 ┣━〔 • 𝑨𝑼𝑹𝑶𝑹𝑨 • 💚 〕
 ┃╎୨୧ ✰ۣۜۜ͜͡ ${NomeDoBot.toUpperCase()}
 ┃╎୨୧ ᴅᴇᴠ: YoshiGGX
 ┃
-┗╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┛`
+┗╾═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾═╼┛`
 }
 
 exports.menudono = (NomeDoBot, pushname, isCargo, isChVip, hora, prefix, grupo, zapo) => {
-return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
+return `┏╾═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾═╼┓
 ┣━〔 • 𝑨𝑼𝑹𝑶𝑹𝑨 𝑫𝑶𝑵𝑶 • 👑 〕
 ┃
 ┃╎୨୧ 👤 ᴜsᴜᴀ́ʀɪᴏ: ${pushname}
@@ -174,7 +174,7 @@ return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 ┃
 ┣━〔 • 𝑺𝑰𝑺𝑻𝑬𝑴𝑨 • ⚙️ 〕
 ┃
-┃╭╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╮
+┃╭╾═╼〔 • ❦ • 〕╾═╼╮
 ┃╎୨୧ 🔣 ${prefix}setprefix !
 ┃╎୨୧ 🖼️ ${prefix}fotomenu (foto/vídeo)
 ┃╎୨୧ 🏷️ ${prefix}nomebot nome
@@ -187,19 +187,19 @@ return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 ┃╎୨୧ ✅ ${prefix}verificado 1/0
 ┃╎୨୧ 🔘 ${prefix}botoes 1/0
 ┃╎୨୧ 📢 ${prefix}rgchannel link
-┃╰╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╯
+┃╰╾═╼〔 • ❦ • 〕╾═╼╯
 ┃
 ┣━〔 • 𝑺𝑼𝑩𝑫𝑶𝑵𝑶𝑺 • 🤝 〕
 ┃
-┃╭╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╮
+┃╭╾═╼〔 • ❦ • 〕╾═╼╮
 ┃╎୨୧ ➕ ${prefix}addsubdono @usuario
 ┃╎୨୧ ➖ ${prefix}delsubdono @usuario
 ┃╎୨୧ 📋 ${prefix}subdonos
-┃╰╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╯
+┃╰╾═╼〔 • ❦ • 〕╾═╼╯
 ┃
 ┣━〔 • 𝑼𝑺𝑼𝑨́𝑹𝑰𝑶𝑺 • 👤 〕
 ┃
-┃╭╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╮
+┃╭╾═╼〔 • ❦ • 〕╾═╼╮
 ┃╎୨୧ 🚫 ${prefix}blockuser @usuario
 ┃╎୨୧ ♻️ ${prefix}unblockuser @usuario
 ┃╎୨୧ 📋 ${prefix}blocklist
@@ -215,11 +215,11 @@ return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 ┃╎୨୧ 🚫 ${prefix}blockcmdg comando
 ┃╎୨୧ ✅ ${prefix}unblockcmdg comando
 ┃╎୨୧ 📋 ${prefix}listbcmdglobal
-┃╰╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╯
+┃╰╾═╼〔 • ❦ • 〕╾═╼╯
 ┃
 ┣━〔 • 𝑮𝑹𝑼𝑷𝑶𝑺 • 👥 〕
 ┃
-┃╭╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╮
+┃╭╾═╼〔 • ❦ • 〕╾═╼╮
 ┃╎୨୧ 📥 ${prefix}entrar link
 ┃╎୨୧ 🚪 ${prefix}sairgp
 ┃╎୨୧ 👥 ${prefix}listagp
@@ -231,17 +231,17 @@ return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 ┃╎୨୧ 🗑️ ${prefix}delaluguel
 ┃╎୨୧ 📋 ${prefix}listaaluguel
 ┃╎୨୧ 📢 ${prefix}broadcast texto
-┃╰╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╯
+┃╰╾═╼〔 • ❦ • 〕╾═╼╯
 ┃
 ┣━〔 • 𝑨𝑼𝑹𝑶𝑹𝑨 • 💚 〕
 ┃╎୨୧ ✰ۣۜۜ͜͡ ${NomeDoBot.toUpperCase()}
 ┃╎୨୧ ᴅᴇᴠ: YoshiGGX
 ┃
-┗╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┛`
+┗╾═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾═╼┛`
 }
 
 exports.downloads = (NomeDoBot, pushname, isCargo, isChVip, hora, prefix, grupo, zapo) => {
-return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
+return `┏╾═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾═╼┓
 ┣━〔 • 𝑨𝑼𝑹𝑶𝑹𝑨 𝑫𝑶𝑾𝑵 • 📥 〕
 ┃
 ┃╎୨୧ 👤 ᴜsᴜᴀ́ʀɪᴏ: ${pushname}
@@ -254,16 +254,16 @@ return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 ┃
 ┣━〔 • 𝒀𝑶𝑼𝑻𝑼𝑩𝑬 • 🎵 〕
 ┃
-┃╭╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╮
+┃╭╾═╼〔 • ❦ • 〕╾═╼╮
 ┃╎୨୧ 🎧 ${prefix}play nome
 ┃╎୨୧ 🎬 ${prefix}playvideo nome
 ┃╎୨୧ 📄 ${prefix}playdoc nome
 ┃╎୨୧ 🔎 ${prefix}ytsearch nome
-┃╰╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╯
+┃╰╾═╼〔 • ❦ • 〕╾═╼╯
 ┃
 ┣━〔 • 𝑹𝑬𝑫𝑬𝑺 • 🌐 〕
 ┃
-┃╭╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╮
+┃╭╾═╼〔 • ❦ • 〕╾═╼╮
 ┃╎୨୧ 🎵 ${prefix}tiktok link
 ┃╎୨୧ 📸 ${prefix}instagram link
 ┃╎୨୧ 💬 ${prefix}comentarios link
@@ -274,24 +274,24 @@ return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 ┃╎୨୧ 🔎 ${prefix}pinsearch pesquisa
 ┃╎୨୧ 🍎 ${prefix}applemusic música/link
 ┃╎୨୧ ☁️ ${prefix}soundcloud música/link
-┃╰╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╯
+┃╰╾═╼〔 • ❦ • 〕╾═╼╯
 ┃
 ┣━〔 • 𝑼𝑷𝑳𝑶𝑨𝑫 • 🔗 〕
 ┃
-┃╭╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╮
+┃╭╾═╼〔 • ❦ • 〕╾═╼╮
 ┃╎୨୧ 🔗 ${prefix}upload — responda um arquivo
 ┃╎୨୧ 🖼️ ${prefix}imgpralink — responda uma foto
-┃╰╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╯
+┃╰╾═╼〔 • ❦ • 〕╾═╼╯
 ┃
 ┣━〔 • 𝑨𝑼𝑹𝑶𝑹𝑨 • 💚 〕
 ┃╎୨୧ ✰ۣۜۜ͜͡ ${NomeDoBot.toUpperCase()}
 ┃╎୨୧ ᴅᴇᴠ: YoshiGGX
 ┃
-┗╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┛`
+┗╾═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾═╼┛`
 }
 
 exports.menuff = (NomeDoBot, pushname, isCargo, isChVip, hora, prefix, grupo, zapo) => {
-return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
+return `┏╾═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾═╼┓
 ┣━〔 • 𝑨𝑼𝑹𝑶𝑹𝑨 𝑭𝑹𝑬𝑬 𝑭𝑰𝑹𝑬 • 💎 〕
 ┃
 ┃╎୨୧ 👤 ᴜsᴜᴀ́ʀɪᴏ: ${pushname}
@@ -304,7 +304,7 @@ return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 ┃
 ┣━〔 • 𝑭𝑹𝑬𝑬 𝑭𝑰𝑹𝑬 • 🔥 〕
 ┃
-┃╭╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╮
+┃╭╾═╼〔 • ❦ • 〕╾═╼╮
 ┃╎୨୧ ℹ️ ${prefix}info uid
 ┃╎୨୧ 💚 ${prefix}like uid (todos)
 ┃╎୨୧ 🎮 ${prefix}configurarff 3 (ADM)
@@ -313,18 +313,18 @@ return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 ┃╎୨୧ 🗑️ ${prefix}removelike uid
 ┃╎୨୧ 🔥 ${prefix}autolike600 uid${rotulo600()}
 ┃╎୨୧ 📋 ${prefix}listalike600${rotulo600()}
-┃╰╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╯
+┃╰╾═╼〔 • ❦ • 〕╾═╼╯
 ┃
 ┣━〔 • 𝑨𝑼𝑹𝑶𝑹𝑨 • 💚 〕
 ┃╎୨୧ ✰ۣۜۜ͜͡ ${NomeDoBot.toUpperCase()}
 ┃╎୨୧ ᴅᴇᴠ: YoshiGGX
 ┃
-┗╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┛`
+┗╾═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾═╼┛`
 }
 
 
 exports.brincadeiras = (NomeDoBot, pushname, isCargo, isChVip, hora, prefix, grupo, zapo) => {
-return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
+return `┏╾═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾═╼┓
 ┣━〔 • 𝑨𝑼𝑹𝑶𝑹𝑨 𝑩𝑹𝑰𝑵𝑪𝑨𝑫𝑬𝑰𝑹𝑨𝑺 • 🎭 〕
 ┃
 ┃╎୨୧ 👤 ᴜsᴜᴀ́ʀɪᴏ: ${pushname}
@@ -337,7 +337,7 @@ return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 ┃
 ┣━〔 • 𝑱𝑶𝑮𝑶𝑺 & 𝑪𝑨𝑺𝑨𝑳 • 🎮 〕
 ┃
-┃╭╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╮
+┃╭╾═╼〔 • ❦ • 〕╾═╼╮
 ┃╎୨୧ ❎ ${prefix}jogov @usuario
 ┃╎୨୧ 😸 ${prefix}vab
 ┃╎୨୧ 🤔 ${prefix}eununca
@@ -352,11 +352,11 @@ return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 ┃╎୨୧ 🎭 ${prefix}dogolpe @usuario
 ┃╎୨୧ ☠️ ${prefix}morte nome
 ┃╎୨୧ 😈 ${prefix}surubao quantidade
-┃╰╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╯
+┃╰╾═╼〔 • ❦ • 〕╾═╼╯
 ┃
 ┣━〔 • 𝑨𝑪̧𝑶̃𝑬𝑺 • 💥 〕
 ┃
-┃╭╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╮
+┃╭╾═╼〔 • ❦ • 〕╾═╼╮
 ┃╎୨୧ 🫂 ${prefix}abraco @usuario
 ┃╎୨୧ 💋 ${prefix}beijo @usuario
 ┃╎୨୧ 😈 ${prefix}boquete @usuario
@@ -377,11 +377,11 @@ return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 ┃╎୨୧ 🥊 ${prefix}soco @usuario
 ┃╎୨୧ 👋 ${prefix}tapa @usuario
 ┃╎୨୧ 📸 ${prefix}tirarft @usuario
-┃╰╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╯
+┃╰╾═╼〔 • ❦ • 〕╾═╼╯
 ┃
 ┣━〔 • 𝑴𝑬𝑫𝑰𝑫𝑶𝑹𝑬𝑺 • 📊 〕
 ┃
-┃╭╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╮
+┃╭╾═╼〔 • ❦ • 〕╾═╼╮
 ┃╎୨୧ 😴 ${prefix}baiana @usuario
 ┃╎୨୧ 💤 ${prefix}baiano @usuario
 ┃╎୨୧ 🍺 ${prefix}bebado @usuario
@@ -407,11 +407,11 @@ return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 ┃╎୨୧ 😏 ${prefix}safado @usuario
 ┃╎୨୧ 🗿 ${prefix}sigma @usuario
 ┃╎୨୧ 👀 ${prefix}vesgo @usuario
-┃╰╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╯
+┃╰╾═╼〔 • ❦ • 〕╾═╼╯
 ┃
 ┣━〔 • 𝑹𝑨𝑵𝑲𝑺 • 🏆 〕
 ┃
-┃╭╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╮
+┃╭╾═╼〔 • ❦ • 〕╾═╼╮
 ┃╎୨୧ 😴 ${prefix}rankbaiana
 ┃╎୨୧ 💤 ${prefix}rankbaiano
 ┃╎୨୧ 📊 ${prefix}rankbct
@@ -437,29 +437,29 @@ return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 ┃╎୨୧ 😏 ${prefix}ranksafada
 ┃╎୨୧ 🥵 ${prefix}ranksafado
 ┃╎୨୧ 🗿 ${prefix}ranksigma
-┃╰╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╯
+┃╰╾═╼〔 • ❦ • 〕╾═╼╯
 ┃
 ┣━〔 • 𝑬𝑿𝑻𝑹𝑨𝑺 𝑫𝑶 𝑨𝑼𝑹𝑶𝑹𝑨 • 💚 〕
 ┃
-┃╭╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╮
+┃╭╾═╼〔 • ❦ • 〕╾═╼╮
 ┃╎୨୧ ✊ ${prefix}ppt pedra/papel/tesoura
 ┃╎୨୧ ♻️ ${prefix}rv
 ┃╎୨୧ 😼 ${prefix}cantada
 ┃╎୨୧ 💭 ${prefix}conselho
 ┃╎୨୧ 🧠 ${prefix}fatos
-┃╰╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╯
+┃╰╾═╼〔 • ❦ • 〕╾═╼╯
 ┃
 ┣━〔 • 𝑨𝑼𝑹𝑶𝑹𝑨 • 💚 〕
 ┃╎୨୧ ✰ۣۜۜ͜͡ ${NomeDoBot.toUpperCase()}
 ┃╎୨୧ 84 comandos-base da Akame • 123 nomes/aliases
 ┃╎୨୧ ᴅᴇᴠ: YoshiGGX
 ┃
-┗╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┛`
+┗╾═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾═╼┛`
 }
 
 
 exports.fig = (NomeDoBot, pushname, isCargo, isChVip, hora, prefix, grupo, zapo) => {
-return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
+return `┏╾═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾═╼┓
 ┣━〔 • 𝑨𝑼𝑹𝑶𝑹𝑨 𝑭𝑰𝑮 • 🖼️ 〕
 ┃
 ┃╎୨୧ 👤 ᴜsᴜᴀ́ʀɪᴏ: ${pushname}
@@ -472,7 +472,7 @@ return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 ┃
 ┣━〔 • 𝑭𝑰𝑮𝑼𝑹𝑰𝑵𝑯𝑨𝑺 • ✨ 〕
 ┃
-┃╭╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╮
+┃╭╾═╼〔 • ❦ • 〕╾═╼╮
 ┃╎୨୧ 🖼️ ${prefix}fig — responda foto/vídeo
 ┃╎୨୧ 😂 ${prefix}figumeme 1/10
 ┃╎୨୧ 😡 ${prefix}figuraiva 1/10
@@ -480,13 +480,13 @@ return `┏╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┓
 ┃╎୨୧ 🎞️ ${prefix}bratvid texto
 ┃╎୨୧ 💬 ${prefix}blade texto
 ┃╎୨୧ 🎞️ ${prefix}bladevd texto
-┃╰╾ׁ═╼〔 • ❦ • 〕╾ׁ═╼╯
+┃╰╾═╼〔 • ❦ • 〕╾═╼╯
 ┃
 ┣━〔 • 𝑨𝑼𝑹𝑶𝑹𝑨 • 💚 〕
 ┃╎୨୧ ✰ۣۜۜ͜͡ ${NomeDoBot.toUpperCase()}
 ┃╎୨୧ ᴅᴇᴠ: YoshiGGX
 ┃
-┗╾ׁ═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾ᷓ═╼┛`
+┗╾═╼･ﾟ♡ﾟ･｡💚｡･ﾟ♡ﾟ･╾═╼┛`
 }
 
 // Todos os submenus recebem o idioma como 9º argumento de menuData.
