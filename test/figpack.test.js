@@ -1,56 +1,67 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-process.env.FIGPACK_ESPERA_MS = '30'
-const { default: figpack } = await import('../sistema/comandos/download/figpack.js')
-const { handleFigpack } = await import('../sistema/funcoes/figpack.js')
-
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
-// WebP de verdade (a capa JPEG precisa de imagem válida). n muda a cor para não repetir.
-const webp = (n) => {
-  const out = `/tmp/figpack-teste-${n}.webp`
-  const r = spawnSync('ffmpeg', ['-y', '-f', 'lavfi', '-i', `color=c=0x${((n * 20 + 16) % 256).toString(16).padStart(2, '0')}2030:s=512x512`, '-frames:v', '1', out])
-  assert.equal(r.status, 0, 'precisa do ffmpeg para o teste')
-  return new Uint8Array(fs.readFileSync(out))
-}
-const espera = (ms) => new Promise((r) => setTimeout(r, ms))
+import figpack from '../sistema/comandos/download/figpack.js'
+import { capaJpeg } from '../sistema/funcoes/figpack.js'
 
-function fake(args, event, enviados, respostas, bytes, senderKey = 'u1') {
-  return {
-    from: 'g@g.us', senderKey, prefix: '#', args, event,
-    client: { message: { downloadBytes: async () => bytes } },
-    reply: async (t) => { respostas.push(t) },
-    send: async (c) => { enviados.push(c) }
+// Imagem de verdade (ffmpeg), com cor diferente para cada uma.
+const imagem = (n) => {
+  const out = `/tmp/figpack-teste-${n}.jpg`
+  const r = spawnSync('ffmpeg', ['-y', '-f', 'lavfi', '-i', `color=c=0x${((n * 17 + 16) % 256).toString(16).padStart(2, '0')}30a0:s=300x300`, '-frames:v', '1', out])
+  assert.equal(r.status, 0, 'precisa do ffmpeg para o teste')
+  return fs.readFileSync(out)
+}
+
+function fakeFetch(qtd) {
+  return async (url) => {
+    const u = String(url)
+    if (u.includes('BaseSearchResource')) {
+      const results = Array.from({ length: qtd }, (_, i) => ({ images: { orig: { url: `https://i.pinimg.com/${i}.jpg` } } }))
+      return new Response(JSON.stringify({ resource_response: { data: { results } } }), { status: 200 })
+    }
+    if (u.includes('i.pinimg.com')) return new Response(imagem(Number(u.match(/(\d+)\.jpg/)[1])), { status: 200 })
+    return new Response('', { status: 200, headers: { 'set-cookie': 'csrftoken=x; path=/' } })
   }
 }
-const imagem = { key: {}, message: { imageMessage: { mimetype: 'image/jpeg' } } }
-const vazio = { key: {}, message: {} }
 
-test('figpack: só #figpack, fotos, e o pack sai sozinho sem nome nem publisher', async () => {
-  const enviados = []; const respostas = []
-  await figpack.run(fake([], vazio, enviados, respostas, webp(1)))
-  assert.match(respostas[0], /Figpack aberto/)
-  assert.equal(await handleFigpack(fake([], imagem, enviados, respostas, webp(1))), true)
-  assert.equal(await handleFigpack(fake([], imagem, enviados, respostas, webp(2))), true)
-  await espera(150)
-  const pack = enviados[0]
-  assert.equal(pack.type, 'sticker-pack')
-  assert.equal(pack.name, '')
-  assert.equal(pack.publisher, '')
-  assert.equal(pack.stickers.length, 2)
-  assert.equal(pack.coverThumbnail[0], 0xff) // capa JPEG
-  assert.doesNotMatch(JSON.stringify(respostas), /tokito|dylan|channel/i)
+const fake = (q, enviados, respostas) => ({
+  from: 'g@g.us', prefix: '#', q,
+  reply: async (t) => { respostas.push(t) },
+  send: async (c) => { enviados.push(c) }
 })
 
-test('figpack: foto sem #figpack aberto não faz nada', async () => {
-  const enviados = []
-  assert.equal(await handleFigpack(fake([], imagem, enviados, [], webp(9), 'outro')), false)
-  await espera(80)
-  assert.equal(enviados.length, 0)
+test('figpack tema: busca, monta e envia o pack sozinho, sem nome nem publisher', async () => {
+  const original = globalThis.fetch
+  globalThis.fetch = fakeFetch(40)
+  try {
+    const enviados = []; const respostas = []
+    await figpack.run(fake('gatos', enviados, respostas))
+    assert.equal(enviados.length, 1)
+    const pack = enviados[0]
+    assert.equal(pack.type, 'sticker-pack')
+    assert.equal(pack.name, '')
+    assert.equal(pack.publisher, '')
+    assert.equal(pack.stickers.length, 30)
+    assert.equal(pack.coverThumbnail[0], 0xff) // capa JPEG
+    assert.doesNotMatch(JSON.stringify(respostas), /tokito|dylan|channel/i)
+  } finally { globalThis.fetch = original }
 })
 
-test('figpack: capa do pack é JPEG 252x252, não WebP', async () => {
-  const { capaJpeg } = await import('../sistema/funcoes/figpack.js')
-  const jpg = await capaJpeg(webp(3))
+test('figpack: sem tema explica o uso; poucas imagens avisa', async () => {
+  const original = globalThis.fetch
+  globalThis.fetch = fakeFetch(1)
+  try {
+    const enviados = []; const respostas = []
+    await figpack.run(fake('', enviados, respostas))
+    assert.match(respostas[0], /figpack tema/)
+    await figpack.run(fake('x', enviados, respostas))
+    assert.equal(enviados.length, 0)
+    assert.match(respostas.at(-1), /suficientes/)
+  } finally { globalThis.fetch = original }
+})
+
+test('figpack: capa do pack é JPEG', async () => {
+  const jpg = await capaJpeg(new Uint8Array(imagem(3)))
   assert.equal(jpg[0], 0xff); assert.equal(jpg[1], 0xd8)
 })

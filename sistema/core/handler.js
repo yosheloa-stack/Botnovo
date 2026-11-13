@@ -10,7 +10,6 @@ import { cacheIncomingX9, isLocalSentMessage, suppressX9Protocol } from '../func
 import { verifiedSendOptions } from '../funcoes/meta.js'
 import { necessarios as currentNecessarios } from '../funcoes/necessarios.js'
 import { handleSoli } from '../funcoes/soli.js'
-import { handleFigpack } from '../funcoes/figpack.js'
 import { marcaCliente, modoCliente } from '../funcoes/cliente.js'
 import { handleAurora, anotarErro, mencionouBot, citouBot } from '../funcoes/aurora/index.js'
 import { configurarFF } from '../funcoes/configFF.js'
@@ -250,7 +249,6 @@ if (blockedKeys.some((key) => db().blocked.includes(key)) && !system.isOwner) re
 // Fluxos interativos só recebem mensagens sem comando. Nunca seguram /like, /menu etc.
 if (!system.command) {
   if (await handleSoli(system)) return
-  if (await handleFigpack(system)) return
   if (await handleTicTacToe(system)) return
   if (await handleDating(system)) return
 }

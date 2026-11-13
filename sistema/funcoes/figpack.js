@@ -1,5 +1,4 @@
 import crypto from 'node:crypto'
-import { mediaInfo, quotedInfo } from './mensagem.js'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -7,11 +6,6 @@ import { spawn } from 'node:child_process'
 import { sticker } from './figurinha.js'
 
 // Pack de figurinhas SEM nome, SEM autor/publisher e SEM assinatura.
-export const MAX_FIGURINHAS = 30
-const EXPIRA_MS = 60 * 60 * 1000
-// Depois da última foto, espera esse tempo e já monta o pack sozinho.
-export const ESPERA_MS = Number(process.env.FIGPACK_ESPERA_MS) || 6000
-const sessoes = new Map()
 
 // O WhatsApp exige a capa do pack em JPEG 252x252 (o Zapo envia como image/jpeg).
 // Mandar o WebP aqui faz o pack não aparecer/abrir.
@@ -41,82 +35,70 @@ export async function capaJpeg(webp) {
   }
 }
 
-const chave = (s) => `${s.from}|${s.senderKey}`
+export const MAX_FIGURINHAS = 30
+export const MIN_FIGURINHAS = 3
 
-export function sessaoFigpack(system) {
-  const id = chave(system)
-  const s = sessoes.get(id)
-  if (s && Date.now() - s.criadoEm > EXPIRA_MS) {
-    if (s.timer) clearTimeout(s.timer)
-    sessoes.delete(id)
-    return null
-  }
-  return s || null
+const UA = 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36'
+const PIN_BASE = 'https://br.pinterest.com'
+
+async function cookiesPinterest() {
+  const r = await fetch(PIN_BASE, { headers: { 'user-agent': UA }, signal: AbortSignal.timeout(20000) })
+  const set = r.headers.getSetCookie?.() || []
+  return set.map((c) => String(c).split(';')[0].trim()).join('; ')
 }
 
-export function iniciarFigpack(system) {
-  const id = chave(system)
-  const antiga = sessoes.get(id)
-  if (antiga?.timer) clearTimeout(antiga.timer)
-  const s = { itens: [], hashes: new Set(), criadoEm: Date.now(), timer: null }
-  sessoes.set(id, s)
-  return s
+// Busca imagens no Pinterest pelo tema (mesma busca do packfig do Tokito).
+export async function buscarImagens(tema) {
+  const cookie = await cookiesPinterest()
+  const params = new URLSearchParams({
+    source_url: `/search/pins/?q=${tema}`,
+    data: JSON.stringify({ options: { isPrefetch: false, query: tema, scope: 'pins', bookmarks: [''], page_size: 60 }, context: {} }),
+    _: String(Date.now())
+  })
+  const r = await fetch(`${PIN_BASE}/resource/BaseSearchResource/get/?${params}`, {
+    headers: { 'user-agent': UA, cookie, accept: 'application/json' },
+    signal: AbortSignal.timeout(30000)
+  })
+  if (!r.ok) throw new Error(`Pinterest respondeu HTTP ${r.status}`)
+  const data = await r.json()
+  const urls = (data?.resource_response?.data?.results || []).map((x) => x?.images?.orig?.url).filter(Boolean)
+  return [...new Set(urls)]
 }
 
-export function cancelarFigpack(system) {
-  const id = chave(system)
-  const s = sessoes.get(id)
-  if (!s) return false
-  if (s.timer) clearTimeout(s.timer)
-  sessoes.delete(id)
-  return true
+async function baixar(url) {
+  const r = await fetch(url, { headers: { 'user-agent': UA, referer: 'https://www.pinterest.com/' }, signal: AbortSignal.timeout(30000) })
+  if (!r.ok) throw new Error(`HTTP ${r.status}`)
+  return new Uint8Array(await r.arrayBuffer())
 }
 
-async function adicionar(system, sessao, source, info) {
-  if (sessao.itens.length >= MAX_FIGURINHAS) return false
-  const bytes = await system.client.message.downloadBytes(source, { maxBytes: 20 * 1024 * 1024 })
-  if (!bytes?.byteLength) return false
-  const webp = await sticker(bytes, { video: false, mimetype: info.mimetype })
-  const hash = crypto.createHash('sha256').update(webp).digest('hex')
-  if (sessao.hashes.has(hash)) return false
-  sessao.hashes.add(hash)
-  sessao.itens.push({ webp, hash })
-  return true
-}
-
-// Foto na própria mensagem do "criar" ou a foto respondida.
-export async function adicionarInicial(system, sessao) {
-  const quoted = quotedInfo(system.event)
-  const q = quoted ? mediaInfo(quoted.message) : null
-  const atual = mediaInfo(system.event?.message)
-  const info = q?.type === 'image' ? q : (atual?.type === 'image' ? atual : null)
-  if (!info) return false
-  try { return await adicionar(system, sessao, info === q ? quoted.message : system.event, info) } catch { return false }
-}
-
-// Chamado pelo handler para mensagens sem comando: junta as fotos enviadas.
-export async function handleFigpack(system) {
-  const sessao = sessaoFigpack(system)
-  if (!sessao) return false
-  const info = mediaInfo(system.event?.message)
-  if (info?.type !== 'image') return false
-  try {
-    if (await adicionar(system, sessao, system.event, info)) {
-      if (sessao.timer) clearTimeout(sessao.timer)
-      sessao.timer = setTimeout(() => finalizarFigpack(system, sessao), sessao.itens.length >= MAX_FIGURINHAS ? 300 : ESPERA_MS)
-      sessao.timer.unref?.()
+// Baixa e converte as imagens em figurinhas (várias ao mesmo tempo), até o limite.
+export async function montarFigurinhas(urls) {
+  const itens = []
+  const hashes = new Set()
+  let i = 0
+  const worker = async () => {
+    while (itens.length < MAX_FIGURINHAS) {
+      const url = urls[i++]
+      if (!url) return
+      try {
+        const webp = await sticker(await baixar(url), { video: false, mimetype: 'image/jpeg' })
+        const hash = crypto.createHash('sha256').update(webp).digest('hex')
+        if (hashes.has(hash) || itens.length >= MAX_FIGURINHAS) continue
+        hashes.add(hash)
+        itens.push({ webp, hash })
+      } catch (err) {
+        console.warn('[ FIGPACK ] imagem ignorada:', err?.message || err)
+      }
     }
-  } catch (err) {
-    console.warn('[ FIGPACK ] não consegui converter a foto:', err?.stack || err?.message || err)
-    system.reply('⚠️ Não consegui ler uma das fotos. Mande de novo.').catch(() => {})
   }
-  return true
+  await Promise.all(Array.from({ length: 5 }, worker))
+  return itens
 }
 
-export async function gerarFigpack(system, sessao) {
+export async function gerarFigpack(system, itens) {
   const id = `figpack-${crypto.randomBytes(12).toString('hex')}`
   const trayName = `${id}.webp`
-  const stickers = sessao.itens.map((it, i) => ({
+  const stickers = itens.map((it, i) => ({
     media: it.webp,
     fileName: `${String(i).padStart(2, '0')}_${it.hash.slice(0, 16)}.webp`,
     emojis: ['🧊'],
@@ -130,22 +112,8 @@ export async function gerarFigpack(system, sessao) {
     name: '',
     publisher: '',
     stickers,
-    trayIcon: { media: sessao.itens[0].webp, fileName: trayName },
-    coverThumbnail: await capaJpeg(sessao.itens[0].webp)
+    trayIcon: { media: itens[0].webp, fileName: trayName },
+    coverThumbnail: await capaJpeg(itens[0].webp)
   })
   return stickers.length
-}
-
-// Monta e envia o pack sozinho quando as fotos acabam.
-export async function finalizarFigpack(system, sessao) {
-  if (sessoes.get(chave(system)) !== sessao || !sessao.itens.length) return
-  sessoes.delete(chave(system))
-  console.log('[ FIGPACK ] montando pack com', sessao.itens.length, 'figurinhas | chat:', system.from)
-  try {
-    await gerarFigpack(system, sessao)
-    console.log('[ FIGPACK ] pack enviado')
-  } catch (err) {
-    console.warn('[ FIGPACK ] gerar:', err?.stack || err?.message || err)
-    system.reply('❌ Não consegui montar o pack (' + (err?.message || 'erro') + '). Mande `' + system.prefix + 'figpack` e as fotos de novo.').catch(() => {})
-  }
 }
