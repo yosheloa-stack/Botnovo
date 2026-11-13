@@ -5,6 +5,8 @@ import { sticker } from './figurinha.js'
 // Pack de figurinhas SEM nome, SEM autor/publisher e SEM assinatura.
 export const MAX_FIGURINHAS = 30
 const EXPIRA_MS = 60 * 60 * 1000
+// Depois da última foto, espera esse tempo e já monta o pack sozinho.
+export const ESPERA_MS = Number(process.env.FIGPACK_ESPERA_MS) || 6000
 const sessoes = new Map()
 
 const chave = (s) => `${s.from}|${s.senderKey}`
@@ -69,10 +71,7 @@ export async function handleFigpack(system) {
   try {
     if (await adicionar(system, sessao, system.event, info)) {
       if (sessao.timer) clearTimeout(sessao.timer)
-      sessao.timer = setTimeout(() => {
-        const cheio = sessao.itens.length >= MAX_FIGURINHAS
-        system.reply(`🧊 Figurinhas: ${sessao.itens.length}/${MAX_FIGURINHAS}\n${cheio ? 'Limite atingido. Use ' + system.prefix + 'figpack gerar' : 'Continue enviando ou use ' + system.prefix + 'figpack gerar'}`).catch(() => {})
-      }, 1200)
+      sessao.timer = setTimeout(() => finalizarFigpack(system, sessao), sessao.itens.length >= MAX_FIGURINHAS ? 300 : ESPERA_MS)
       sessao.timer.unref?.()
     }
   } catch (err) {
@@ -102,4 +101,16 @@ export async function gerarFigpack(system, sessao) {
     coverThumbnail: sessao.itens[0].webp
   })
   return stickers.length
+}
+
+// Monta e envia o pack sozinho quando as fotos acabam.
+export async function finalizarFigpack(system, sessao) {
+  if (sessoes.get(chave(system)) !== sessao || !sessao.itens.length) return
+  sessoes.delete(chave(system))
+  try {
+    await gerarFigpack(system, sessao)
+  } catch (err) {
+    console.warn('[ FIGPACK ] gerar:', err?.stack || err?.message || err)
+    system.reply('❌ Não consegui montar o pack. Mande `' + system.prefix + 'figpack` e as fotos de novo.').catch(() => {})
+  }
 }
