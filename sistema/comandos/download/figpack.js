@@ -1,22 +1,24 @@
-import {
-  MAX_FIGURINHAS, iniciarFigpack, cancelarFigpack, adicionarInicial, finalizarFigpack, ESPERA_MS
-} from '../../funcoes/figpack.js'
+import { MAX_FIGURINHAS, MIN_FIGURINHAS, buscarImagens, montarFigurinhas, gerarFigpack } from '../../funcoes/figpack.js'
 
-// #figpack → manda as fotos → o pack sai sozinho. Sem nome, sem autor, sem assinatura.
-export default {name:'figpack',aliases:['fazerpack'],category:'download',description:'Monta um pack de figurinhas com as fotos enviadas',async run(system){
-const acao = String(system.args?.[0] || '').toLowerCase()
+// #figpack tema → o bot busca as imagens, monta o pack sozinho e manda no chat.
+// O pack sai sem nome, sem autor e sem assinatura.
+export default {name:'figpack',aliases:['fazerpack'],category:'download',description:'Monta e envia um pack de figurinhas de um tema',async run(system){
+const tema = String(system.q || '').trim()
+if (!tema) return system.reply(`🧊 Use: *${system.prefix}figpack tema*\nEx.: *${system.prefix}figpack gatos*\nO bot monta o pack sozinho (até ${MAX_FIGURINHAS} figurinhas).`)
 
-if (acao === 'cancelar') {
-return system.reply(cancelarFigpack(system) ? '🗑️ Figpack cancelado.' : '⚠️ Nada para cancelar.')
+await system.reply(`⏳ Montando o pack: ${tema}...`)
+try {
+console.log('[ FIGPACK ] buscando:', tema, '| chat:', system.from)
+const urls = await buscarImagens(tema)
+if (!urls.length) return system.reply('❌ Não achei imagens para esse tema. Tente outro.')
+const itens = await montarFigurinhas(urls)
+console.log('[ FIGPACK ] figurinhas prontas:', itens.length, 'de', urls.length, 'imagens')
+if (itens.length < MIN_FIGURINHAS) return system.reply('❌ Não consegui montar figurinhas suficientes. Tente outro tema.')
+await gerarFigpack(system, itens)
+console.log('[ FIGPACK ] pack enviado')
+} catch (err) {
+console.warn('[ FIGPACK ]', err?.stack || err?.message || err)
+return system.reply(`❌ Não consegui montar o pack (${err?.message || 'erro'}). Tente de novo.`)
 }
-
-const s = iniciarFigpack(system)
-const entrou = await adicionarInicial(system, s)
-if (entrou) {
-// Já veio com foto (na legenda ou respondida): espera mais fotos e monta sozinho.
-s.timer = setTimeout(() => finalizarFigpack(system, s), ESPERA_MS)
-s.timer.unref?.()
-}
-return system.reply(`🧊 Figpack aberto. Envie as fotos (até ${MAX_FIGURINHAS}).\nQuando você parar de enviar, o pack sai sozinho.`)
 }
 }
