@@ -58,9 +58,9 @@ async function baixarCapa(url) {
   let outputExt = ext
   try {
     const { default: sharp } = await import('sharp')
-    // Insere margens quando necessário, sem cortar a foto original.
+    // Só reduz se for grande demais; mantém a proporção original, sem faixas pretas nem corte.
     bytes = await sharp(bytes, { limitInputPixels: 25_000_000, animated: false }).rotate()
-      .resize(1080, 1080, { fit: 'contain', background: { r: 15, g: 20, b: 19, alpha: 1 }, withoutEnlargement: true })
+      .resize(1280, 1280, { fit: 'inside', withoutEnlargement: true })
       .jpeg({ quality: 88, mozjpeg: true }).toBuffer()
     outputMime = 'image/jpeg'
     outputExt = '.jpg'
