@@ -378,7 +378,7 @@ const ffAutolike = /^(autolike|autolikes|ffautolike)$/i.test(system.command)
 const vipRequired = ffAutolike || (system.command !== 'like' && !ffInfo && !ffDislike && (plugin.vipOnly === true || plugin.premiumOnly === true || isVipCmd(system.command)))
 if (vipRequired && !system.isVip && !system.isOwner) return system.reply(messages.onlyVip())
 
-if (ffDislike) {
+if (ffDislike && !system.isVip && !system.isOwner && !system.isDonoAluguel) {
   const quota = consultarCotaFF(system.from, system.senderKey)
   if (!quota.ok) return system.reply('🎮 Seu limite diário de *' + quota.limite + ' IDs* acabou neste grupo. Volte amanhã.')
 }
@@ -405,7 +405,7 @@ await plugin.run(system)
 desfazerMenu(menuSpam)
 throw err
 }
-if (ffDislike) consumirCotaFF(system.from, system.senderKey)
+if (ffDislike && !system.isVip && !system.isOwner && !system.isDonoAluguel) consumirCotaFF(system.from, system.senderKey)
 await saveState()
 } catch (err) {
 console.error('[ AURORA ] Erro no handler:', err)

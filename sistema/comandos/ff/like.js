@@ -5,8 +5,8 @@ export default {name: 'like',aliases: [],category: 'ff',vipOnly: false,descripti
 const uid = system.args[0]
 if (!uid) return system.reply(system.messages.ffLikeUsage(system.prefix))
 // Limite do #configurarff (por pessoa/dia, deste bot, neste grupo). O dono do
-// bot e quem alugou o grupo não contam.
-const conta = Boolean(system.isGroup && system.command === 'like' && !system.isOwner && !system.isDonoAluguel && system.senderKey)
+// bot, quem alugou o grupo e VIP ativo (ilimitado) não contam.
+const conta = Boolean(system.isGroup && system.command === 'like' && !system.isOwner && !system.isVip && !system.isDonoAluguel && system.senderKey)
 if (conta) {
 const cota = consumirCotaFF(system.from, system.senderKey)
 if (!cota.ok) return system.reply('🎮 Seu limite diário de *' + cota.limite + ' IDs* acabou neste grupo. Volte amanhã.')
