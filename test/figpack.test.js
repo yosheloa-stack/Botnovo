@@ -13,27 +13,33 @@ const imagem = (n) => {
   return fs.readFileSync(out)
 }
 
-function fakeFetch(qtd) {
+// Simula as 3 fontes. api: a API do bot responde (imagem sempre igual); bing: lista de imagens; pin403: Pinterest bloqueia.
+function fakeFetch({ api = true, bing = 0 } = {}) {
   return async (url) => {
     const u = String(url)
-    if (u.includes('BaseSearchResource')) {
-      const results = Array.from({ length: qtd }, (_, i) => ({ images: { orig: { url: `https://i.pinimg.com/${i}.jpg` } } }))
-      return new Response(JSON.stringify({ resource_response: { data: { results } } }), { status: 200 })
+    if (u.includes('tokito-apis') || u.includes('/api/pin-image')) {
+      return api ? new Response(imagem(1), { status: 200 }) : new Response('', { status: 500 })
     }
-    if (u.includes('i.pinimg.com')) return new Response(imagem(Number(u.match(/(\d+)\.jpg/)[1])), { status: 200 })
-    return new Response('', { status: 200, headers: { 'set-cookie': 'csrftoken=x; path=/' } })
+    if (u.includes('bing.com/images/async')) {
+      if (!bing) return new Response('', { status: 403 })
+      const html = Array.from({ length: bing }, (_, i) => `murl&quot;:&quot;https://img.exemplo.com/${i}.jpg&quot;`).join(' ')
+      return new Response(html, { status: 200 })
+    }
+    if (u.includes('img.exemplo.com')) return new Response(imagem(Number(u.match(/(\d+)\.jpg/)[1]) + 2), { status: 200 })
+    if (u.includes('pinterest.com')) return new Response('', { status: 403 })
+    return new Response('', { status: 200 })
   }
 }
 
 const fake = (q, enviados, respostas) => ({
-  from: 'g@g.us', prefix: '#', q,
+  from: 'g@g.us', prefix: '#', q, config: { tokitoApi: { url: 'https://tokito-apis.com.br', token: 'x' } },
   reply: async (t) => { respostas.push(t) },
   send: async (c) => { enviados.push(c) }
 })
 
 test('figpack tema: busca, monta e envia o pack sozinho, sem nome nem publisher', async () => {
   const original = globalThis.fetch
-  globalThis.fetch = fakeFetch(40)
+  globalThis.fetch = fakeFetch({ api: true, bing: 40 })
   try {
     const enviados = []; const respostas = []
     await figpack.run(fake('gatos', enviados, respostas))
@@ -50,12 +56,23 @@ test('figpack tema: busca, monta e envia o pack sozinho, sem nome nem publisher'
 
 test('figpack: sem tema explica o uso; poucas imagens avisa', async () => {
   const original = globalThis.fetch
-  globalThis.fetch = fakeFetch(1)
+  globalThis.fetch = fakeFetch({ api: false, bing: 1 })
   try {
     const enviados = []; const respostas = []
     await figpack.run(fake('', enviados, respostas))
     assert.match(respostas[0], /figpack tema/)
     await figpack.run(fake('x', enviados, respostas))
+    assert.equal(enviados.length, 0)
+    assert.match(respostas.at(-1), /suficientes/)
+  } finally { globalThis.fetch = original }
+})
+
+test('figpack: se Bing e Pinterest falham, só com a API do bot avisa que não deu', async () => {
+  const original = globalThis.fetch
+  globalThis.fetch = fakeFetch({ api: true, bing: 0 })
+  try {
+    const enviados = []; const respostas = []
+    await figpack.run(fake('gatos', enviados, respostas))
     assert.equal(enviados.length, 0)
     assert.match(respostas.at(-1), /suficientes/)
   } finally { globalThis.fetch = original }
