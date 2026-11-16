@@ -2,6 +2,7 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import crypto from 'node:crypto'
+import { getCachedViewOnce } from '../../funcoes/viewonce.js'
 import { isViewOnce, mediaInfo, quotedInfo, quotedTarget } from '../../funcoes/mensagem.js'
 
 function ext(info) {
@@ -46,6 +47,17 @@ quoted.message
 ]
 
 try {
+const cached = getCachedViewOnce(system.from, quoted.id)
+if (cached) {
+await system.send({
+type: cached.info.type,
+media: cached.file,
+mimetype: cached.info.mimetype,
+...(cached.info.type !== 'audio' && cached.info.caption ? { caption: cached.info.caption } : {}),
+...(cached.info.type === 'audio' ? { ptt: cached.info.ptt } : {})
+}, system.from)
+return
+}
 let lastErr = null
 let ok = false
 for (const source of attempts) {
