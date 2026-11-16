@@ -183,9 +183,9 @@ const aluguelWorker = modoCliente ? { start() {}, stop() {}, onGroupEvent: async
 // CONEXÃO COM O WHATSAPP.
 // Queda de rede o próprio Zapo resolve sozinho (reabre o socket a cada 2 s,
 // sem evento). O evento 'close' só vem quando o WhatsApp encerra a sessão
-// (erro de stream etc.) e aí o Zapo NÃO reconecta: antes o bot esperava 15 s
-// e reiniciava o processo inteiro. Agora reconecta aqui mesmo em 5 s; só
-// reinicia o processo se em 45 s a conexão não voltar.
+// (erro de stream etc.). Para failure_client_too_old, o zapo-js atualizado já
+// busca a versão atual e reconecta sozinho; este processo não pode chamar
+// connect() em paralelo. Só há um fallback espaçado se o auto-recovery falhar.
 let connectionOpen = false
 let reconnectTimer = null
 let restartTimer = null
@@ -260,23 +260,28 @@ quedas++
 console.warn('[ AURORA CONEXÃO ] WhatsApp fechou a conexão:', reason || 'sem motivo', MOTIVOS[reason] ? `— ${MOTIVOS[reason]}` : '')
 // Sessão aberta em outro lugar / número bloqueado: reconectar na hora só
 // derrubaria a outra ponta de novo. Espera bem mais antes de tentar.
-const espera = reason === 'stream_error_force_login' ? 0 : reason === 'stream_error_replaced' ? 60_000 : /^failure_(banned|locked)$/.test(reason) ? 10 * 60_000 : 5_000
-// "force_login" o próprio Zapo já reconecta; aqui só fica o prazo de 45 s.
-const zapoReconecta = reason === 'stream_error_force_login'
+const eClienteAntigo = reason === 'failure_client_too_old'
+const espera = reason === 'stream_error_force_login' ? 0 : eClienteAntigo ? 30_000 : reason === 'stream_error_replaced' ? 60_000 : /^failure_(banned|locked)$/.test(reason) ? 10 * 60_000 : 5_000
+// "force_login" e client_too_old usam o auto-recovery do Zapo; os demais
+// motivos fazem uma reconexão manual.
+const zapoReconecta = reason === 'stream_error_force_login' || eClienteAntigo
 reconnectTimer = setTimeout(() => {
 reconnectTimer = null
 if (connectionOpen) return
 if (!zapoReconecta) {
 console.log('[ AURORA CONEXÃO ] Reconectando...')
 client.connect().catch((err) => console.warn('[ AURORA CONEXÃO ] Reconexão falhou:', err?.message || err))
+} else if (eClienteAntigo) {
+console.warn('[ AURORA CONEXÃO ] Auto-recovery do cliente antigo não concluiu; tentando uma reconexão de fallback.')
+client.connect().catch((err) => console.warn('[ AURORA CONEXÃO ] Fallback de reconexão falhou:', err?.message || err))
 }
 restartTimer = setTimeout(() => {
 restartTimer = null
 if (!connectionOpen) {
-console.warn('[ AURORA CONEXÃO ] A conexão não voltou em 45 s; reiniciando o bot.')
+console.warn(`[ AURORA CONEXÃO ] A conexão não voltou em ${eClienteAntigo ? 90 : 45} s; reiniciando o bot.`)
 process.exit(restartCode)
 }
-}, 45_000)
+}, eClienteAntigo ? 90_000 : 45_000)
 restartTimer.unref?.()
 }, espera)
 reconnectTimer.unref?.()
