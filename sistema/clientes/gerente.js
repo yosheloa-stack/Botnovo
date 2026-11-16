@@ -22,6 +22,12 @@ import { limiteMb } from '../funcoes/recursos.js'
 const INDEX = fileURLToPath(new URL('../../index.js', import.meta.url))
 const limpo = (v) => String(v ?? '').trim()
 const nomePasta = (pedido) => limpo(pedido).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 80)
+const numeroPositivo = (v) => {
+  const n = Number(v)
+  return Number.isFinite(n) && n > 0 ? n : 0
+}
+const limiteCpuCliente = () => numeroPositivo(process.env.AURORA_CLIENT_CPU_LIMIT_PCT)
+const limiteRamCliente = () => numeroPositivo(process.env.AURORA_CLIENT_RAM_LIMIT_MB)
 
 // Variáveis do bot da casa que o bot da cliente NÃO pode herdar.
 // AURORA_PREFIX também é da casa: cada bot de cliente guarda o próprio
@@ -103,6 +109,17 @@ export function criarGerente({
     }
   }
 
+  function statusSessao(estado, status, extra = {}) {
+    const pedido = limpo(estado?.conf?.pedido)
+    if (!pedido) return
+    void contar(pedido, {
+      sessao_status: status,
+      sessao_motivo: limpo(extra.motivo || estado.motivo),
+      tentativa_reconexao: Number(extra.tentativa || estado.falhas) || 0,
+      ...extra
+    })
+  }
+
   // USO DE RECURSOS: cada bot mede o próprio processo uma vez por minuto
   // (funcoes/recursos.js) e manda por IPC; aqui junta o que chegou e manda
   // tudo num lote só pro site, a cada volta do gerente (30 s).
@@ -168,14 +185,21 @@ export function criarGerente({
       if (site?.token) env.AURORA_SITE_TOKEN = site.token
     }
     const nome = limpo(c.nome_bot) || limpo(c.bot_numero)
+    const pastaLogs = path.join(pasta, 'logs')
+    fs.mkdirSync(pastaLogs, { recursive: true })
     const filho = spawnImpl(process.execPath, ['--disable-warning=ExperimentalWarning', INDEX], { cwd: pasta, env, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] })
     estado.filho = filho
     estado.inicio = Date.now()
     estado.conectado = false
-    for (const saida of [filho.stdout, filho.stderr]) {
+    estado.arquivosLog = []
+    for (const [saida, arquivo] of [[filho.stdout, 'stdout.log'], [filho.stderr, 'stderr.log']]) {
+      const destino = saida?.on ? fs.createWriteStream(path.join(pastaLogs, arquivo), { flags: 'a' }) : null
+      destino?.on('error', (err) => log.warn(`[ AURORA LOG ] Não consegui gravar ${arquivo} de ${nome}:`, err?.message || err))
+      if (destino) estado.arquivosLog.push(destino)
       saida?.setEncoding?.('utf8')
       let resto = ''
       saida?.on?.('data', (parte) => {
+        destino?.write(parte)
         const linhas = (resto + parte).split('\n')
         resto = linhas.pop()
         for (const l of linhas) if (l.trim()) log.log(`[ cliente ${nome} ] ${l}`)
@@ -195,12 +219,33 @@ export function criarGerente({
       else if (tipo === 'vencido') estado.motivo = 'vencido'
       else if (tipo === 'recursos') {
         const { tipo: _t, ...r } = msg
-        recursosPendentes.set(c.pedido, { ...r, modo: 'processo' })
+        const cpuLimite = limiteCpuCliente()
+        const ramLimite = limiteRamCliente()
+        const alertas = []
+        if (cpuLimite && Number(r.cpu_pct) > cpuLimite) alertas.push(`CPU acima de ${cpuLimite}%`)
+        if (ramLimite && Number(r.ram_mb) > ramLimite) alertas.push(`RAM acima de ${ramLimite} MB`)
+        const alerta = alertas.join('; ')
+        if (alerta !== estado.alertaRecursos) {
+          estado.alertaRecursos = alerta
+          if (alerta) {
+            log.warn(`[ AURORA RECURSOS ] ${nome}: ${alerta}`)
+            statusSessao(estado, 'resource_warning', { motivo: alerta })
+          }
+        }
+        recursosPendentes.set(c.pedido, {
+          ...r,
+          modo: 'processo',
+          ...(cpuLimite ? { limite_cpu_pct: cpuLimite } : {}),
+          ...(ramLimite ? { limite_ram_mb: ramLimite } : {}),
+          ...(alerta ? { recurso_alerta: alerta } : {})
+        })
       }
     })
     filho.on('exit', (code) => {
       estado.filho = null
       estado.conectado = false
+      for (const arquivo of estado.arquivosLog || []) arquivo.end()
+      estado.arquivosLog = []
       if (estado.parando || parado) return
       if (code === 0) {
         // Saída limpa: desconectado pelo celular, código não usado ou aluguel
@@ -212,6 +257,12 @@ export function criarGerente({
       // Caiu ou pediu reinício (75): liga de novo, esperando mais a cada queda seguida.
       estado.falhas = Date.now() - estado.inicio > 120_000 ? 0 : Math.min((estado.falhas || 0) + 1, 5)
       const espera = Math.min(5_000 * (2 ** estado.falhas), 60_000)
+      estado.motivo = `processo encerrou com código ${code}`
+      statusSessao(estado, 'reconnecting', {
+        motivo: estado.motivo,
+        tentativa: estado.falhas,
+        reconectar_em: new Date(Date.now() + espera).toISOString()
+      })
       estado.religar = setTimeout(() => { estado.religar = null; if (!estado.filho && !estado.parando && !parado) ligar(estado) }, espera)
       estado.religar.unref?.()
     })

@@ -107,6 +107,7 @@ addons: { autoDecrypt: true, persistAllSecrets: true },
 // failure_client_too_old. O Zapo atualizado busca a revisão atual do Web e
 // tenta novamente sem apagar as credenciais das sessões dos clientes.
 recoverFromClientTooOld: true,
+...(process.env.AURORA_WA_VERSION ? { version: process.env.AURORA_WA_VERSION } : {}),
 connectTimeoutMs: 15_000,
 nodeQueryTimeoutMs: 30_000
 }, logger)
