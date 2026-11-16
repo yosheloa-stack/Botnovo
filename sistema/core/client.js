@@ -103,6 +103,10 @@ sessionId,
 ...(media ? { media } : {}),
 history: { enabled: false },
 addons: { autoDecrypt: true, persistAllSecrets: true },
+// O WhatsApp pode rejeitar a revisão embutida no Zapo com HTTP 405 /
+// failure_client_too_old. O Zapo atualizado busca a revisão atual do Web e
+// tenta novamente sem apagar as credenciais das sessões dos clientes.
+recoverFromClientTooOld: true,
 connectTimeoutMs: 15_000,
 nodeQueryTimeoutMs: 30_000
 }, logger)
