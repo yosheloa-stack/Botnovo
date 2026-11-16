@@ -1,4 +1,4 @@
-import { vencerVips, db, ensureGroupState, groupState, saveGroupState, saveState, userProfile, getDonoAluguel, aluguelOk, lembrarLid, numeroDoLid } from '../funcoes/banco.js'
+import { vencerVips, ehVip, db, ensureGroupState, groupState, saveGroupState, saveState, userProfile, getDonoAluguel, aluguelOk, lembrarLid, numeroDoLid } from '../funcoes/banco.js'
 import { erroParaCliente } from '../funcoes/marca.js'
 import { modoCliente } from '../funcoes/cliente.js'
 import {
@@ -246,8 +246,8 @@ isOwner: Boolean(senderNumber && ownerNumbers.includes(senderNumber)),
 isAdmin,
 isBotAdmin,
 isDonoAluguel,
-isVip: Boolean(vencerVips(), isDonoAluguel || (senderNumber && state.vip.includes(senderNumber))),
-isPremium: Boolean(isDonoAluguel || (senderNumber && state.vip.includes(senderNumber))), // alias legado
+isVip: Boolean(vencerVips(), isDonoAluguel || (senderNumber && ehVip(senderNumber))),
+isPremium: Boolean(isDonoAluguel || (senderNumber && ehVip(senderNumber))), // alias legado
 metadata,
 db: state,
 profile: currentProfile,

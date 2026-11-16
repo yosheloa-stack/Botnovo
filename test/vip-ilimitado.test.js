@@ -11,3 +11,15 @@ test('like e dislike não cobram cota de VIP', () => {
   assert.match(handler, /if \(ffDislike && !system\.isVip[^\n]*\) \{/)
   assert.match(handler, /if \(ffDislike && !system\.isVip[^\n]*\) consumirCotaFF/)
 })
+
+test('VIP vale com ou sem o 9 do celular', async () => {
+  const os = await import('node:os'), path = await import('node:path')
+  process.chdir(fs.mkdtempSync(path.join(os.tmpdir(), 'aurora-vip9-')))
+  process.env.AURORA_CLIENTE = ''
+  const banco = await import('../sistema/funcoes/banco.js')
+  await banco.loadState()
+  banco.darVip('5511999998888')
+  assert.equal(banco.ehVip('551199998888'), true)
+  assert.equal(banco.ehVip('5511999998888'), true)
+  assert.equal(banco.ehVip('5511911112222'), false)
+})
