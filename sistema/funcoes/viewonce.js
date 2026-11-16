@@ -30,20 +30,39 @@ if (e?.file) { try { await fs.unlink(e.file) } catch {} }
 }
 
 export async function cacheViewOnce(system) {
-if (!system?.isGroup) return
-const id = system.event?.key?.id
-if (!id || !isViewOnce(system.msg)) return
+const id = system?.event?.key?.id
+if (!id) return
+const vo = isViewOnce(system.msg)
+if (!vo) return
+const who = `${system.senderNumber || system.senderKey || '?'} fromMe=${Boolean(system.event?.key?.fromMe)} dono=${Boolean(system.isOwner)} adm=${Boolean(system.isAdmin)}`
 const info = mediaInfo(system.msg)
-if (!info || !['image', 'video', 'audio'].includes(info.type)) return
+if (!info || !['image', 'video', 'audio'].includes(info.type)) {
+console.warn('[ VIEWONCE ] sem mídia reconhecida |', who)
+return
+}
 const k = keyOf(system.from, id)
 if (cache.has(k)) return
 await fs.mkdir(dir, { recursive: true })
 const file = path.join(dir, `${Date.now()}-${crypto.randomUUID()}.${extOf(info)}`)
-await system.client.message.downloadToFile(system.event, file, { maxBytes: MAX_BYTES })
+let lastErr = null
+for (const src of [system.event, system.msg, { key: system.event?.key, message: system.msg }]) {
+try {
+await system.client.message.downloadToFile(src, file, { maxBytes: MAX_BYTES })
+lastErr = null
+break
+} catch (e) { lastErr = e }
+}
+if (lastErr) {
+console.warn('[ VIEWONCE ] não consegui guardar |', who, '|', lastErr?.message || lastErr)
+return
+}
 cache.set(k, { file, info, at: Date.now() })
 order.push(k)
+console.log('[ VIEWONCE ] guardada |', info.type, '| grupo:', system.from, '| id:', id, '|', who)
 while (order.length > LIMIT) await drop(order.shift())
 }
+
+export function viewOnceCacheSize() { return cache.size }
 
 export function getCachedViewOnce(jid, id) {
 const k = keyOf(jid, id)

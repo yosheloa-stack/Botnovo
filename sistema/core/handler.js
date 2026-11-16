@@ -237,9 +237,8 @@ if (system.isGroup && aluguelOn() && !aluguelOk(system.from) && !system.isOwner)
 }
 
 // guarda visualização única na hora (o /revelar usa essa cópia); não segura comandos
-if (system.isGroup) {
-  void Promise.resolve().then(() => cacheViewOnce(system)).catch(() => {})
-}
+void Promise.resolve().then(() => cacheViewOnce(system)).catch(err =>
+  console.warn('[ VIEWONCE ] erro:', err?.message || err))
 // X9 é acessório: downloads de mídia/arquivos não podem segurar comandos.
 if (system.isGroup) {
   void Promise.resolve().then(() => cacheIncomingX9(system)).catch(err =>
