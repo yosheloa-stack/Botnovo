@@ -78,8 +78,8 @@ mimetype: info.mimetype,
 ...(info.type === 'audio' ? { ptt: info.ptt } : {})
 }, system.from)
 } catch (err) {
-console.warn('[ REVELAR ] falhou:', err?.message || err)
-return system.reply(`❌ Não consegui recuperar essa visualização única. Ela pode já ter expirado ou ficado indisponível.`)
+console.warn('[ REVELAR ] falhou:', err?.message || err, '| id citado:', quoted.id, '| participante citado:', quoted.participant || '-', '| fromMe estimado:', Boolean(target.fromMe), '| sem copia guardada (mensagem enviada antes do bot ligar ou nao baixou)')
+return system.reply(`❌ Não consegui recuperar essa visualização única. O bot só consegue revelar as que chegaram no grupo depois de ele ligar, e a mídia precisa ter sido baixada na hora.`)
 } finally {
 try { await fs.unlink(file) } catch {}
 }
