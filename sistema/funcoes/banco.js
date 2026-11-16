@@ -3,6 +3,7 @@ import { mkdirSync, existsSync } from 'node:fs'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { modoCliente, marcaCliente, aoMudarIdioma } from './cliente.js'
+import { variantesNumero } from './jid.js'
 
 const dir = path.resolve('sistema/dados')
 const file = path.join(dir, 'dados.db')
@@ -233,6 +234,11 @@ export function darVip(n) {
   const u = String(n)
   if (!state.vip.includes(u)) state.vip.push(u)
   state.vipAte[u] = Date.now() + VIP_MS
+}
+// VIP vale com ou sem o 9 do celular do Brasil (cadastrou de um jeito, o
+// WhatsApp manda do outro).
+export function ehVip(n) {
+  return variantesNumero(n).some((v) => state.vip.includes(v))
 }
 export function tirarVip(n) { const u = String(n); state.vip = state.vip.filter(x => x !== u); delete state.vipAte[u] }
 // Tira quem já passou dos 30 dias. Devolve true se mudou algo.

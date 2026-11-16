@@ -1,4 +1,5 @@
 import { findParticipant } from '../../funcoes/jid.js'
+import { ehVip } from '../../funcoes/banco.js'
 import { sendReplyButtons } from '../../funcoes/botoes.js'
 import { downloadFile, cleanup } from '../../funcoes/midia.js'
 
@@ -79,7 +80,7 @@ bio: 'Sem bio definida.', commands: 0, firstSeen: null, lastSeen: null, name: ''
 const participant = findParticipant(system.metadata?.participants || [], info.jid || info.pnJid || info.lidJid)
 const isAdmin = Boolean(participant?.isAdmin || participant?.isSuperAdmin || participant?.admin === 'admin' || participant?.admin === 'superadmin')
 const cargo = isSelf && system.isOwner ? 'Dono' : isAdmin ? 'Admin' : 'Membro'
-const vip = isSelf ? Boolean(system.isVip || system.isOwner) : Boolean(info.number && system.db.vip.includes(info.number))
+const vip = isSelf ? Boolean(system.isVip || system.isOwner) : Boolean(info.number && ehVip(info.number))
 const mention = info.number ? `@${info.number}` : (info.display || '@usuário')
 const jid = info.pnJid || info.jid || info.lidJid || system.sender
 const rel = relationship(system, info)
