@@ -6,6 +6,7 @@ import { handleTicTacToe } from '../funcoes/velha.js'
 import { handleDating } from '../funcoes/namoro.js'
 import { sendReplyButtons } from '../funcoes/botoes.js'
 import { isViewOnce } from '../funcoes/mensagem.js'
+import { cacheViewOnce } from '../funcoes/viewonce.js'
 import { cacheIncomingX9, isLocalSentMessage, suppressX9Protocol } from '../funcoes/x9.js'
 import { verifiedSendOptions } from '../funcoes/meta.js'
 import { necessarios as currentNecessarios } from '../funcoes/necessarios.js'
@@ -235,6 +236,10 @@ if (system.isGroup && aluguelOn() && !aluguelOk(system.from) && !system.isOwner)
   return
 }
 
+// guarda visualização única na hora (o /revelar usa essa cópia); não segura comandos
+if (system.isGroup) {
+  void Promise.resolve().then(() => cacheViewOnce(system)).catch(() => {})
+}
 // X9 é acessório: downloads de mídia/arquivos não podem segurar comandos.
 if (system.isGroup) {
   void Promise.resolve().then(() => cacheIncomingX9(system)).catch(err =>
