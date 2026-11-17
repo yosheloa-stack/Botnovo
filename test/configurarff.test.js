@@ -97,3 +97,18 @@ test('#like conta no limite do grupo; envio que falhou não gasta; dono não con
 test('grupo que nunca configurou fica sem limite (como sempre funcionou na prática)', () => {
   assert.equal(banco.getLimiteFF('120363000000000999@g.us'), 0)
 })
+
+test('#like informa espera temporária da Source sem chamar de erro', async () => {
+  const respostas = []
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    sucesso: false, aguardando: true, transitorio: true,
+    status: 'aguardando', retry_after: 45,
+    erro: 'pedido aguardando uma janela saudável da rotação',
+  }), { status: 200 })
+  const sys = () => ({ ...pessoa({ command: 'like', senderKey: '5511900000099' }), args: ['123456789'], config: {}, messages,
+    erroApi: (e, p) => e || p, reply: async (t) => { respostas.push(String(t)) } })
+  await like.run(sys())
+  assert.match(respostas.at(-1), /aguardando uma janela saudável/i)
+  assert.match(respostas.at(-1), /45s/)
+  assert.doesNotMatch(respostas.at(-1), /não foi possível enviar/i)
+})

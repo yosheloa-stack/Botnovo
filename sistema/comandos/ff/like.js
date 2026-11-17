@@ -15,6 +15,11 @@ let d
 try { d = await autoSystem.like(system.config, uid, system.args[1]) } catch (err) { if (conta) devolverCotaFF(system.from, system.senderKey); throw err }
 // Não entrou nada: não gasta a vaga da pessoa.
 if (conta && (!d.sucesso || Number(d.likes_enviados) === 0)) devolverCotaFF(system.from, system.senderKey)
+if (d?.aguardando || d?.transitorio || d?.status === 'aguardando') {
+const espera = Number(d.retry_after || d.libera_em_segundos)
+const quando = Number.isFinite(espera) && espera > 0 ? ` Tente novamente em cerca de ${espera}s.` : ' Tente novamente em instantes.'
+return system.reply(`⏳ O envio ficou aguardando uma janela saudável da Source.${quando}`)
+}
 if (!d.sucesso) return system.reply(system.messages.apiError(system.erroApi(d.erro, system.messages.ffLikeError())))
 await system.reply(system.messages.ffLike(d, uid, system.erroApi(d.aviso, '')))
 }
