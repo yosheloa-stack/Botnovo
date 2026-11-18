@@ -200,9 +200,23 @@ reconnectTimer = restartTimer = null
 // bot da casa e pro bot de cliente (o dono pode ter alugado um pro número fixo).
 const avisarLauncher = (msg) => { if (typeof process.send === 'function') try { process.send(msg) } catch {} }
 if (typeof process.send === 'function') {
-process.on('message', async (msg) => {
-if (msg?.tipo === 'aurora_criador') { if (msg.numero) auroraCriador(msg.numero); return }
-if (msg?.tipo !== 'aviso_venda') return
+	process.on('message', async (msg) => {
+	if (msg?.tipo === 'aurora_criador') { if (msg.numero) auroraCriador(msg.numero); return }
+	if (msg?.tipo === 'aviso_reposicao') {
+	const responder = (r) => avisarLauncher({ tipo: 'aviso_reposicao_resultado', id: msg.id, pedido: process.env.AURORA_ALUGUEL_PEDIDO || '', ...r })
+	if (!modoCliente) return responder({ ok: false, erro: 'instância não é um bot alugado de cliente' })
+	if (!connectionOpen) return responder({ ok: false, erro: 'WhatsApp desconectado' })
+	const para = digits(process.env.AURORA_OWNER_NUMBER || '')
+	const texto = String(msg.texto || '').trim()
+	if (!para || !texto) return responder({ ok: false, erro: 'número do dono ou texto ausente' })
+	try {
+	// Envio sem a marca/rodapé automático: o texto é a mensagem neutra do lote.
+	await mandarAoCliente(client, para, texto, { semMarca: true })
+	responder({ ok: true })
+	} catch (err) { responder({ ok: false, sem_whatsapp: !!err?.semWhatsapp, recusado: err?.recusado || null, erro: String(err?.message || err) }) }
+	return
+	}
+	if (msg?.tipo !== 'aviso_venda') return
 const responder = (r) => avisarLauncher({ tipo: 'aviso_venda_ok', id: msg.id, ...r })
 if (!connectionOpen) return responder({ ok: false, erro: 'WhatsApp desconectado' })
 try {

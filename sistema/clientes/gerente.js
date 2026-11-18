@@ -134,6 +134,40 @@ export function criarGerente({
     }
   }
 
+  const confirmarReposicao = (pedido, id) => chamar('/api/bot/reposicoes-dias/entregues', {
+    method: 'POST', body: { pedido, ids: [id], canal: 'whatsapp' }
+  })
+  async function processarReposicoes(estado) {
+    const c = estado.conf
+    const avisos = Array.isArray(c?.avisos_reposicao) ? c.avisos_reposicao : []
+    for (const aviso of avisos) {
+      const id = limpo(aviso?.id)
+      if (!id) continue
+      if (estado.avisosAck.has(id)) {
+        try {
+          await confirmarReposicao(c.pedido, id)
+          estado.avisosAck.delete(id); estado.avisosEmVoo.delete(id); estado.avisosRetry.delete(id)
+        } catch (err) { log.warn('[ AURORA REPOSIÇÃO ] Não consegui confirmar no site:', err?.message || err) }
+        continue
+      }
+      if (!estado.conectado || !estado.filho?.connected || c.desligado === true || estado.avisosEmVoo.has(id)) continue
+      if ((estado.avisosRetry.get(id) || 0) > Date.now()) continue
+      estado.avisosEmVoo.add(id)
+      try {
+        estado.filho.send({ tipo: 'aviso_reposicao', id, pedido: c.pedido, texto: String(aviso.texto || '') }, (err) => {
+          if (!err) return
+          estado.avisosEmVoo.delete(id)
+          estado.avisosRetry.set(id, Date.now() + 5 * 60_000)
+          log.warn('[ AURORA REPOSIÇÃO ] Não consegui enviar ao bot do pedido ' + c.pedido + ':', err?.message || err)
+        })
+      } catch (err) {
+        estado.avisosEmVoo.delete(id)
+        estado.avisosRetry.set(id, Date.now() + 5 * 60_000)
+        log.warn('[ AURORA REPOSIÇÃO ] Não consegui enviar ao bot do pedido ' + c.pedido + ':', err?.message || err)
+      }
+    }
+  }
+
   const pastaDe = (pedido) => path.join(pastaBase, nomePasta(pedido))
   const sessaoDe = (pedido) => path.join(pastaDe(pedido), 'sistema', 'dados', 'sessao')
   const temSessao = (pedido) => {
@@ -205,9 +239,27 @@ export function criarGerente({
         for (const l of linhas) if (l.trim()) log.log(`[ cliente ${nome} ] ${l}`)
       })
     }
-    filho.on('message', (msg) => {
+    filho.on('message', async (msg) => {
       const tipo = msg?.tipo
       if (tipo === 'codigo') void contar(c.pedido, { codigo: limpo(msg.codigo).slice(0, 16) })
+      else if (tipo === 'aviso_reposicao_resultado') {
+        const id = limpo(msg.id)
+        const pedido = limpo(msg.pedido || c.pedido)
+        if (!id || !estado.avisosEmVoo?.has(id)) return
+        if (msg.ok) {
+          try {
+            await confirmarReposicao(pedido, id)
+            estado.avisosEmVoo.delete(id); estado.avisosAck?.delete(id); estado.avisosRetry?.delete(id)
+          } catch (err) {
+            estado.avisosAck?.add(id)
+            log.warn('[ AURORA REPOSIÇÃO ] Mensagem enviada; confirmação ficará pendente:', err?.message || err)
+          }
+        } else {
+          estado.avisosEmVoo.delete(id)
+          estado.avisosRetry.set(id, Date.now() + 5 * 60_000)
+          log.warn('[ AURORA REPOSIÇÃO ] O bot não entregou ao dono:', msg.erro || 'falha sem detalhe')
+        }
+      }
       else if (tipo === 'conectado') { estado.conectado = true; estado.numero = limpo(msg.numero).replace(/\D/g, ''); estado.falhas = 0; void contar(c.pedido, { ok: true, numero: limpo(msg.numero) }) }
       else if (tipo === 'desconectado') {
         estado.conectado = false; estado.motivo = 'desconectado'; void contar(c.pedido, { ok: false, erro: 'desconectado' })
@@ -330,7 +382,8 @@ export function criarGerente({
           estado = null
         }
         if (!estado) {
-          estado = { conf: c, seq, esperandoCodigo: false, falhas: 0, comandoSeq: Number(c.comando_seq) || 0 }
+          estado = { conf: c, seq, esperandoCodigo: false, falhas: 0, comandoSeq: Number(c.comando_seq) || 0,
+            avisosEmVoo: new Set(), avisosAck: new Set(), avisosRetry: new Map() }
           bots.set(pedido, estado)
           // Parado pelo site ("Gerenciar bot"): fica desligado até ela mandar ligar.
           if (c.desligado === true) { estado.parado = true; continue }
@@ -379,6 +432,9 @@ export function criarGerente({
         } else if (marcaMudou && estado.filho?.connected) {
           estado.filho.send({ tipo: 'marca', marca: marcaDo(c) })
         }
+        // Se mudou o contato do dono, o processo ainda usa o contato antigo:
+        // aguarde o reinício antes de mandar o aviso privado.
+        if (!donoMudou) await processarReposicoes(estado)
       }
       for (const [pedido, estado] of bots) {
         if (vistos.has(pedido)) continue

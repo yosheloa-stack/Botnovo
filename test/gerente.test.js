@@ -288,3 +288,19 @@ test('código pedido e nunca usado: ao ligar o app de novo não pede outro; só 
   await g2.sincronizar()
   assert.equal(filhos2.length, 1)
 })
+
+
+test('aviso de reposição vai pelo bot do pedido ao dono e confirma o envio ao site', async () => {
+  const aviso = { id: 'rep-1', texto: 'Bom dia!\n\nDias adicionados: 3 dias.' }
+  const { g, filhos, pedidos } = cenario(() => [cliente({ codigo_pedido: 1, avisos_reposicao: [aviso] })])
+  await g.sincronizar()
+  filhos[0].emit('message', { tipo: 'conectado', numero: '5511999990000' })
+  await g.sincronizar()
+  const enviado = filhos[0].enviadas.find((m) => m.tipo === 'aviso_reposicao')
+  assert.deepEqual(enviado, { tipo: 'aviso_reposicao', id: 'rep-1', pedido: 'p1', texto: aviso.texto })
+  filhos[0].emit('message', { tipo: 'aviso_reposicao_resultado', id: 'rep-1', pedido: 'p1', ok: true })
+  await espera()
+  const confirmacao = pedidos.find((p) => p.url.endsWith('/api/bot/reposicoes-dias/entregues'))
+  assert.ok(confirmacao, 'não confirmou a entrega no site')
+  assert.deepEqual(JSON.parse(confirmacao.opcoes.body), { pedido: 'p1', ids: ['rep-1'], canal: 'whatsapp' })
+})
